@@ -1,0 +1,3 @@
+User-agent: * 
+Disallow:
+Sitemap: https://www.gattoslab.dev/sitemap.xml
