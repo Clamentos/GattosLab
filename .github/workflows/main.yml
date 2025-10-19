@@ -33,6 +33,12 @@ jobs:
         with:
           name: Jar
           path: "/home/runner/work/GattosLab/GattosLab/target/"
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
       - name: Upload to remote
         run: |
-          echo kek
+          scp -i "~/.ssh/id_rsa" -o StrictHostKeyChecking=no /home/runner/work/GattosLab/GattosLab/target/*.jar ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}:/home/GattosLab
