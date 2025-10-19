@@ -3,13 +3,13 @@ on:
   push:
     branches:
       - main
-#    paths-ignore:
-#      - "README.md"
-#      - "LICENSE"
-#      - ".gitignore"
-#      - ".gitattributes"
-#      - ".mvn/**"
-#      - ".github/**"
+    paths-ignore:
+      - "README.md"
+      - "LICENSE"
+      - ".gitignore"
+      - ".gitattributes"
+      - ".mvn/**"
+      - ".github/**"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -51,7 +51,6 @@ jobs:
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
       - name: Stop old remote process and clean directory
         if: success()
-        uses: appleboy/ssh-action@v1.0.3
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
             while pgrep -x "java" > /dev/null; do
