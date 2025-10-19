@@ -20,7 +20,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Jar
-          path: "/target/gattoslab-0.0.1-SNAPSHOT.jar"
+          path: "/target/*.jar"
           if-no-files-found: error
   deploy:
     needs: build
