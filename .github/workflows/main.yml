@@ -10,6 +10,16 @@ on:
       - ".gitattributes"
       - ".mvn/**"
       - ".github/**"
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+      environment:
+        description: 'Environment to deploy'
+        required: false
+        default: 'staging'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -53,11 +63,15 @@ jobs:
         if: success()
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            while pgrep -x "java" > /dev/null; do
-              echo "Waiting for Java process to terminate..."
-              sleep 1s
-            done
+            if pgrep java; then
+              pkill java
+              while pgrep java > /dev/null; do
+                echo "Waiting for Java process to terminate..."
+                sleep 1s
+              done;
+            fi
             rm -f -- /home/GattosLab/*.jar
+            rm -f -- nohup.out
           EOF
       - name: Upload to remote
         if: success()
