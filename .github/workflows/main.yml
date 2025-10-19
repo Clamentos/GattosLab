@@ -63,12 +63,11 @@ jobs:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          debug: true
           script: |
             pkill java
             sleep 10s
-            rm *.jar 2> /dev/null
-            rm nohup.out 2> /dev/null
+            rm /home/GattosLab/*.jar 2> /dev/null
+            rm /home/GattosLab/nohup.out 2> /dev/null
       - name: Upload to remote
         if: success()
         run: |
@@ -81,4 +80,4 @@ jobs:
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            nohup java -jar gattoslab*.jar &
+            nohup java -jar /home/GattosLab/gattoslab*.jar &
