@@ -79,4 +79,4 @@ jobs:
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            setsid java -jar /home/GattosLab/gattoslab*.jar &>/dev/null
+            setsid java -jar /home/GattosLab/gattoslab*.jar > /dev/null disown
