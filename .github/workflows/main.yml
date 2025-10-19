@@ -67,7 +67,6 @@ jobs:
             pkill java
             sleep 10s
             rm -f -- /home/GattosLab/*.jar 2
-            rm -f -- /home/GattosLab/nohup.out
       - name: Upload to remote
         if: success()
         run: |
@@ -80,4 +79,4 @@ jobs:
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            nohup java -jar /home/GattosLab/gattoslab*.jar &
+            setsid java -jar /home/GattosLab/gattoslab*.jar &>/dev/null
