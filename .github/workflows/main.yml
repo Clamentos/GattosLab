@@ -48,7 +48,7 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
-      - name: Stop old remote process
+      - name: Stop old remote process and clean directory
         if: success()
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -58,6 +58,8 @@ jobs:
           script: |
             pkill java
             sleep 10s
+            rm gattoslab*.jar
+            rm nohup.out
       - name: Upload to remote
         if: success()
         run: |
