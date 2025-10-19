@@ -2,7 +2,7 @@ name: Java CI pipeline
 on:
   push:
     branches:
-      - "main"
+      - main
 #    paths-ignore:
 #      - "README.md"
 #      - "LICENSE"
