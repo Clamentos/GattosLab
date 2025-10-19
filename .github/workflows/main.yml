@@ -1,14 +1,15 @@
 name: Java CI pipeline
 on:
   push:
-    branches: ["main"]
-    paths-ignore:
-      - "README.md"
-      - "LICENSE"
-      - ".gitignore"
-      - ".gitattributes"
-      - ".mvn/**"
-      - ".github/**"
+    branches:
+      - "main"
+#    paths-ignore:
+#      - "README.md"
+#      - "LICENSE"
+#      - ".gitignore"
+#      - ".gitattributes"
+#      - ".mvn/**"
+#      - ".github/**"
 jobs:
   build:
     runs-on: ubuntu-latest
