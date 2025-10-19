@@ -66,8 +66,8 @@ jobs:
           script: |
             pkill java
             sleep 10s
-            rm /home/GattosLab/*.jar 2> /dev/null
-            rm /home/GattosLab/nohup.out 2> /dev/null
+            rm -f -- /home/GattosLab/*.jar 2
+            rm -f -- /home/GattosLab/nohup.out
       - name: Upload to remote
         if: success()
         run: |
