@@ -20,7 +20,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Jar
-          path: "/target/*.jar"
+          path: target/*.jar
+          run: |
+            ls
           if-no-files-found: error
   deploy:
     needs: build
