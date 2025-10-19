@@ -2,18 +2,28 @@ name: Java CI pipeline
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "README.md"
+      - "LICENSE"
+      - ".gitignore"
+      - ".gitattributes"
+      - ".mvn/**"
+      - ".github/**"
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout branch
+        uses: actions/checkout@v5
       - name: Setup JDK 25
+        if: success()
         uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'temurin'
           cache: maven
       - name: Build with Maven
+        if: success()
         run: mvn clean package
       - name: Upload Artifact
         if: success()
@@ -21,8 +31,6 @@ jobs:
         with:
           name: Jar
           path: target/*.jar
-          run: |
-            ls
           if-no-files-found: error
   deploy:
     needs: build
@@ -34,11 +42,32 @@ jobs:
           name: Jar
           path: "/home/runner/work/GattosLab/GattosLab/target/"
       - name: Setup SSH
+        if: success()
         run: |
           mkdir -p ~/.ssh/
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+      - name: Stop old remote process
+        if: success()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            pkill java
+            sleep 10s
       - name: Upload to remote
+        if: success()
         run: |
           scp -i "~/.ssh/id_rsa" -o StrictHostKeyChecking=no /home/runner/work/GattosLab/GattosLab/target/*.jar ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}:/home/GattosLab
+      - name: Start new remote process
+        if: success()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            nohup java -jar gattoslab*.jar &
