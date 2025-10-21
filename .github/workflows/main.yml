@@ -18,26 +18,32 @@ on:
         default: 'warning'
       environment:
         description: 'Environment to deploy'
-        required: false
-        default: 'staging'
+        required: true
+        default: 'dev'
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
         uses: actions/checkout@v5
+      - name: Cache Maven dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.m2/repository
+            target
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
       - name: Setup JDK 25
-        if: success()
         uses: actions/setup-java@v5
         with:
           java-version: "25"
           distribution: "temurin"
           cache: maven
       - name: Build with Maven
-        if: success()
         run: mvn clean package
       - name: Upload Artifact
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Jar
@@ -53,33 +59,35 @@ jobs:
           name: Jar
           path: "/home/runner/work/GattosLab/GattosLab/target/"
       - name: Setup SSH
-        if: success()
         run: |
           mkdir -p ~/.ssh/
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
       - name: Stop old remote process and clean directory
-        if: success()
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            if pgrep java; then
-              pkill java
-              while pgrep java > /dev/null; do
-                echo "Waiting for Java process to terminate..."
-                sleep 1s
-              done;
+            if test -e current_pid.txt; then
+              pid=$(cat current_pid.txt)
+              if [ ! -z "$pid" ]; then
+                kill -15 $pid
+                while ps -p $pid > /dev/null; do 
+                  sleep 1s;
+                  echo "Waiting for process " $pid " to terminate..."
+                done;
+                echo "Process " $pid " stopped"
+              fi
             fi
             rm -f -- /home/GattosLab/*.jar
-            rm -f -- nohup.out
+            rm -f -- /home/GattosLab/nohup.out
+            rm -f -- /home/GattosLab/current_pid.txt
           EOF
       - name: Upload to remote
-        if: success()
         run: |
           scp -i "~/.ssh/id_rsa" -o StrictHostKeyChecking=no /home/runner/work/GattosLab/GattosLab/target/*.jar ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}:/home/GattosLab
       - name: Start new remote process
-        if: success()
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            nohup java -jar /home/GattosLab/*.jar --server.ssl.key-store-password=${{ secrets.KEYSTORE_PSW }} > /dev/null 2>&1 &
+            nohup java -jar /home/GattosLab/*.jar --server.ssl.key-store-password=${{ secrets.KEYSTORE_PSW }} --app.metrics.apiKey=${{ secrets.METRICS_API_KEY }} -Dspring.profiles.active=prod > /dev/null 2>&1 &
+            echo $! > /home/GattosLab/current_pid.txt
           EOF
