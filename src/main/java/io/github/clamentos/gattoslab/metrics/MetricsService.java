@@ -5,14 +5,34 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 ///.
+import io.github.clamentos.gattoslab.metrics.model.HitsTracker;
+import io.github.clamentos.gattoslab.metrics.model.PerformanceEntry;
+import io.github.clamentos.gattoslab.metrics.model.PerformanceMetrics;
+import io.github.clamentos.gattoslab.metrics.model.PerformanceSubEntry;
+import io.github.clamentos.gattoslab.utils.Pair;
+
+///.
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+///.
+import java.io.IOException;
+
+///.
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+
+///.
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -25,50 +45,84 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.support.ServletRequestHandledEvent;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 ///
 @Service
 @Slf4j
 
 ///
-public class MetricsService {
+public class MetricsService implements HandlerInterceptor {
 
     ///
-    private final Map<String, AtomicLong> totalRequests; // Since last reboot.
-    private final Map<String, MetricsEntry> metricsFront;
-    private final Map<String, MetricsEntry> metricsBack;
+    private final HitsTracker hitsTracker;
+    private final PerformanceMetrics performanceMetrics;
 
     private final AtomicInteger index;
-    private final AtomicBoolean frontOrBack;
 
     ///..
-    private final int numBuckets;
-    private final int maxLatencyBucket;
+    private final Set<String> paths;
+
+    ///..
+    private final List<Pair<Integer, Integer>> latencyBuckets;
     private final int rateCapacity;
 
     ///..
     private final Logger metricsLogger;
-
-    ///..
     private final ObjectMapper objectMapper;
 
     ///
     @Autowired
-    public MetricsService(final Environment environment, final ObjectMapper objectMapper) {
+    public MetricsService(final Environment environment, final ObjectMapper objectMapper)
+    throws IOException, ParserConfigurationException, SAXException {
 
-        totalRequests = new ConcurrentHashMap<>();
-        metricsFront = new ConcurrentHashMap<>();
-        metricsBack = new ConcurrentHashMap<>();
+        hitsTracker = new HitsTracker(
+
+            environment.getProperty("app.metrics.maxTotalRequestCounterSize", Integer.class, 1000),
+            environment.getProperty("app.metrics.maxUserAgentCounterSize", Integer.class, 250)
+        );
+
+        performanceMetrics = new PerformanceMetrics();
 
         index = new AtomicInteger();
-        frontOrBack = new AtomicBoolean(true);
+        paths = new HashSet<>();
 
-        numBuckets = environment.getProperty("app.metrics.numBuckets", Integer.class, 8);
-        maxLatencyBucket = environment.getProperty("app.metrics.maxLatencyBucket", Integer.class, 1000);
+        final DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        final Document siteMap = builder.parse(new ClassPathResource("static/sitemap.xml").getInputStream());
+        final NodeList nodeList = siteMap.getElementsByTagName("loc");
+
+        for(int i = 0; i < nodeList.getLength(); i++) { //TODO: images too
+
+            final String loc = nodeList.item(i).getTextContent();
+            paths.add(nodeList.item(i).getTextContent().substring(loc.lastIndexOf('/')));
+        }
+
+        final String latencyBucketsString = environment.getProperty(
+
+            "app.metrics.latencyBuckets",
+            String.class,
+            "1-10,11-20,21-50,51-100,101-200,201-500,501-1000"
+        );
+
+        latencyBuckets = Arrays
+            .asList(latencyBucketsString.split(","))
+            .stream()
+            .map(element -> {
+
+                final String[] pair = element.split("-");
+                return new Pair<>(Integer.parseInt(pair[0]), Integer.parseInt(pair[1]));
+            })
+            .toList()
+        ;
+
         rateCapacity = environment.getProperty("app.metrics.rateCapacity", Integer.class, 12);
 
         metricsLogger = LoggerFactory.getLogger("metrics");
@@ -76,28 +130,61 @@ public class MetricsService {
     }
 
     ///
-    public Map<String, Long> getTotalRequests() {
+    public Map<String, Object> getHitsTrackerData() {
 
-        return totalRequests.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, element -> element.getValue().get()));
+        final Map<String, Long> requestCountsMap = hitsTracker
+            .getTotalRequestCounter()
+            .entrySet()
+            .stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, element -> element.getValue().get()))
+        ;
+
+        final Map<String, Long> userAgentCountsMap = hitsTracker
+            .getUserAgentCounter()
+            .entrySet()
+            .stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, element -> element.getValue().get()))
+        ;
+
+        final Map<String, Object> json = new LinkedHashMap<>();
+
+        json.put("requestEntries", requestCountsMap.size());
+        json.put("userAgentEntries", userAgentCountsMap.size());
+        json.put("requests", requestCountsMap);
+        json.put("userAgents", userAgentCountsMap);
+
+        return json;
+    }
+
+    ///..
+    @Override
+    public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler) {
+
+        hitsTracker.updateUserAgentCount(request.getHeader("User-Agent"));
+        return true;
     }
 
     ///.
     @EventListener
     protected void handleRequestHandledEvent(final ServletRequestHandledEvent requestHandledEvent) {
 
-        final String url = requestHandledEvent.getRequestUrl();
-        final HttpStatus status = HttpStatus.valueOf(requestHandledEvent.getStatusCode());
-        final int elapsedTime = (int)requestHandledEvent.getProcessingTimeMillis();
-        final Map<String, MetricsEntry> metrics = frontOrBack.get() ? metricsFront : metricsBack;
+        final String trueUrl = requestHandledEvent.getRequestUrl();
+        final String url = paths.contains(trueUrl) ? trueUrl : "<other>";
 
-        totalRequests.computeIfAbsent(url, _ -> new AtomicLong()).incrementAndGet();
+        hitsTracker.updateRequestCount(trueUrl);
 
-        metrics
-            .computeIfAbsent(url, _ -> new MetricsEntry(rateCapacity, numBuckets, maxLatencyBucket))
-            .update(status, elapsedTime, index.get());
+        performanceMetrics
+            .getMetricsMap()
+            .computeIfAbsent(url, _ -> new PerformanceEntry(rateCapacity, latencyBuckets))
+            .update(
+
+                HttpStatus.valueOf(requestHandledEvent.getStatusCode()),
+                (int)requestHandledEvent.getProcessingTimeMillis(),
+                index.get()
+            );
     }
 
-    ///..
+    ///.
     @Scheduled(fixedRateString = "${app.metrics.logDelay}")
     protected void scheduledMetricsTask() {
 
@@ -105,33 +192,27 @@ public class MetricsService {
 
         if(index.get() == rateCapacity) {
 
-            final boolean frontOrBackValue = frontOrBack.get();
-            final Map<String, MetricsEntry> metrics = frontOrBackValue ? metricsFront : metricsBack;
-
-            frontOrBack.set(!frontOrBackValue);
+            final Map<String, PerformanceEntry> oldMap = performanceMetrics.swap();
             index.set(0);
 
-            final String message = this.createMetricsLogEntry(metrics);
+            final String message = this.createMetricsLogEntry(oldMap);
 
             if(message != null && !message.equals("")) metricsLogger.info(message);
-            metrics.clear();
+            oldMap.clear();
         }
     }
 
     ///.
-    private String createMetricsLogEntry(final Map<String, MetricsEntry> metrics) {
+    private String createMetricsLogEntry(final Map<String, PerformanceEntry> metrics) {
 
         final Map<String, Object> metricsLog = new LinkedHashMap<>();
 
-        for(final Map.Entry<String, MetricsEntry> entry : metrics.entrySet()) {
+        for(final Map.Entry<String, PerformanceEntry> entry : metrics.entrySet()) {
 
-            final String url = entry.getKey();
-            final MetricsEntry metricsEntry = entry.getValue();
             final Map<String, Object> metricsLogEntry = new LinkedHashMap<>();
 
-            metricsLogEntry.put("rps", this.createRpsLogEntry(metricsEntry));
-            metricsLogEntry.put("latencies", this.createLatencyLogEntry(metricsEntry));
-            metricsLog.put(url, metricsLogEntry);
+            this.createLogEntry(metricsLogEntry, entry.getValue());
+            metricsLog.put(entry.getKey(), metricsLogEntry);
         }
 
         if(!metricsLog.isEmpty()) {
@@ -152,36 +233,27 @@ public class MetricsService {
     }
 
     ///..
-    private Map<String, Object> createRpsLogEntry(final MetricsEntry metricsEntry) {
+    private void createLogEntry(final Map<String, Object> metricsLog, final PerformanceEntry metricsEntry) {
 
-        final Map<String, Object> rpsLog = new LinkedHashMap<>();
+        final Map<String, List<Long>> rpsLog = new LinkedHashMap<>();
+        final Map<String, Map<String, Long>> responseTimes = new LinkedHashMap<>();
 
-        for(final Map.Entry<HttpStatus, List<AtomicInteger>> entry : metricsEntry.getRequestCounts().entrySet()) {
+        for(final Map.Entry<HttpStatus, PerformanceSubEntry> entry : metricsEntry.getSubEntries().entrySet()) {
 
-            final List<Integer> latencies = entry.getValue().stream().map(AtomicInteger::get).toList();
-            rpsLog.put(entry.getKey().getReasonPhrase(), latencies);
-        }
+            final String key = entry.getKey().getReasonPhrase();
+            final PerformanceSubEntry value = entry.getValue();
 
-        return rpsLog;
-    }
+            rpsLog.put(key, value.getRequestCounter().stream().map(AtomicLong::get).toList());
 
-    ///..
-    private Map<String, Object> createLatencyLogEntry(final MetricsEntry metricsEntry) {
-
-        final Map<String, Object> latencyLog = new LinkedHashMap<>();
-
-        for(final Map.Entry<HttpStatus, List<LatencyRange>> entry : metricsEntry.getLatencies().entrySet()) {
-
-            final Map<String, Integer> latencies = entry.getValue().stream().collect(Collectors.toMap(
+            responseTimes.put(key, value.getResponseTimeDistribution().stream().collect(Collectors.toMap(
 
                 element -> element.getStart() + "-" + element.getEnd(),
                 element -> element.getCount().get()
-            ));
-
-            latencyLog.put(entry.getKey().getReasonPhrase(), latencies);
+            )));
         }
 
-        return latencyLog;
+        metricsLog.put("rps", rpsLog);
+        metricsLog.put("responseTimes", responseTimes);
     }
 
     ///
@@ -199,7 +271,7 @@ public class MetricsService {
             "NOT_FOUND": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         },
 
-        "latencies": {
+        "responseTimes": {
 
             "OK": {"0-99": 1},
             "NOT_FOUND": {"100-199": 1}

@@ -32,10 +32,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ///
     @ExceptionHandler(value = TooManyRequestsException.class)
-    public ResponseEntity<Void> handleTooManyRequestsException(final TooManyRequestsException exc, final WebRequest request) {
+    public ResponseEntity<String> handleTooManyRequestsException(final TooManyRequestsException exc, final WebRequest request) {
 
-        log.warn("Rate limit, {}", exc.getIp());
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", retryAfter).build();
+        final String ip = exc.getIp();
+        final String message = ip == null ? "Global rate limit reached" : "Local rate limit reached";
+
+        log.warn("{}, {}", message, ip);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", retryAfter).body(message);
     }
 
     ///

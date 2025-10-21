@@ -26,15 +26,22 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class RateLimiter implements HandlerInterceptor {
 
     ///
+    private final AtomicInteger globalCounter;
     private final Map<String, AtomicInteger> counters;
+
+    ///..
+    private final int maxGlobalTokens;
     private final int maxTokens;
 
     ///
     @Autowired
     public RateLimiter(final Environment environment) {
 
-        counters = new ConcurrentHashMap<>();
+        maxGlobalTokens = environment.getProperty("app.ratelimit.maxGlobalTokens", Integer.class, 1000);
         maxTokens = environment.getProperty("app.ratelimit.maxTokens", Integer.class, 1000);
+
+        globalCounter = new AtomicInteger(maxGlobalTokens);
+        counters = new ConcurrentHashMap<>();
     }
 
     ///
@@ -43,8 +50,10 @@ public class RateLimiter implements HandlerInterceptor {
     throws TooManyRequestsException {
 
         final String ip = request.getRemoteAddr();
+        final boolean tooManyGlobalRequests = globalCounter.decrementAndGet() < 0;
         final boolean tooManyRequests = counters.computeIfAbsent(ip, _ -> new AtomicInteger(maxTokens)).decrementAndGet() < 0;
 
+        if(tooManyGlobalRequests) throw new TooManyRequestsException(null);
         if(tooManyRequests) throw new TooManyRequestsException(ip);
 
 		return true;
@@ -53,6 +62,8 @@ public class RateLimiter implements HandlerInterceptor {
     ///.
     @Scheduled(fixedRateString = "${app.ratelimit.replenishDelay}")
     protected void replenish() {
+
+        globalCounter.set(maxGlobalTokens);
 
         for(final Map.Entry<String, AtomicInteger> entry : counters.entrySet()) {
 
