@@ -81,5 +81,5 @@ jobs:
         if: success()
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            nohup java -jar /home/GattosLab/*.jar > /dev/null 2>&1 &
+            nohup java -jar /home/GattosLab/*.jar --server.ssl.key-store-password=${{ secrets.KEYSTORE_PSW }} > /dev/null 2>&1 &
           EOF
