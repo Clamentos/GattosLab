@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang = "en">
+
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. Admin site performance metrics page."/>
+
+        <link rel = "stylesheet" href = "../../styles.css"/>
+        <link rel = "icon" type = "image/x-icon" href = "../../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-item">
+                <img src = "../../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            </div>
+
+            <div class = "nav-item" style = "margin-left: 200px;">
+                <a href = "../../index.html" class = "nav-link">Home</a>
+                <a href = "../index.html" class = "nav-link">/ Admin</a>
+                <p class = "nav-link">/ Performance metrics</p>
+            </div>
+
+        </nav>
+
+        <main>
+            <div class = "cards-container">
+
+                <form class = "charts-form" onsubmit = "onSubmitEvent(event)">
+                    <input class = "login-input" type = "datetime-local" name = "startTimestamp" placeholder = "Start timestamp">
+                    <input class = "login-input" type = "datetime-local" name = "endTimestamp" placeholder = "End timestamp">
+                    <button class = "login-button" type = "submit">Filter</button>
+                </form>
+
+                <div id = "rps-charts"></div>
+                <div id = "latency-charts"></div>
+
+            </div>
+        </main>
+
+    </body>
+
+    <script src = "https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+
+        const numBuckets = 12;
+        const bucketSize = 5000; // Milliseconds
+        const baseUrl = "http://localhost:8080";
+        Chart.defaults.color = "#FFFFFF";
+
+        const charts = [];
+        fetchAndRenderMetrics();
+
+        // in: submit event, out: void
+        function onSubmitEvent(event) {
+
+            event.preventDefault();
+
+            const formStartTimestamp = event.target.startTimestamp.value;
+            const formEndTimestamp = event.target.endTimestamp.value;
+
+            fetchAndRenderMetrics(
+
+                formStartTimestamp === "" ? undefined : new Date(formStartTimestamp).getMilliseconds(),
+                formEndTimestamp === "" ? undefined : new Date(formEndTimestamp).getMilliseconds()
+            );
+        }
+
+        // in: (number, number), out: void
+        function fetchAndRenderMetrics(start = 0, end = 999999999999999) {
+
+            fetch(`${baseUrl}/admin/api/metrics/performance-metrics?startTimestamp=${start}&endTimestamp=${end}`).then(response => {
+
+                if(response.status === 200) {
+
+                    response.json().then(json => {
+
+                        for(const metric of json) metric.data = JSON.parse(metric.data);
+
+                        destroyCharts();
+                        drawRpsGraphs(json);
+                        drawLatencyGraphs(json);
+                    });
+                }
+
+                else {
+
+                    error(response);
+                }
+            })
+            .catch(error_ => error(error_));
+        }
+
+        // in: Metric[], out: void
+        function drawRpsGraphs(metrics) {
+
+            const timestampMap = new Map(); // status -> timestamp[]
+            const dataMap = new Map(); // status -> path -> values[]
+
+            for(const metric of metrics) {
+
+                for(const status of Object.keys(metric.data)) {
+
+                    fillMap(timestampMap, status, expandTimestamp(metric.timestamp));
+
+                    let pathMap = new Map();
+                    if(dataMap.has(status)) pathMap = dataMap.get(status);
+                    else dataMap.set(status, pathMap);
+
+                    for(const path of Object.keys(metric.data[status].requestsPerSecond)) {
+
+                        fillMap(pathMap, path, metric.data[status].requestsPerSecond[path]);
+                    }
+                }
+            }
+
+            const chartData = [];
+            const statuses = [];
+
+            for(const [status, timestamps] of timestampMap) {
+
+                const datasets = [];
+
+                for(const [path, values] of dataMap.get(status)) {
+
+                    datasets.push({
+
+                        label: path,
+                        data: values,
+                        fill: true,
+                        borderWidth: 1,
+                        pointRadius: 2,
+                        hidden: path !== "GET/"
+                    });
+                }
+
+                statuses.push(status);
+
+                chartData.push({
+
+                    timestamps: timestamps,
+                    datasets: datasets,
+                    status: status
+                });
+            }
+
+            const canvases = tabs(statuses, "rps-charts");
+            selectTab("rps-charts", statuses[0]);
+
+            for(let i = 0; i < canvases.length; i++) {
+
+                generateRpsGraph(canvases[i], chartData[i].timestamps, chartData[i].datasets, chartData[i].status);
+            }
+        }
+
+        function generateRpsGraph(chartCanvas, timestamps, datasets, status) {
+
+            const labels = [];
+            const valuesMap = new Map(); // path -> number[]
+
+            labels.push(new Date(timestamps[0]).toLocaleString());
+            for(const dataset of datasets) valuesMap.set(dataset.label, [dataset.data[0]]);
+
+            for(let i = 1; i <= timestamps.length - 1; i++) {
+
+                const difference = (timestamps[i] - timestamps[i - 1]) / bucketSize;
+
+                if(difference > 1) {
+
+                    for(let j = 1; j < difference; j++) {
+
+                        labels.push(new Date(timestamps[i - 1] + (bucketSize * j)).toLocaleString());
+                        for(const values of valuesMap.values()) values.push(0);
+                    }
+                }
+
+                labels.push(new Date(timestamps[i]).toLocaleString());
+                for(const dataset of datasets) valuesMap.get(dataset.label).push(dataset.data[i]);
+            }
+
+            for(const dataset of datasets) dataset.data = valuesMap.get(dataset.label);
+
+            charts.push(new Chart(chartCanvas, {
+
+                type: "line",
+
+                data: {
+
+                    labels: labels,
+                    datasets: datasets
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    plugins: {
+
+                        legend: {
+
+                            position: "right"
+                        },
+
+                        title: {
+
+                            display: true,
+                            text: `Requests per second for HTTP status: ${status}`
+                        },
+
+                        colors: {
+
+                            enabled: true
+                        }
+                    },
+
+                    scales: {
+
+                        x: {
+
+                            grid: {
+
+                                color: "rgba(255, 255, 255, 0.15)"
+                            }
+                        },
+
+                        y: {
+
+                            grid: {
+
+                                color: "rgba(255, 255, 255, 0.15)"
+                            }
+                        }
+                    }
+                }
+            }));
+        }
+
+        function drawLatencyGraphs(metrics) {
+
+            const dataMap = new Map(); // status -> path -> counts
+
+            for(const metric of metrics) {
+
+                for(const status of Object.keys(metric.data)) {
+
+                    for(const path of Object.keys(metric.data[status].latencyDistributions)) {
+
+                        const pathMap = initMap(dataMap, status, new Map());
+                        const distributions = initMap(pathMap, path, new Map());
+
+                        for(const bucket of Object.keys(metric.data[status].latencyDistributions[path])) {
+
+                            const count = metric.data[status].latencyDistributions[path][bucket];
+
+                            if(distributions.has(bucket)) distributions.set(bucket, distributions.get(bucket) + count);
+                            else distributions.set(bucket, 0);
+                        }
+                    }
+                }
+            }
+
+            const statuses = [];
+            const chartData = [];
+
+            for(const [status, pathMap] of dataMap) {
+
+                const labels = new Set();
+                const datasets = [];
+
+                statuses.push(status);
+
+                for(const [path, distributions] of pathMap) {
+
+                    const sortedDistributions = new Map(Array.from(distributions).sort((a, b) => {
+
+                        return Number(a[0].substring(0, a[0].indexOf("-"))) - Number(b[0].substring(0, b[0].indexOf("-")));
+                    }));
+
+                    const values = [];
+
+                    for(const [bucket, count] of sortedDistributions) {
+
+                        labels.add(bucket);
+                        values.push(count);
+                    }
+
+                    datasets.push({
+
+                        label: path,
+                        data: values,
+                        fill: true,
+                        borderWidth: 1,
+                        barPercentage: 0.75
+                    });
+                }
+
+                chartData.push({
+
+                    labels: labels,
+                    datasets: datasets
+                });
+            }
+
+            const canvases = tabs(statuses, "latency-charts");
+            selectTab("latency-charts", statuses[0]);
+
+            for(let i = 0; i < canvases.length; i++) {
+
+                charts.push(new Chart(canvases[i], {
+
+                    type: "bar",
+
+                    data: {
+
+                        labels: [...chartData[i].labels],
+                        datasets: chartData[i].datasets
+                    },
+
+                    options: {
+
+                        scales: {
+
+                            y: {
+
+                                beginAtZero: true
+                            }
+                        },
+
+                        responsive: true,
+
+                        plugins: {
+
+                            legend: {
+
+                                position: "top"
+                            },
+
+                            title: {
+
+                                display: true,
+                                text: `Latency distributions for HTTP status: ${status}`
+                            },
+
+                            colors: {
+
+                                enabled: true
+                            }
+                        }
+                    }
+                }));
+            }
+        }
+
+        // in: (number, number, number), out: number[]
+        function expandTimestamp(timestamp) {
+
+            const expanded = [];
+            for(let i = numBuckets - 1; i >= 0; i--) expanded.push(timestamp - (i * bucketSize));
+
+            return expanded;
+        }
+
+        // in: (Map<any, any>, any, any), out: Map<any, any>
+        function initMap(map, key, value) {
+
+            if(!map.has(key)) {
+
+                map.set(key, value);
+                return value;
+            }
+
+            return map.get(key);
+        }
+
+        // in: (Map<any, any>, any, Array<any>), out:
+        function fillMap(map, key, arrayVals) {
+
+            const vals = map.get(key);
+            if(vals !== null && vals !== undefined) vals.push(...arrayVals);
+            else map.set(key, arrayVals);
+        }
+
+        // in: any, out:void
+        function showError(error) {
+
+            // TODO: ...
+        }
+
+        // in: void, out: void
+        function destroyCharts() {
+
+            for(const chart of charts) chart.destroy();
+        }
+
+        function tabs(statuses, rootId) {
+
+            /*
+                <div id = "{{rootId}}">
+                    <div class = "tabs-header">
+                        <button id = "button-{{root}}-{{status}}">...</button>
+                        ...
+                    </div>
+                    <div class = "tabs-content">
+                        <canvas id = "chart-{{root}}-{{status}}"></canvas>
+                        ...
+                    </div>
+                </div>
+            */
+
+            const canvases = [];
+
+            const tabsHeaderDiv = document.createElement("div");
+            tabsHeaderDiv.className = "tabs-header";
+
+            const tabsContentDiv = document.createElement("div");
+            tabsContentDiv.className = "tabs-content";
+
+            const chartsDiv = document.getElementById(rootId);
+            chartsDiv.innerHTML = "";
+            chartsDiv.appendChild(tabsHeaderDiv);
+            chartsDiv.appendChild(tabsContentDiv);
+
+            for(const status of statuses) {
+
+                const id = `${rootId}-${status}`;
+
+                const tabSelectButton = document.createElement("button");
+                tabSelectButton.id = `button-${id}`;
+                tabSelectButton.className = "tabs-button";
+                tabSelectButton.innerText = `Status: ${status}`;
+                tabSelectButton.onclick = () => selectTab(rootId, status);
+                tabsHeaderDiv.appendChild(tabSelectButton);
+
+                const chartCanvas = document.createElement("canvas");
+                chartCanvas.id = `chart-${id}`;
+                chartCanvas.className = "chartjs-canvas"; 
+                tabsContentDiv.appendChild(chartCanvas);
+
+                canvases.push(chartCanvas);
+            }
+
+            return canvases;
+        }
+
+        function selectTab(rootId, status) {
+
+            const id = `${rootId}-${status}`;
+            const chartsDiv = document.getElementById(rootId);
+
+            for(const button of chartsDiv.getElementsByTagName("button")) {
+
+                if(button.id === `button-${id}`) button.className = "tabs-button-selected";
+                else button.className = "tabs-button";
+            }
+
+            for(const canvas of chartsDiv.getElementsByTagName("canvas")) {
+
+                if(canvas.id === `chart-${id}`) canvas.className = "chartjs-canvas-selected";
+                else canvas.className = "chartjs-canvas";
+            }
+        }
+
+    </script>
+
+</html>

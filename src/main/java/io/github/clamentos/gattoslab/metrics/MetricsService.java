@@ -1,38 +1,46 @@
 package io.github.clamentos.gattoslab.metrics;
 
-///
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+///.
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 
 ///.
-import io.github.clamentos.gattoslab.metrics.model.HitsTracker;
-import io.github.clamentos.gattoslab.metrics.model.PerformanceEntry;
+import io.github.clamentos.gattoslab.exceptions.RuntimeIOException;
 import io.github.clamentos.gattoslab.metrics.model.PerformanceMetrics;
-import io.github.clamentos.gattoslab.metrics.model.PerformanceSubEntry;
+import io.github.clamentos.gattoslab.metrics.model.PerformanceMetricsEntry;
+import io.github.clamentos.gattoslab.metrics.model.RequestTracker;
 import io.github.clamentos.gattoslab.utils.Pair;
+import io.github.clamentos.gattoslab.utils.PropertyProvider;
+import io.github.clamentos.gattoslab.web.StaticSite;
 
 ///.
+import jakarta.el.PropertyNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 ///.
+import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
-
-///.
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-
-///.
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
+import java.util.stream.Stream;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -40,80 +48,64 @@ import lombok.extern.slf4j.Slf4j;
 ///.
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-///.
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
-import org.springframework.core.env.Environment;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.support.ServletRequestHandledEvent;
 import org.springframework.web.servlet.HandlerInterceptor;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 ///
 @Service
 @Slf4j
 
 ///
-public class MetricsService implements HandlerInterceptor {
+public final class MetricsService implements HandlerInterceptor {
 
     ///
-    private final HitsTracker hitsTracker;
+    private final RequestTracker requestsTracker;
     private final PerformanceMetrics performanceMetrics;
-
-    private final AtomicInteger index;
-
-    ///..
-    private final Set<String> paths;
-
-    ///..
-    private final List<Pair<Integer, Integer>> latencyBuckets;
-    private final int rateCapacity;
+    private final AtomicInteger timeSlotIndex;
 
     ///..
     private final Logger metricsLogger;
-    private final ObjectMapper objectMapper;
+    private final MetricsLogMapper metricsLogMapper;
+
+    ///..
+    private final Set<String> sitePaths;
+    private final List<Pair<Integer, Integer>> latencyBuckets;
+    private final int rateCapacity;
+    private final ZoneId currentZone;
+    private final DateTimeFormatter dateTimeFormatter;
 
     ///
     @Autowired
-    public MetricsService(final Environment environment, final ObjectMapper objectMapper)
-    throws IOException, ParserConfigurationException, SAXException {
+    public MetricsService(final StaticSite staticSite, final MetricsLogMapper metricsLogMapper, final PropertyProvider propertyProvider) 
+    throws PropertyNotFoundException {
 
-        hitsTracker = new HitsTracker(
+        requestsTracker = new RequestTracker(
 
-            environment.getProperty("app.metrics.maxTotalRequestCounterSize", Integer.class, 1000),
-            environment.getProperty("app.metrics.maxUserAgentCounterSize", Integer.class, 250)
+            propertyProvider.getProperty("app.metrics.maxTotalRequestCounterSize", Integer.class),
+            propertyProvider.getProperty("app.metrics.maxUserAgentCounterSize", Integer.class)
         );
 
         performanceMetrics = new PerformanceMetrics();
+        timeSlotIndex = new AtomicInteger();
 
-        index = new AtomicInteger();
-        paths = new HashSet<>();
-
-        final DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        final Document siteMap = builder.parse(new ClassPathResource("static/sitemap.xml").getInputStream());
-        final NodeList nodeList = siteMap.getElementsByTagName("loc");
-
-        for(int i = 0; i < nodeList.getLength(); i++) { //TODO: images too
-
-            final String loc = nodeList.item(i).getTextContent();
-            paths.add(nodeList.item(i).getTextContent().substring(loc.lastIndexOf('/')));
-        }
-
-        final String latencyBucketsString = environment.getProperty(
-
-            "app.metrics.latencyBuckets",
-            String.class,
-            "1-10,11-20,21-50,51-100,101-200,201-500,501-1000"
-        );
+        sitePaths = staticSite.getSitePaths().stream().map(e -> "GET" + e).collect(Collectors.toCollection(HashSet::new));
+        sitePaths.add("GET/admin/api/metrics/paths-count");
+        sitePaths.add("GET/admin/api/metrics/user-agents-count");
+        sitePaths.add("GET/admin/api/metrics/performance-metrics");
+        sitePaths.add("GET/admin/api/metrics/sessions-metadata");
+        sitePaths.add("GET/admin/api/logs");
+        sitePaths.add("POST/admin/api/session");
+        sitePaths.add("DELETE/admin/api/session");
 
         latencyBuckets = Arrays
-            .asList(latencyBucketsString.split(","))
+
+            .asList(propertyProvider.getProperty("app.metrics.latencyBuckets", String.class).split(","))
             .stream()
             .map(element -> {
 
@@ -123,44 +115,149 @@ public class MetricsService implements HandlerInterceptor {
             .toList()
         ;
 
-        rateCapacity = environment.getProperty("app.metrics.rateCapacity", Integer.class, 12);
-
+        rateCapacity = propertyProvider.getProperty("app.metrics.rateCapacity", Integer.class);
         metricsLogger = LoggerFactory.getLogger("metrics");
-        this.objectMapper = objectMapper;
+        this.metricsLogMapper = metricsLogMapper;
+        currentZone = ZoneId.systemDefault();
+        dateTimeFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
     }
 
     ///
-    public Map<String, Object> getHitsTrackerData() {
+    public StreamingResponseBody getPathsCount() {
 
-        final Map<String, Long> requestCountsMap = hitsTracker
-            .getTotalRequestCounter()
-            .entrySet()
-            .stream()
-            .collect(Collectors.toMap(Map.Entry::getKey, element -> element.getValue().get()))
-        ;
+        return outputStream -> this.writeRequestTracker(requestsTracker.getPathCounters(), outputStream, "path");
+    }
 
-        final Map<String, Long> userAgentCountsMap = hitsTracker
-            .getUserAgentCounter()
-            .entrySet()
-            .stream()
-            .collect(Collectors.toMap(Map.Entry::getKey, element -> element.getValue().get()))
-        ;
+    ///..
+    public StreamingResponseBody getUserAgentsCount() {
 
-        final Map<String, Object> json = new LinkedHashMap<>();
+        return outputStream -> this.writeRequestTracker(requestsTracker.getUserAgentCounters(), outputStream, "userAgent");
+    }
 
-        json.put("requestEntries", requestCountsMap.size());
-        json.put("userAgentEntries", userAgentCountsMap.size());
-        json.put("requests", requestCountsMap);
-        json.put("userAgents", userAgentCountsMap);
+    ///..
+    public StreamingResponseBody getPerformanceMetrics(final long startTimestamp, final long endTimestamp) throws RuntimeIOException {
 
-        return json;
+        return outputStream -> {
+
+            final LocalDateTime startTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(startTimestamp), currentZone);
+            final LocalDateTime endTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTimestamp), currentZone);
+
+            try(
+
+                final Stream<Path> metricsFiles = Files.list(Path.of("./metrics"));
+                final JsonGenerator generator = new JsonFactory(metricsLogMapper.getObjectMapper()).createGenerator(outputStream)
+            ) {
+
+                generator.writeStartArray();
+
+                metricsFiles.forEach(file -> {
+
+                    final String path = file.toString();
+                    final int hookIdx = path.lastIndexOf("app_metrics.") + 12;
+                    final String dateString = path.substring(hookIdx, hookIdx + 10);
+                    final LocalDateTime date = LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay();
+
+                    if(date.compareTo(startTime) >= 0 && date.compareTo(endTime) <= 0) {
+
+                        try(final BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file.toFile())))) {
+
+                            String line;
+
+                            while((line = in.readLine()) != null) {
+
+                                final String[] splits = line.split("\\|");
+
+                                if(splits.length == 3) {
+
+                                    final LocalDateTime lineDate = LocalDateTime.parse(splits[1], dateTimeFormatter);
+
+                                    if(lineDate.compareTo(startTime) >= 0 && lineDate.compareTo(endTime) <= 0) {
+
+                                        final long timestamp = ZonedDateTime.of(lineDate, currentZone).toInstant().toEpochMilli();
+
+                                        generator.writeStartObject();
+                                        generator.writeNumberField("timestamp", timestamp);
+                                        generator.writeStringField("data", splits[2]);
+                                        generator.writeEndObject();
+                                    }
+                                }
+
+                                else {
+
+                                    generator.writeNull();
+                                }
+                            }
+                        }
+
+                        catch(final IOException exc) {
+
+                            log.error("Could not process metrics file", exc);
+                            throw new RuntimeIOException(exc);
+                        }
+                    }
+                });
+
+                generator.writeEndArray();
+            }
+        };
+    }
+
+    ///..
+    public StreamingResponseBody getLogs(final long startTimestamp, final long endTimestamp, final Set<String> logLevels)
+    throws RuntimeIOException {
+
+        return outputStream -> {
+
+            final LocalDateTime startTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(startTimestamp), currentZone);
+            final LocalDateTime endTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTimestamp), currentZone);
+
+            try(final Stream<Path> logFiles = Files.list(Path.of("./logs"))) {
+
+                logFiles.forEach(file -> {
+
+                    final String path = file.toString();
+                    final int hookIdx = path.lastIndexOf("app_logs.") + 9;
+                    final String dateString = path.substring(hookIdx, hookIdx + 10);
+                    final LocalDateTime date = LocalDate.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay();
+
+                    if(date.compareTo(startTime) >= 0 && date.compareTo(endTime) <= 0) {
+
+                        try(final BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(file.toFile())))) {
+
+                            String line;
+
+                            while((line = in.readLine()) != null) {
+
+                                final String[] splits = line.split("\\|");
+                                final LocalDateTime lineDate = LocalDateTime.parse(splits[1], dateTimeFormatter);
+
+                                if(
+                                    lineDate.compareTo(startTime) >= 0 && lineDate.compareTo(endTime) <= 0 &&
+                                    logLevels.contains(splits[2])
+                                ) {
+                                    outputStream.write(line.getBytes());
+                                } 
+                            }
+                        }
+
+                        catch(final IOException exc) {
+
+                            log.error("Could not process log file", exc);
+                            throw new RuntimeIOException(exc);
+                        }
+                    }
+                });
+            }
+        };
     }
 
     ///..
     @Override
     public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler) {
 
-        hitsTracker.updateUserAgentCount(request.getHeader("User-Agent"));
+        final String userAgent = request.getHeader("User-Agent");
+        requestsTracker.updateUserAgentCount(userAgent != null ? userAgent : "null");
+
         return true;
     }
 
@@ -168,34 +265,33 @@ public class MetricsService implements HandlerInterceptor {
     @EventListener
     protected void handleRequestHandledEvent(final ServletRequestHandledEvent requestHandledEvent) {
 
-        final String trueUrl = requestHandledEvent.getRequestUrl();
-        final String url = paths.contains(trueUrl) ? trueUrl : "<other>";
+        final String trueUrl = requestHandledEvent.getMethod() + requestHandledEvent.getRequestUrl();
+        final String url = sitePaths.contains(trueUrl) ? trueUrl : "<other>";
+        final HttpStatus status = HttpStatus.valueOf(requestHandledEvent.getStatusCode());
+        final int processingTime = (int)requestHandledEvent.getProcessingTimeMillis();
 
-        hitsTracker.updateRequestCount(trueUrl);
+        requestsTracker.updateRequestCount(trueUrl);
 
         performanceMetrics
-            .getMetricsMap()
-            .computeIfAbsent(url, _ -> new PerformanceEntry(rateCapacity, latencyBuckets))
-            .update(
 
-                HttpStatus.valueOf(requestHandledEvent.getStatusCode()),
-                (int)requestHandledEvent.getProcessingTimeMillis(),
-                index.get()
-            );
+            .getMetricsMap()
+            .computeIfAbsent(status, _ -> new PerformanceMetricsEntry(rateCapacity, latencyBuckets))
+            .update(url, processingTime, timeSlotIndex.get())
+        ;
     }
 
-    ///.
-    @Scheduled(fixedRateString = "${app.metrics.logDelay}")
+    ///..
+    @Scheduled(fixedRateString = "${app.metrics.logSchedule}")
     protected void scheduledMetricsTask() {
 
-        index.incrementAndGet();
+        timeSlotIndex.incrementAndGet();
 
-        if(index.get() == rateCapacity) {
+        if(timeSlotIndex.get() == rateCapacity) {
 
-            final Map<String, PerformanceEntry> oldMap = performanceMetrics.swap();
-            index.set(0);
+            timeSlotIndex.set(0);
 
-            final String message = this.createMetricsLogEntry(oldMap);
+            final Map<HttpStatus, PerformanceMetricsEntry> oldMap = performanceMetrics.swap();
+            final String message = metricsLogMapper.createMetricsLogEntry(oldMap);
 
             if(message != null && !message.equals("")) metricsLogger.info(message);
             oldMap.clear();
@@ -203,81 +299,24 @@ public class MetricsService implements HandlerInterceptor {
     }
 
     ///.
-    private String createMetricsLogEntry(final Map<String, PerformanceEntry> metrics) {
+    private void writeRequestTracker(final Map<String, AtomicLong> tracker, final OutputStream outputStream, final String name)
+    throws IOException {
 
-        final Map<String, Object> metricsLog = new LinkedHashMap<>();
+        try(JsonGenerator generator = new JsonFactory(metricsLogMapper.getObjectMapper()).createGenerator(outputStream)) {
 
-        for(final Map.Entry<String, PerformanceEntry> entry : metrics.entrySet()) {
+            generator.writeStartArray();
 
-            final Map<String, Object> metricsLogEntry = new LinkedHashMap<>();
+            for(final Map.Entry<String, AtomicLong> entry : tracker.entrySet()) {
 
-            this.createLogEntry(metricsLogEntry, entry.getValue());
-            metricsLog.put(entry.getKey(), metricsLogEntry);
-        }
-
-        if(!metricsLog.isEmpty()) {
-
-            try {
-
-                return objectMapper.writeValueAsString(metricsLog);
+                generator.writeStartObject();
+                generator.writeStringField(name, entry.getKey());
+                generator.writeNumberField("count", entry.getValue().get());
+                generator.writeEndObject();
             }
 
-            catch(final JsonProcessingException exc) {
-
-                log.error("Could not serialize metrics", exc);
-                return "Check error logs";
-            }
+            generator.writeEndArray();
         }
-
-        return "";
-    }
-
-    ///..
-    private void createLogEntry(final Map<String, Object> metricsLog, final PerformanceEntry metricsEntry) {
-
-        final Map<String, List<Long>> rpsLog = new LinkedHashMap<>();
-        final Map<String, Map<String, Long>> responseTimes = new LinkedHashMap<>();
-
-        for(final Map.Entry<HttpStatus, PerformanceSubEntry> entry : metricsEntry.getSubEntries().entrySet()) {
-
-            final String key = entry.getKey().getReasonPhrase();
-            final PerformanceSubEntry value = entry.getValue();
-
-            rpsLog.put(key, value.getRequestCounter().stream().map(AtomicLong::get).toList());
-
-            responseTimes.put(key, value.getResponseTimeDistribution().stream().collect(Collectors.toMap(
-
-                element -> element.getStart() + "-" + element.getEnd(),
-                element -> element.getCount().get()
-            )));
-        }
-
-        metricsLog.put("rps", rpsLog);
-        metricsLog.put("responseTimes", responseTimes);
     }
 
     ///
 }
-
-/*
- * SCHEMA
- * 
- * {
-    "/index.html": {
-
-        "rps": {
-
-            "OK": [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-            "NOT_FOUND": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        },
-
-        "responseTimes": {
-
-            "OK": {"0-99": 1},
-            "NOT_FOUND": {"100-199": 1}
-        }
-    },
-
-    ...
-   }
-*/

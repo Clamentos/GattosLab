@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang = "en">
+
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. Code Separator project page."/>
+
+        <link rel = "stylesheet" href = "../styles.css"/>
+        <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-item">
+                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            </div>
+
+            <div class = "nav-item" style = "margin-left: 200px;">
+                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Code Separator</p>
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "project-text-container">
+
+                <h1 class = "header-title project-title">Code Separator</h1>
+
+                <p class = "project-text">
+                    This project came into existence due to a small personal need when writing software, regardless of the language. I used to write comments like this: <code>//-------------------------------------</code>...
+                    to logically separate sections of the code. After a while i got tired of it as it was inconsistent across the different screen sizes of my desktop and my laptop due to word wrapping. I ultimately decided to develop a simple VSCode extension to draw a separating line for the whole length of the text editor given a specific comment pattern. This was also an opportunity to delve into this world, as i often wondered how one would develop such things.
+
+                    <br/><br/>
+
+                    The extension itself is written in Typescript and is extremely simple and minimal. It simply draws a line anytime it encounters the "trigger" pattern in the text file currently open, which can be configured in the settings on a per-language basis. Additionally, the color, shape and thickness of the line and the trigger pattern itself are also fully customizable on a per-language basis.
+                </p>
+
+                <figure>
+                    <img src = "../images/CS-SHOWCASE.gif" alt = "Code Separator showcase" style = "width: 100%; padding-top: 100px"/>
+                    <figcaption style = "margin-bottom: 100px">This is what the extension looks like in action.</figcaption>
+                </figure>
+
+                <p class = "project-text">
+                    A potential interesting improvement to this extension would be to rely on a separate file, perhaps under the <code>.vscode</code> directory, that lists for all files in the project, all the locations of the separators. This way the actual files themselves won't have to be touched, allowing easier integration with already existing codebases without having to modify a million files. This functionality, however, is currently hypothetical and <i>up in the air</i> and, if i decide to implement it, it won't come any time soon.
+
+                    <br/><br/>
+                    
+                    Interfacing with the VSCode APIs, however, wasn't super easy as finding things on the documentation wasn't an immediate thing (especially if you have no idea what you are doing...). I ended up dissecting and base a good chunk of the work from an example i found. In addition to this, releasing the extension in the marketplace to make it easily accessible to others was quite the ordeal, as it required many steps (none of which i remember anymore, obviously).
+                </p>
+
+            </div>
+
+        </main>
+
+    </body>
+
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang = "en">
+
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. FabRISC project page."/>
+
+        <link rel = "stylesheet" href = "../styles.css"/>
+        <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-item">
+                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            </div>
+
+            <div class = "nav-item" style = "margin-left: 200px;">
+                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ FabRISC</p>
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "project-text-container">
+
+                <h1 class = "header-title project-title">FabRISC</h1>
+
+                <p class = "project-text">
+                    This is the longes running project i have (almost four years) and is very dear to my heart. When i got into computer science i used to spend a good potion of my free time playing around and studying instruction sets, while also trying to design basic toy-like CPUs. As my knowledge grew, so did the desire to create a more feature-rich ISA akin to the likes of RISC-V and ARM, simply for pure fun, but also to design a high-performance CPU based on such an architecture in the future.
+
+                    <br/><br/>
+
+                    The FabRISC ISA specification document is divided in several chapters, each explaining a particular aspect of the interface, such as the memory and IO models and organizations, as well as the register file architecture, instruction formats and the instructions themselves. FabRISC doesn't have a "base ISA", it instead composed of a collection of <i>modules</i> that can be used to create many different variants of the ISA to suit different needs.
+                </p>
+
+                <h1 class = "project-subtitle">Instruction encodings</h1>
+
+                <p class = "project-text">
+                    Instructions can be 2, 4 and 6 bytes in length. Variable length encoding schemes complicate the underlying hardware implementation for the fetch and decode phases, however, they provide higher code density, increasing the efficiency of instruction caches.
+                </p>
+
+                <h1 class = "project-subtitle">Floating point</h1>
+
+                <p class = "project-text">
+                    FabRISC provides simple floating point instructions, such as addition, subtraction, multiplication, division and type conversion. Implementations can also choose more advanced operations such as fused-multiply-accumulate (along with some of its variants) and square root. FabRISC utilizes a simplified custom IEEE-754 model that also introduces 8-bit floats.
+                </p>
+
+                <h1 class = "project-subtitle">Vector</h1>
+
+                <p class = "project-text">
+                    FabRISC provides many vector instructions for both integer and floating-point operations, which can perform "one-to-one", "one-to-many" or "reduction" operations. The lane size can also be dynamically specified. Vector modules also include special instructions to transfer data to and from the vector register file by sourcing from the scalar file or memory with dedicated instructions. The memory addressing modes defined are simple stride, gather and scatter. Conditional vector execution is also possible via dedicated masking instructions.
+                </p>
+
+                <h1 class = "project-subtitle">Advanced integer instructions</h1>
+
+                <p class = "project-text">
+                    Among the standard integer operations, FabRISC also defines more advanced ones such as bit counts (leading / trailing ones / zeros), bit packing, bit unpacking, bit shuffling and rotations, useful for cryptographic operations.
+                </p>
+
+                <h1 class = "project-subtitle">Atomic memory</h1>
+
+                <p class = "project-text">
+                    FabRISC supports multicore microarchitectures thanks to atomic memory instructions like CAS (compare and swap), simple atomic arithmetic and hardware memory transactions. For systems that opt for out-of-order execution, memory fences are also provided following the <i>release consistency</i> model. FabRISC also requires implementations to be able to switch to <i>sequential consistency</i> on the fly too.
+                </p>
+
+                <h1 class = "project-subtitle">Register files</h1>
+
+                <p class = "project-text">
+                    FabRISC defines up to four register files: scalar, vector, helper and performance counters. The scalar file holds data for both integer and floating point, allowing direct manipulation of floating point data with bit manipulation instructions. The helper file houses a series of special registers that can generate exceptions when certain conditions are met, allowing to improve efficiency on memory boundary checks, as well as debugging.
+                </p>
+
+                <h1 class = "project-subtitle">Privilege modes</h1>
+
+                <p class = "project-text">
+                    FabRISC is a privileged ISA and it specifies two operating modes: user and machine mode, with the latter being the higher privilege. With this it becomes possible to support modern MMU-based operating systems. Special instructions are provided to efficiently and safely invoke and return to and from machine mode.
+                </p>
+
+                <h1 class = "project-subtitle">Eventing system</h1>
+
+                <p class = "project-text">
+                    FabRISC defines an extensive eventing system composed of exceptions, faults and interrupts. These events can be used for event-driven computation, but also as a vehicle for the privileged aspect of the specification.
+                </p>
+
+            </div>
+
+        </main>
+
+    </body>
+
+</html>

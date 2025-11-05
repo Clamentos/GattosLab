@@ -4,10 +4,10 @@ package io.github.clamentos.gattoslab.exceptions;
 import java.io.IOException;
 
 ///
-public final class TooManyRequestsException extends IOException {
+public final class RedirectException extends IOException {
 
     ///
-    public TooManyRequestsException(final String message) {
+    public RedirectException(final String message) {
 
         super(message);
     }

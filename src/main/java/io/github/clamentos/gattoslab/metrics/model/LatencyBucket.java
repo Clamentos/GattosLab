@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.metrics.model;
 
 ///
+import io.github.clamentos.gattoslab.utils.Pair;
+
+///.
 import java.util.concurrent.atomic.AtomicLong;
 
 ///.
@@ -10,7 +13,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class LatencyRange {
+public final class LatencyBucket {
 
     ///
     private final int start;
@@ -18,10 +21,10 @@ public final class LatencyRange {
     private final AtomicLong count;
 
     ///
-    public LatencyRange(final int start, final int end) {
+    public LatencyBucket(final Pair<Integer, Integer> range) {
 
-        this.start = start;
-        this.end = end;
+        start = range.getA();
+        end = range.getB();
         count = new AtomicLong();
     }
 

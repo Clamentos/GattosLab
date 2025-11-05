@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang = "en">
+
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. Gatto's Lab project page."/>
+
+        <link rel = "stylesheet" href = "../styles.css"/>
+        <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-item">
+                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            </div>
+
+            <div class = "nav-item" style = "margin-left: 200px;">
+                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Gatto's Lab</p>
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "project-text-container">
+
+                <h1 class = "header-title project-title">Gatto's Lab</h1>
+
+                <p class = "project-text">
+                    As you might have figured out by now, it's this website! I always wanted to have my own slice of the internet all for myself and so i decided to develop a simple website, with my GitHub projects as the subject.
+
+                    <br/><br/>
+
+                    The site is quite simple and minimal. The backend is written in Java 25 with Spring Boot framework and serves the static content directly from memory, while frontend uses raw HTML and CSS without any JS frameworks. In fact, you can browse this site without having JavaScript enabled at all!
+
+                    <br/><br/>
+
+                    On the infrastructure side i went with Hetzner as the server provider, since their offers were quite affordable for a single individual like myself: a bit over 4€ per month for a VPS with 2 vCPUs, 4GB of RAM, 40GB of storage and 20TB of outgoing network traffic. The site is currently proxied via Cloudflare (which also works as the DNS servers), as it can cache the content on different geographical regions (not that i need it in reality, but i though it would be cool to have), as well as provide protections and usage statistics.
+
+                    <br/><br/>
+                    
+                    Lastly, to deploy the site, i made use of GitHub actions to design a fully automated build and deploy pipeline that is triggered on commits to the main branch.
+                </p>
+
+                <figure>
+                    <img src = "../images/GATTOS-LAB-ARCH.svg" alt = "Gatto's Lab architecture" style = "width: 100%; padding-top: 100px"/>
+                    <figcaption>The extremely basic architecture of this website.</figcaption>
+                </figure>
+
+            </div>
+
+        </main>
+
+    </body>
+
+</html>

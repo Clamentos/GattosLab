@@ -4,8 +4,11 @@ on:
     branches:
       - main
     paths-ignore:
+      - "scripts/**"
       - "README.md"
       - "LICENSE"
+      - "mvnw"
+      - "mvnw.cmd"
       - ".gitignore"
       - ".gitattributes"
       - ".mvn/**"
@@ -16,10 +19,6 @@ on:
         description: 'Log level'
         required: true
         default: 'warning'
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        default: 'dev'
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -67,20 +66,8 @@ jobs:
       - name: Stop old remote process and clean directory
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            if test -e current_pid.txt; then
-              pid=$(cat current_pid.txt)
-              if [ ! -z "$pid" ]; then
-                kill -15 $pid
-                while ps -p $pid > /dev/null; do 
-                  sleep 1s;
-                  echo "Waiting for process " $pid " to terminate..."
-                done;
-                echo "Process " $pid " stopped"
-              fi
-            fi
+            /home/GattosLab/stop.sh
             rm -f -- /home/GattosLab/*.jar
-            rm -f -- /home/GattosLab/nohup.out
-            rm -f -- /home/GattosLab/current_pid.txt
           EOF
       - name: Upload to remote
         run: |
@@ -88,6 +75,5 @@ jobs:
       - name: Start new remote process
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            nohup java -jar /home/GattosLab/*.jar --server.ssl.key-store-password=${{ secrets.KEYSTORE_PSW }} --app.metrics.apiKey=${{ secrets.METRICS_API_KEY }} -Dspring.profiles.active=prod > /dev/null 2>&1 &
-            echo $! > /home/GattosLab/current_pid.txt
+            /home/GattosLab/start.sh ${{ secrets.KEYSTORE_PSW }} ${{ secrets.METRICS_API_KEY }}
           EOF

@@ -5,12 +5,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+///.
+import org.springframework.http.HttpStatus;
+
 ///
 public final class PerformanceMetrics {
 
     ///
-    private final Map<String, PerformanceEntry> front;
-    private final Map<String, PerformanceEntry> back;
+    private final Map<HttpStatus, PerformanceMetricsEntry> front;
+    private final Map<HttpStatus, PerformanceMetricsEntry> back;
 
     ///.
     private final AtomicBoolean frontOrBack;
@@ -25,16 +28,16 @@ public final class PerformanceMetrics {
     }
 
     ///
-    public Map<String, PerformanceEntry> getMetricsMap() {
+    public Map<HttpStatus, PerformanceMetricsEntry> getMetricsMap() {
 
         return frontOrBack.get() ? front : back;
     }
 
     ///..
-    public Map<String, PerformanceEntry> swap() {
+    public Map<HttpStatus, PerformanceMetricsEntry> swap() {
 
         final boolean direction = frontOrBack.get();
-        final Map<String, PerformanceEntry> oldMap = direction ? front : back;
+        final Map<HttpStatus, PerformanceMetricsEntry> oldMap = direction ? front : back;
 
         frontOrBack.set(!frontOrBack.get());
         return oldMap;

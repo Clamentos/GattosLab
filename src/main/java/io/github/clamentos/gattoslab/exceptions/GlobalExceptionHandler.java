@@ -1,11 +1,15 @@
 package io.github.clamentos.gattoslab.exceptions;
 
 ///
-import lombok.extern.slf4j.Slf4j;
+import io.github.clamentos.gattoslab.utils.Pair;
+import io.github.clamentos.gattoslab.utils.PropertyProvider;
+import io.github.clamentos.gattoslab.web.StaticSite;
+
+///.
+import jakarta.el.PropertyNotFoundException;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -15,30 +19,55 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 ///
 @ControllerAdvice
-@Slf4j
 
 ///
-public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ///
+    private final StaticSite staticSite;
+
+    ///..
+    private final String baseUrl;
     private final String retryAfter;
 
     ///
     @Autowired
-    public GlobalExceptionHandler(final Environment environment) {
+    public GlobalExceptionHandler(final StaticSite staticSite, final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
-        retryAfter = environment.getProperty("app.ratelimit.retryAfter", String.class, "60");
+        this.staticSite = staticSite;
+
+        baseUrl = propertyProvider.getProperty("app.baseUrl", String.class) + propertyProvider.getProperty("server.port", String.class);
+        retryAfter = Integer.toString(propertyProvider.getProperty("app.ratelimit.retryAfter", Integer.class) / 1000);
     }
 
     ///
-    @ExceptionHandler(value = TooManyRequestsException.class)
+    @ExceptionHandler(value = ApiSecurityException.class)
+    public ResponseEntity<byte[]> handleApiSecurityException(final ApiSecurityException exc, final WebRequest request) {
+
+        final Pair<String, byte[]> entry = staticSite.getContent("/errors/unauthorized.html");
+        return staticSite.buildSiteResponse(HttpStatus.UNAUTHORIZED, entry.getA(), entry.getB());
+    }
+
+    ///..
+    @ExceptionHandler(value = RedirectException.class, produces = "text/html")
+    public ResponseEntity<String> handleRedirectException(final RedirectException exc, final WebRequest request) {
+
+        final String redirectHtml = "<head><meta http-equiv=\"Refresh\" content=\"0; URL=" + baseUrl + exc.getMessage() + "\"/></head>";
+        return ResponseEntity.ok(redirectHtml);
+    }
+
+    ///..
+    @ExceptionHandler(value = RuntimeIOException.class, produces = "text/plain")
+    public ResponseEntity<String> handleRuntimeIOException(final RuntimeIOException exc, final WebRequest request) {
+
+        return ResponseEntity.unprocessableEntity().body(exc.getMessage());
+    }
+
+    ///..
+    @ExceptionHandler(value = TooManyRequestsException.class, produces = "text/plain")
     public ResponseEntity<String> handleTooManyRequestsException(final TooManyRequestsException exc, final WebRequest request) {
 
-        final String ip = exc.getIp();
-        final String message = ip == null ? "Global rate limit reached" : "Local rate limit reached";
-
-        log.warn("{}, {}", message, ip);
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", retryAfter).body(message);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", retryAfter).body(exc.getMessage());
     }
 
     ///

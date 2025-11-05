@@ -16,7 +16,7 @@
 
 	<groupId>io.github.clamentos</groupId>
 	<artifactId>gattoslab</artifactId>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<name>Gatto&apos;s lab</name>
 	<description>Project showcase site</description>
 
@@ -71,6 +71,9 @@
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+					<profiles>
+						<profile>dev</profile>
+					</profiles>
 				</configuration>
 			</plugin>
 

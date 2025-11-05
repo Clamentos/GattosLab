@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang = "en">
+
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. Logi-Block project page."/>
+
+        <link rel = "stylesheet" href = "../styles.css"/>
+        <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-item">
+                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            </div>
+
+            <div class = "nav-item" style = "margin-left: 200px;">
+                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Logi-Block</p>
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "project-text-container">
+
+                <h1 class = "header-title project-title">Logi-Block</h1>
+
+                <p class = "project-text">
+                    With this project i wanted to delve in the world of electronics in a more "serious" way. I always played around with breadboards and designed a couple of boards with <a href = "https://www.kicad.org/" target = "_blank">KiCad</a>, but i have never actually <i>manufactured</i> anything up until this point. I designed Logi-Block simply to have something to fabricate, just to see how the experience of the whole process is.
+                </p>
+
+                <h1 class = "project-subtitle">What is Logi-Block?</h1>
+
+                <p class = "project-text">
+                    Logi-Block is a single simplified FPGA logic cell implemented with 74xx discrete logic ICs. The board is capable of computing any 4-to-1 or 3-to-2 boolean function. It also has an optional output d-type flip-flop to store the result. With this board is in theory possible, although impractical, to implement any digital logic circuit in the same way that an FPGA would.
+                </p>
+
+                <h1 class = "project-subtitle">Fabrication</h1>
+
+                <p class = "project-text">
+                    I chose <a href = "https://jlcpcb.com/" target = "_blank">JLCPCB</a> which is a low-cost chinese based PCB manufacturer. They have lots of services, ranging from PCB fabrication, PCB assembly (SMT and THT), 3D printing and even CNC machining. Since i wanted to fabricate a fully functional PCB, i chose the first two options. The experience was a bit overwhelming at first since i had to be sure that the my PCB design was within their capabilities and tolerances, which are listed on their website. Moreover, since i also wanted the assembly service, i had to integrate the components that were available through them.
+
+                    <br/><br/>
+
+                    The total cost for everything, that is, PCB fabrication, assembly and shipping to my door amounted around 170€ for 5 boards (including VAT). Obviously, the more boards, the lower the cost per board as everything gets amortized leaving the actual components as the dominant cost.
+                </p>
+
+                <figure>
+                    <img src = "../images/LOGI-BLOCK-V1.jpg" alt = "Logi-Block V1 board" style = "width: 100%; padding-top: 100px"/>
+                    <figcaption style = "margin-bottom: 100px">First version of the board.</figcaption>
+                </figure>
+
+                <p class = "project-text">
+                    When i received the package i was quite impressed by the quality of the board. The silkscreen was very crisp and the component assembly was basically flawless. The only negative aspect was that the board edges weren't as smooth as on other boards i have handled (for example an Arduino UNO) and a few small strands of fiberglass were detaching, though nothing to be concerned about.
+                </p>
+
+                <h1 class = "project-subtitle">Version 2</h1>
+
+                <p class = "project-text">
+                    I eventually decided to design a second version as the first one had some design issues. Simply put, i made a mistake connecting the asynchronous-set of the output flip-flop, leaving it permanently stuck at high logic level (doh!). Another mistake i made in the first version was the spacing of the bottom connectors that allowed the PCB to be mounted on a breadboard was slightly wrong. With those two issues solved and some general improvements, the V2 is ready to be manufactured, though i still haven't placed the order.
+                </p>
+
+                <figure>
+                    <img src = "../images/LOGI-BLOCK-V2-PCB.png" alt = "Logi-Block V2 PCB" style = "width: 100%; padding-top: 100px"/>
+                    <figcaption style = "margin-bottom: 100px">Second version of the PCB in KiCad. Dimensions are in mm.</figcaption>
+                </figure>
+
+            </div>
+
+        </main>
+
+    </body>
+
+</html>
