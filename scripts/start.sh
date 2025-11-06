@@ -1,3 +1,3 @@
 #! /bin/bash
-nohup java -jar ./*.jar -Dspring.profiles.active=prod --server.ssl.key-store-password=$0 --app.metrics.apiKey=$1 -Xmx2G &
+nohup java -jar ./gattoslab*.jar --spring.profiles.active=prod --server.ssl.key-store-password=$0 --app.admin.apiKey=$1 -Xmx2G &
 echo $! > ./current_pid.txt
