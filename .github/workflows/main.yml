@@ -75,5 +75,6 @@ jobs:
       - name: Start new remote process
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            /home/GattosLab/start.sh ${{ secrets.KEYSTORE_PSW }} ${{ secrets.METRICS_API_KEY }}
+            nohup java -jar ./gattoslab*.jar --spring.profiles.active=prod --server.ssl.key-store-password=${{ secrets.KEYSTORE_PSW }} --app.admin.apiKey=${{ secrets.METRICS_API_KEY }} -Xmx2G &
+            echo $! > ./current_pid.txt
           EOF
