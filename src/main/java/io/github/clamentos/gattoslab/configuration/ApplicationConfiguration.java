@@ -60,7 +60,7 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
 
             .addInterceptor(securityInterceptor)
             .addPathPatterns("/admin/**")
-            .excludePathPatterns("/admin/session")
+            .excludePathPatterns("/admin/api/session/**")
             .order(Ordered.HIGHEST_PRECEDENCE + 1)
         ;
 	}
@@ -69,7 +69,12 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
 
-        registry.addMapping(corsConfiguration);
+        registry
+            .addMapping("/**")
+            .allowedOrigins(corsConfiguration.split(","))
+            .allowedMethods("GET", "POST")
+            .allowedHeaders("*")
+            .allowCredentials(true);
     }
 
     ///

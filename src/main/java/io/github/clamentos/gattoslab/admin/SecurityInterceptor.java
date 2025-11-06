@@ -12,6 +12,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 ///.
+import java.util.HashSet;
+import java.util.Set;
+
+///.
 import lombok.extern.slf4j.Slf4j;
 
 ///.
@@ -30,6 +34,7 @@ public final class SecurityInterceptor implements HandlerInterceptor {
     private final AdminSessionService adminSessionService;
     
     ///..
+    private final Set<String> authenticatedPages;
     private final boolean securityEnabled;
 
     ///
@@ -38,7 +43,12 @@ public final class SecurityInterceptor implements HandlerInterceptor {
     throws PropertyNotFoundException {
 
         this.adminSessionService = adminSessionService;
+
         securityEnabled = propertyProvider.getProperty("app.security.enabled", Boolean.class);
+        authenticatedPages = new HashSet<>();
+
+        authenticatedPages.add("/admin/index.html");
+        authenticatedPages.add("/admin/metrics/metrics.html");
     }
 
     ///
@@ -55,6 +65,12 @@ public final class SecurityInterceptor implements HandlerInterceptor {
 
             if(this.check(cookies, ip)) throw new RedirectException("/admin/index.html");
             return true;
+        }
+
+        if(authenticatedPages.contains(request.getRequestURI())) {
+
+            if(this.check(cookies, ip)) return true;
+            throw new RedirectException("/admin/login.html");
         }
 
         if(!this.check(cookies, ip)) throw new ApiSecurityException(ip);

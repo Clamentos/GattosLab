@@ -100,8 +100,9 @@ public final class MetricsService implements HandlerInterceptor {
         sitePaths.add("GET/admin/api/metrics/performance-metrics");
         sitePaths.add("GET/admin/api/metrics/sessions-metadata");
         sitePaths.add("GET/admin/api/logs");
-        sitePaths.add("POST/admin/api/session");
-        sitePaths.add("DELETE/admin/api/session");
+        sitePaths.add("GET/admin/api/session/login");
+        sitePaths.add("GET/admin/api/session/refresh");
+        sitePaths.add("GET/admin/api/session/logout");
 
         latencyBuckets = Arrays
 

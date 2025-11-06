@@ -9,8 +9,8 @@ import jakarta.el.PropertyNotFoundException;
 
 ///.
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -50,21 +50,42 @@ public final class AdminController {
     }
 
     ///
-    @PostMapping(produces = "text/html")
+    @GetMapping(path = "/login", produces = "text/html")
     public ResponseEntity<String> createSession(@RequestParam final String key, @RequestAttribute("IP_ATTRIBUTE") final String ip)
     throws ApiSecurityException {
 
         return ResponseEntity
 
             .ok()
-            .header("Set-Cookie", cookieAttributes + " GattosLabSessionId=" + adminSessionService.createSession(key, ip))
+            .header("Set-Cookie", "GattosLabSessionId=" + adminSessionService.createSession(key, ip) + ";" + cookieAttributes)
             .body(redirectToAdminHtml)
         ;
     }
 
     ///..
-    @DeleteMapping(produces = "text/html")
-    public ResponseEntity<String> deleteSession(@RequestParam final String key, @RequestAttribute("IP_ATTRIBUTE") final String ip) {
+    @GetMapping(path = "/refresh")
+    public ResponseEntity<Void> refreshSession(
+
+        @CookieValue("GattosLabSessionId") final String key,
+        @RequestAttribute("IP_ATTRIBUTE") final String ip
+
+    ) throws ApiSecurityException {
+
+        return ResponseEntity
+
+            .ok()
+            .header("Set-Cookie", "GattosLabSessionId=" + adminSessionService.refreshSession(key, ip) + ";" + cookieAttributes)
+            .build()
+        ;
+    }
+
+    ///..
+    @GetMapping(path = "/logout", produces = "text/html")
+    public ResponseEntity<String> deleteSession(
+
+        @CookieValue("GattosLabSessionId") final String key,
+        @RequestAttribute("IP_ATTRIBUTE") final String ip
+    ) {
 
         this.adminSessionService.deleteSession(key, ip);
         return ResponseEntity.ok().body(redirectToLoginHtml);
