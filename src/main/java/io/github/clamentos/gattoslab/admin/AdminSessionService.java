@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -34,6 +35,7 @@ public final class AdminSessionService {
 
     ///
     private final Map<String, AdminSessionMetadata> sessions;
+    private final AtomicInteger sizeCounter;
 
     ///..
     private final Lock lock;
@@ -43,12 +45,14 @@ public final class AdminSessionService {
     private final String apiKey;
     private final long loginSleep;
     private final int sessionDuration;
+    private final int maxSessions;
 
     ///
     @Autowired
     public AdminSessionService(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
         sessions = new ConcurrentHashMap<>();
+        sizeCounter = new AtomicInteger();
 
         lock = new ReentrantLock();
         random = new Random();
@@ -56,6 +60,7 @@ public final class AdminSessionService {
         apiKey = propertyProvider.getProperty("app.admin.apiKey", String.class);
         loginSleep = propertyProvider.getProperty("app.admin.loginSleep", Long.class);
         sessionDuration = propertyProvider.getProperty("app.admin.sessionDuration", Integer.class);
+        maxSessions = propertyProvider.getProperty("app.admin.maxSessions", Integer.class);
     }
 
     ///
@@ -87,22 +92,20 @@ public final class AdminSessionService {
     ///..
     public String createSession(final String apiKey, final String ip) throws ApiSecurityException {
 
-        if(apiKey == null || !apiKey.equals(this.apiKey)) throw new ApiSecurityException("Invalid key for ip: " + ip);
-        return this.createSessionInternal(ip);
-    }
+        if(apiKey == null || !apiKey.equals(this.apiKey) || sizeCounter.getAndIncrement() >= maxSessions) {
 
-    ///..
-    public String refreshSession(final String sessionId, final String ip) throws ApiSecurityException {
-
-        if(sessionId != null && sessions.containsKey(sessionId)) {
-
-            sessions.remove(sessionId);
-            log.info("Admin session substitution for ip: " + ip);
-
-            return this.createSessionInternal(ip);
+            throw new ApiSecurityException("Invalid key for ip: " + ip);
         }
 
-        throw new ApiSecurityException("Invalid session for ip: " + ip);
+        final long now = System.currentTimeMillis();
+        final byte[] sessionId = new byte[32];
+        random.nextBytes(sessionId);
+
+        final String sessionIdString = new String(Base64.getEncoder().encode(sessionId));
+        sessions.put(sessionIdString, new AdminSessionMetadata(ip, now, now + sessionDuration));
+
+        log.info("Admin session created for ip: {}", ip);
+        return sessionIdString;
     }
 
     ///..
@@ -110,6 +113,7 @@ public final class AdminSessionService {
 
         if(sessionId != null && sessions.remove(sessionId) != null) {
 
+            sizeCounter.decrementAndGet();
             log.info("Admin session logout for ip: {}", ip);
         }
     }
@@ -132,25 +136,12 @@ public final class AdminSessionService {
             final Map.Entry<String, AdminSessionMetadata> entry = entries.next();
             final AdminSessionMetadata metadata = entry.getValue();
 
-            if(metadata.getCreatedAt() + sessionDuration < now) {
+            if(metadata.getExpiresAt() < now && sessions.remove(entry.getKey()) != null) {
 
-                sessions.remove(entry.getKey());
+                sizeCounter.decrementAndGet();
                 log.info("Admin session expired for ip: {}", metadata.getIp());
             }
         }
-    }
-
-    ///.
-    private String createSessionInternal(final String ip) {
-
-        final byte[] sessionId = new byte[32];
-        random.nextBytes(sessionId);
-
-        final String sessionIdString = new String(Base64.getEncoder().encode(sessionId));
-        sessions.put(sessionIdString, new AdminSessionMetadata(ip, System.currentTimeMillis()));
-        log.info("Admin session created for ip: {}", ip);
-
-        return sessionIdString;
     }
 
     ///

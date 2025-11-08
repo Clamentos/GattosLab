@@ -14,6 +14,7 @@ public final class AdminSessionMetadata {
     ///
     private final String ip;
     private final long createdAt;
+    private final long expiresAt;
 
     ///
 }

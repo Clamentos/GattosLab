@@ -8,12 +8,15 @@ import io.github.clamentos.gattoslab.utils.PropertyProvider;
 import jakarta.el.PropertyNotFoundException;
 
 ///.
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 ///
@@ -27,68 +30,47 @@ public final class AdminController {
     private final AdminSessionService adminSessionService;
 
     ///..
-    private final String redirectToAdminHtml;
-    private final String redirectToLoginHtml;
     private final String cookieAttributes;
 
     ///..
+    @Autowired
     public AdminController(final AdminSessionService adminSessionService, final PropertyProvider propertyProvider)
     throws PropertyNotFoundException {
 
         this.adminSessionService = adminSessionService;
-
-        final String partialRedirect =
-
-            "<head><meta http-equiv=\"Refresh\" content=\"0; URL=" +
-            propertyProvider.getProperty("app.baseUrl", String.class) +
-            propertyProvider.getProperty("server.port", String.class)
-        ;
-
-        redirectToAdminHtml = partialRedirect + "/admin/index.html\"/></head>";
-        redirectToLoginHtml = partialRedirect + "/admin/login.html\"/></head>";
         cookieAttributes = propertyProvider.getProperty("app.admin.cookieAttributes", String.class);
     }
 
     ///
-    @GetMapping(path = "/login", produces = "text/html")
-    public ResponseEntity<String> createSession(@RequestParam final String key, @RequestAttribute("IP_ATTRIBUTE") final String ip)
-    throws ApiSecurityException {
+    @PostMapping
+    public ResponseEntity<Void> createSession(
 
-        return ResponseEntity
-
-            .ok()
-            .header("Set-Cookie", "GattosLabSessionId=" + adminSessionService.createSession(key, ip) + ";" + cookieAttributes)
-            .body(redirectToAdminHtml)
-        ;
-    }
-
-    ///..
-    @GetMapping(path = "/refresh")
-    public ResponseEntity<Void> refreshSession(
-
-        @CookieValue("GattosLabSessionId") final String key,
+        @RequestHeader("Authorization") final String key,
         @RequestAttribute("IP_ATTRIBUTE") final String ip
+    ) {
 
-    ) throws ApiSecurityException {
+        try {
 
-        return ResponseEntity
+            final String sessionId = adminSessionService.createSession(key, ip);
+            return ResponseEntity.ok().header("Set-Cookie", "GattosLabSessionId=" + sessionId + ";" + cookieAttributes).build();
+        }
 
-            .ok()
-            .header("Set-Cookie", "GattosLabSessionId=" + adminSessionService.refreshSession(key, ip) + ";" + cookieAttributes)
-            .build()
-        ;
+        catch(final ApiSecurityException _) {
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
     }
 
     ///..
-    @GetMapping(path = "/logout", produces = "text/html")
-    public ResponseEntity<String> deleteSession(
+    @DeleteMapping
+    public ResponseEntity<Void> deleteSession(
 
         @CookieValue("GattosLabSessionId") final String key,
         @RequestAttribute("IP_ATTRIBUTE") final String ip
     ) {
 
         this.adminSessionService.deleteSession(key, ip);
-        return ResponseEntity.ok().body(redirectToLoginHtml);
+        return ResponseEntity.ok().build();
     }
 
     ///

@@ -28,7 +28,7 @@
             </div>
 
             <div class = "nav-item" style = "margin: 0px 50px 0px auto;">
-                <a href = "http://localhost:8080/admin/api/session/logout" class = "nav-link">Logout</a>
+                <button class = "login-button" style = "margin-top: 0px;" type = "button" onclick = "handleLogout()">Logout</button>
             </div>
 
         </nav>
@@ -73,5 +73,17 @@
         </main>
 
     </body>
+
+    <script>
+
+        function handleLogout() {
+
+            fetch("/admin/api/session", {method: "DELETE"}).then(response => {
+
+                if(response.status === 200) globalThis.location = "./login.html";
+            });
+        }
+
+    </script>
 
 </html>

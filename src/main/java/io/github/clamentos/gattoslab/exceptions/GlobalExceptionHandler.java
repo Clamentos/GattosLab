@@ -1,9 +1,7 @@
 package io.github.clamentos.gattoslab.exceptions;
 
 ///
-import io.github.clamentos.gattoslab.utils.Pair;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
-import io.github.clamentos.gattoslab.web.StaticSite;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -24,17 +22,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     ///
-    private final StaticSite staticSite;
-
-    ///..
     private final String baseUrl;
     private final String retryAfter;
 
     ///
     @Autowired
-    public GlobalExceptionHandler(final StaticSite staticSite, final PropertyProvider propertyProvider) throws PropertyNotFoundException {
-
-        this.staticSite = staticSite;
+    public GlobalExceptionHandler(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
         baseUrl = propertyProvider.getProperty("app.baseUrl", String.class) + propertyProvider.getProperty("server.port", String.class);
         retryAfter = Integer.toString(propertyProvider.getProperty("app.ratelimit.retryAfter", Integer.class) / 1000);
@@ -42,10 +35,9 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 
     ///
     @ExceptionHandler(value = ApiSecurityException.class)
-    public ResponseEntity<byte[]> handleApiSecurityException(final ApiSecurityException exc, final WebRequest request) {
+    public ResponseEntity<Void> handleApiSecurityException(final ApiSecurityException exc, final WebRequest request) {
 
-        final Pair<String, byte[]> entry = staticSite.getContent("/errors/unauthorized.html");
-        return staticSite.buildSiteResponse(HttpStatus.UNAUTHORIZED, entry.getA(), entry.getB());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 
     ///..

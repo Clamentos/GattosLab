@@ -43,9 +43,20 @@
 
                         <h1 class = "card-title">Login</h1>
 
-                        <form action = "/admin/api/session/login">
-                            <input class = "login-input" type = "password" id = "key" name = "key" placeholder = "API key..." required>
+                        <form onsubmit = "onSubmitEvent(event)">
+
+                            <input
+                                class = "login-input"
+                                type = "password"
+                                id = "apiKey"
+                                name = "apiKey"
+                                placeholder = "API key..."
+                                required
+                            >
+
+                            <p id = "login-form-feedback" class = "form-error"></p>
                             <button class = "login-button" type = "submit">Submit</button>
+
                         </form>
 
                     </div>
@@ -57,5 +68,40 @@
         </main>
 
     </body>
+
+    <script>
+
+        const baseUrl = "http://localhost:8080";
+
+        function onSubmitEvent(event) {
+
+            event.preventDefault();
+            document.getElementById("login-form-feedback").innerText = "";
+
+            fetch(`${baseUrl}/admin/api/session`, {
+
+                method: "POST",
+
+                headers: {
+
+                    "Authorization": event.target.apiKey.value
+                }
+            })
+            .then(response => {
+
+                switch(response.status) {
+
+                    case 200: globalThis.location = "./index.html"; break;
+                    case 401: document.getElementById("login-form-feedback").innerText = "Unauthorized"; break;
+                    default: document.getElementById("login-form-feedback").innerText = `Error: ${response.status}`;
+                }
+            })
+            .catch(error_ => {
+
+                document.getElementById("login-form-feedback").innerText = `Error: ${error_}`;
+            });
+        }
+
+    </script>
 
 </html>

@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 ///.
 import lombok.Getter;
@@ -46,14 +47,11 @@ public final class StaticSite {
     private final int cacheDuration;
 
     @Getter
-    private final DateTimeFormatter dateTimeFormatter;
-
-    @Getter
     private final OffsetDateTime timeAtStartup;
 
     ///
-    @SuppressWarnings("squid:S1075")
     @Autowired
+    @SuppressWarnings("squid:S1075")
     public StaticSite(final PropertyProvider propertyProvider) throws IOException, PropertyNotFoundException {
 
         website = new HashMap<>();
@@ -72,8 +70,7 @@ public final class StaticSite {
         supportedExtensions.put("gif", "image/gif");
 
         cacheDuration = propertyProvider.getProperty("app.site.cacheDuration", Integer.class);
-        dateTimeFormatter = DateTimeFormatter.RFC_1123_DATE_TIME;
-        timeAtStartup = OffsetDateTime.now(); // ENHANCEMENT: would be nice to actually get the jar modification date
+        timeAtStartup = OffsetDateTime.now();
 
         final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
@@ -105,15 +102,21 @@ public final class StaticSite {
     }
 
     ///..
-    public ResponseEntity<byte[]> buildSiteResponse(final HttpStatusCode status, final String contentType, final byte[] content) {
+    public Set<String> getSitePaths(final String basePath) {
+
+        return website.keySet().stream().filter(p -> p.startsWith(basePath)).collect(Collectors.toSet());
+    }
+
+    ///..
+    public ResponseEntity<byte[]> buildSiteResponse(final HttpStatusCode status, final Pair<String, byte[]> content) {
 
         return ResponseEntity
 
             .status(status)
-            .header("Content-Type", contentType)
+            .header("Content-Type", content.getA())
             .header("Cache-Control", "max-age=" + cacheDuration + ", public")
-            .header("Last-Modified", dateTimeFormatter.format(timeAtStartup))
-            .body(content)
+            .header("Last-Modified", DateTimeFormatter.RFC_1123_DATE_TIME.format(timeAtStartup))
+            .body(content.getB())
         ; 
     }
 

@@ -5,10 +5,12 @@ import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 ///.
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.springframework.http.HttpStatus;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 ///
 @RequiredArgsConstructor
 @RestController
+@Slf4j
 
 ///
 public final class StaticSiteController {
@@ -29,7 +32,7 @@ public final class StaticSiteController {
     private final StaticSite staticSite;
 
     ///
-    @GetMapping(path = "/{*spring}") // Match anything.
+    @GetMapping(path = "/{*spring}") // Match anything, except other defined controllers.
     public ResponseEntity<byte[]> serveContent(
 
         @PathVariable("spring") final String path,
@@ -40,13 +43,14 @@ public final class StaticSiteController {
 
             try {
 
-                final OffsetDateTime date = OffsetDateTime.parse(ifModifiedSince, staticSite.getDateTimeFormatter());
+                final OffsetDateTime date = OffsetDateTime.parse(ifModifiedSince, DateTimeFormatter.RFC_1123_DATE_TIME);
                 if(date.compareTo(staticSite.getTimeAtStartup()) > 0) return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
             }
 
-            catch(final DateTimeParseException _) {
+            catch(final DateTimeParseException exc) {
 
-                // Ignore caching, continue normally.
+                // Continue without caching.
+                log.warn("Date-time parse exception for header If-Modified-Since. {}", exc);
             }
         }
 
@@ -59,7 +63,7 @@ public final class StaticSiteController {
             status = HttpStatus.NOT_FOUND;
         }
 
-        return staticSite.buildSiteResponse(status, content.getA(), content.getB());
+        return staticSite.buildSiteResponse(status, content);
     }
 
     ///
