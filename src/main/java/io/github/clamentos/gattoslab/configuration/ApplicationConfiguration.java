@@ -3,7 +3,7 @@ package io.github.clamentos.gattoslab.configuration;
 ///
 import io.github.clamentos.gattoslab.admin.SecurityInterceptor;
 import io.github.clamentos.gattoslab.ingress.RateLimiter;
-import io.github.clamentos.gattoslab.metrics.MetricsService;
+import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
@@ -25,28 +25,28 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class ApplicationConfiguration implements WebMvcConfigurer {
 
     ///
-    private final RateLimiter rateLimiter;
-    private final SecurityInterceptor securityInterceptor;
-    private final MetricsService metricsService;
+    private final String corsConfiguration;
 
     ///..
-    private final String corsConfiguration;
+    private final RateLimiter rateLimiter;
+    private final SecurityInterceptor securityInterceptor;
+    private final ObservabilityService observabilityService;
 
     ///
     public ApplicationConfiguration(
         
         final RateLimiter rateLimiter,
         final SecurityInterceptor securityInterceptor,
-        final MetricsService metricsService,
+        final ObservabilityService observabilityService,
         final PropertyProvider propertyProvider
     
     ) throws PropertyNotFoundException {
 
+        corsConfiguration = propertyProvider.getProperty("app.cors.configuration", String.class);
+
         this.rateLimiter = rateLimiter;
         this.securityInterceptor = securityInterceptor;
-        this.metricsService = metricsService;
-
-        corsConfiguration = propertyProvider.getProperty("app.cors.configuration", String.class);
+        this.observabilityService = observabilityService;
     }
 
     ///
@@ -54,7 +54,6 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
     public void addInterceptors(final InterceptorRegistry registry) {
 
 		registry.addInterceptor(rateLimiter).addPathPatterns("/**").order(Ordered.HIGHEST_PRECEDENCE);
-        registry.addInterceptor(metricsService).addPathPatterns("/**").order(Ordered.HIGHEST_PRECEDENCE + 2);
 
         registry
 
@@ -63,6 +62,8 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
             .excludePathPatterns("/admin/api/session")
             .order(Ordered.HIGHEST_PRECEDENCE + 1)
         ;
+
+        registry.addInterceptor(observabilityService).addPathPatterns("/**").order(Ordered.HIGHEST_PRECEDENCE + 2);
 	}
 
     ///..
@@ -70,11 +71,13 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
 
         registry
+
             .addMapping("/**")
             .allowedOrigins(corsConfiguration.split(","))
             .allowedMethods("GET", "POST", "PUT", "DELETE")
             .allowedHeaders("*")
-            .allowCredentials(true);
+            .allowCredentials(true)
+        ;
     }
 
     ///

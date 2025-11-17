@@ -1,0 +1,18 @@
+app:
+  admin:
+    cookieAttributes: "=$; Secure; HttpOnly; Domain=gattoslab.dev; SameSite=Strict; Max-Age=86400; Path=/admin;"
+  baseUrl: "https://gattoslab.dev:"
+  cors:
+    configuration: "https://gattoslab.dev,https://www.gattoslab.dev"
+  database:
+    connectionString: "mongodb://localhost:27017/GattosLabMongoDB"
+  security:
+    enabled: true
+security:
+  require-ssl: true
+server:
+  port: 443
+  ssl:
+    key-store: "/etc/letsencrypt/live/gattoslab.dev-0001/keystore.p12"
+    keyStoreType: "PKCS12"
+    keyAlias: "tomcat"

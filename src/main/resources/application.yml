@@ -1,0 +1,57 @@
+app:
+  retention:
+    cleanSchedule: "0 0 0 * * *" # Every day at 00:00:00
+    value: 30 # Days
+  admin:
+    cookieName: "GattosLabSessionId"
+    loginHtmlPath: "/admin/login.html"
+    loginDelay: 500 # Milliseconds
+    maxSessions: 20
+    sessionCleanSchedule: "0 * * * * *" # Every minute
+    sessionDuration: 14400 # Seconds
+  metrics:
+    latencyBuckets: "1-5,6-10,11-20,21-50,51-100,101-500" # Milliseconds
+    dumpToDbRate: 5000 # Milliseconds
+    rateCapacity: 12 # Time slots, 12 * 5s = 60s window
+  ratelimit:
+    maxGlobalTokens: 10000
+    maxTokensPerIp: 200
+    replenishRate: 10000 # Milliseconds
+    retryAfter: 60000 # Milliseconds
+  site:
+    cacheDuration: 1440 # Minutes
+    notFoundPath: "/errors/not-found.html"
+    supportedMimeTypes: "html|text/html,css|text/css,png|image/png,jpg|image/jpg,jpeg|image/jpeg,svg|image/svg+xml,webp|image/webp,xml|application/xml,txt|text/plain,ico|image/x-icon,gif|image/gif"
+server:
+  compression:
+    enabled: true
+    min-response-size: 4096 # Bytes
+  connection-timeout: 30000 # Milliseconds
+  forward-headers-strategy: "framework"
+  http2:
+    enabled: true
+  max-http-request-header-size: 2048 # Bytes
+  shutdown: "graceful"
+  tomcat:
+    accept-count: 256
+    max-connections: 8192
+    max-keep-alive-requests: 256
+    max-swallow-size: 1048576 # Bytes
+    processor-cache: 256
+spring:
+  application:
+    name: "Gatto's lab"
+  jackson:
+    default-property-inclusion: "non_null"
+    deserialization:
+      fail-on-unknown-properties: true
+  jmx:
+    enabled: false
+  lifecycle:
+    timeout-per-shutdown-phase: "10s" # Seconds
+  threads:
+    virtual:
+      enabled: true
+  web:
+    resources:
+      add-mappings: false

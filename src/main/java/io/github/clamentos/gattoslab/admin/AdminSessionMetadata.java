@@ -12,9 +12,15 @@ import lombok.Getter;
 public final class AdminSessionMetadata {
 
     ///
-    private final String ip;
+    private final String fingerprint;
     private final long createdAt;
     private final long expiresAt;
+
+    ///
+    public boolean isExpired(final long reference) {
+
+        return expiresAt < reference;
+    }
 
     ///
 }

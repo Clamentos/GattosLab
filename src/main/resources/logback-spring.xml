@@ -2,41 +2,11 @@
 <configuration>
 
     <!---->
-    <appender name = "LOGS" class = "ch.qos.logback.core.rolling.RollingFileAppender">
-
-        <rollingPolicy class = "ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>./logs/app_logs.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
-
-        <encoder>
-            <pattern>|%d{dd-MM-yyyy HH:mm:ss.SSS}|%-5p|%t|%logger{0}|%replace(%m %ex){'\n','~'}|%n</pattern>
-        </encoder>
-
-    </appender>
-
-    <!---->
-    <appender name = "METRICS" class = "ch.qos.logback.core.rolling.RollingFileAppender">
-
-        <rollingPolicy class = "ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>./metrics/app_metrics.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
-
-        <encoder>
-            <pattern>|%d{dd-MM-yyyy HH:mm:ss.SSS}|%m|%n</pattern>
-        </encoder>
-
-    </appender>
-
-    <!---->
-    <logger name = "metrics" level = "info" additivity = "false">
-        <appender-ref ref = "METRICS"/>
-    </logger>
+    <appender name = "MONGO_LOGS" class = "io.github.clamentos.gattoslab.observability.logging.MongoAppender"></appender>
 
     <!---->
     <root level = "info">
-        <appender-ref ref = "LOGS"/>
+        <appender-ref ref = "MONGO_LOGS"/>
     </root>
 
     <!---->

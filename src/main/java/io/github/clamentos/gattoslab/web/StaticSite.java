@@ -8,6 +8,7 @@ import io.github.clamentos.gattoslab.utils.PropertyProvider;
 import jakarta.el.PropertyNotFoundException;
 
 ///.
+import java.io.File;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.time.OffsetDateTime;
@@ -40,45 +41,40 @@ import org.springframework.stereotype.Service;
 public final class StaticSite {
 
     ///
-    private final Map<String, Pair<String, byte[]>> website;
-
-    ///..
     private final Map<String, String> supportedExtensions;
     private final int cacheDuration;
+    final String pathDelimiter;
 
     @Getter
     private final OffsetDateTime timeAtStartup;
 
+    ///..
+    private final Map<String, Pair<String, byte[]>> website;
+
     ///
     @Autowired
-    @SuppressWarnings("squid:S1075")
     public StaticSite(final PropertyProvider propertyProvider) throws IOException, PropertyNotFoundException {
 
-        website = new HashMap<>();
         supportedExtensions = new HashMap<>();
 
-        supportedExtensions.put("html", "text/html");
-        supportedExtensions.put("css", "text/css");
-        supportedExtensions.put("png", "image/png");
-        supportedExtensions.put("jpg", "image/jpg");
-        supportedExtensions.put("jpeg", "image/jpeg");
-        supportedExtensions.put("svg", "image/svg+xml");
-        supportedExtensions.put("webp", "image/webp");
-        supportedExtensions.put("xml", "application/xml");
-        supportedExtensions.put("txt", "text/plain");
-        supportedExtensions.put("ico", "image/x-icon");
-        supportedExtensions.put("gif", "image/gif");
+        for(final String split : propertyProvider.getProperty("app.site.supportedMimeTypes", String.class).split(",")) {
 
-        cacheDuration = propertyProvider.getProperty("app.site.cacheDuration", Integer.class);
+            final String[] subSplits = split.split("\\|");
+            supportedExtensions.put(subSplits[0], subSplits[1]);
+        }
+
+        cacheDuration = propertyProvider.getProperty("app.site.cacheDuration", Integer.class) * 60;
+        pathDelimiter = propertyProvider.getProperty("spring.profiles.active", String.class).equals("prod") ? "/" : File.separator;
         timeAtStartup = OffsetDateTime.now();
 
         final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        website = new HashMap<>();
 
         for(final String path : this.listSiteResourcePaths("site", resolver)) {
 
             if(path.contains(".")) {
 
-                final String adjustedPath = path.contains("site") ? path.substring(4) : "/" + path;
+                final String adjustedPath = path.contains("site") ? path.substring(4) : pathDelimiter + path;
                 final byte[] content = new ClassPathResource("site" + adjustedPath).getInputStream().readAllBytes();
 
                 website.put(adjustedPath, new Pair<>(this.getMediaType(adjustedPath), content));
@@ -154,7 +150,7 @@ public final class StaticSite {
     throws IOException {
 
         final String rawRootUri = this.getResource(path, resolver).getURI().toString();
-        final String rootUri = URLDecoder.decode(rawRootUri.endsWith("/") ? rawRootUri : rawRootUri + "/", "UTF-8");
+        final String rootUri = URLDecoder.decode(rawRootUri.endsWith(pathDelimiter) ? rawRootUri : rawRootUri + pathDelimiter, "UTF-8");
         final int rootUriLength = rootUri.length();
 
         final List<Resource> resources = this.getResourcesIn(path, resolver);
@@ -163,10 +159,10 @@ public final class StaticSite {
         for(final Resource resource : resources) {
 
             final String uri = URLDecoder.decode(resource.getURI().toString(), "UTF-8");
-            final boolean isFile = uri.indexOf("/", rootUriLength) == -1;
+            final boolean isFile = uri.indexOf(pathDelimiter, rootUriLength) == -1;
 
-            if(isFile) resourceNames.add(path + "/" + uri.substring(rootUriLength));
-            else resourceNames.add(path + "/" + uri.substring(rootUriLength, uri.indexOf("/", rootUriLength + 1)));
+            if(isFile) resourceNames.add(path + pathDelimiter + uri.substring(rootUriLength));
+            else resourceNames.add(path + pathDelimiter + uri.substring(rootUriLength, uri.indexOf(pathDelimiter, rootUriLength + 1)));
         }
 
         return resourceNames;
@@ -178,7 +174,7 @@ public final class StaticSite {
         final Resource root = this.getResource(path, resolver);
         final String rootUri =  root.getURI().toString();
         final int rootUriLength = rootUri.length();
-        final String pathPattern = (path.endsWith("/")) ? path + "**" : path + "/**";
+        final String pathPattern = (path.endsWith(pathDelimiter)) ? path + "**" : path + pathDelimiter + "**";
 
         final Resource[] resources = this.getResources(pathPattern, resolver);
         final List<Resource> children = new ArrayList<>();
@@ -187,12 +183,12 @@ public final class StaticSite {
 
             final String uri = resource.getURI().toString();
             final int uriLength = uri.length();
-            final boolean isChild = uriLength > rootUriLength && !uri.equals(rootUri + "/");
+            final boolean isChild = uriLength > rootUriLength && !uri.equals(rootUri + pathDelimiter);
 
             if(isChild) {
 
-                final boolean isDirInside = uri.indexOf("/", rootUriLength + 1) == uriLength - 1;
-                final boolean isFileInside = uri.indexOf("/", rootUriLength + 1) == -1;
+                final boolean isDirInside = uri.indexOf(pathDelimiter, rootUriLength + 1) == uriLength - 1;
+                final boolean isFileInside = uri.indexOf(pathDelimiter, rootUriLength + 1) == -1;
 
                 if(isDirInside || isFileInside) children.add(resource);
             }
@@ -204,13 +200,13 @@ public final class StaticSite {
     ///..
     private Resource getResource(final String path, final PathMatchingResourcePatternResolver resolver) {
 
-        return resolver.getResource(path.replace("\\", "/"));
+        return resolver.getResource(path.replace("\\", pathDelimiter));
     }
 
     ///..
     private Resource[] getResources(String path, final PathMatchingResourcePatternResolver resolver) throws IOException {
 
-        return resolver.getResources(path.replace("\\", "/"));
+        return resolver.getResources(path.replace("\\", pathDelimiter));
     }
 
     ///

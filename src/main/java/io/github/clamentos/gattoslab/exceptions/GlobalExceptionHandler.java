@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.exceptions;
 
 ///
+import com.mongodb.MongoException;
+
+///.
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
@@ -41,18 +44,18 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
     }
 
     ///..
+    @ExceptionHandler(value = MongoException.class, produces = "text/html")
+    public ResponseEntity<String> handleMongoException(final MongoException exc, final WebRequest request) {
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(exc.getMessage());
+    }
+
+    ///..
     @ExceptionHandler(value = RedirectException.class, produces = "text/html")
     public ResponseEntity<String> handleRedirectException(final RedirectException exc, final WebRequest request) {
 
         final String redirectHtml = "<head><meta http-equiv=\"Refresh\" content=\"0; URL=" + baseUrl + exc.getMessage() + "\"/></head>";
         return ResponseEntity.ok(redirectHtml);
-    }
-
-    ///..
-    @ExceptionHandler(value = RuntimeIOException.class, produces = "text/plain")
-    public ResponseEntity<String> handleRuntimeIOException(final RuntimeIOException exc, final WebRequest request) {
-
-        return ResponseEntity.unprocessableEntity().body(exc.getMessage());
     }
 
     ///..

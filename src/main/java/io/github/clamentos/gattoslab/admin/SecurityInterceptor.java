@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.admin;
 
 ///
 import io.github.clamentos.gattoslab.exceptions.RedirectException;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
 import io.github.clamentos.gattoslab.web.StaticSite;
 
@@ -37,11 +38,13 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 public final class SecurityInterceptor implements HandlerInterceptor {
 
     ///
-    private final AdminSessionService adminSessionService;
-    
-    ///..
-    private final Set<String> authenticatedUris;
     private final boolean securityEnabled;
+    private final String loginHtmlPath;
+    private final String cookieName;
+    private final Set<String> authenticatedUris;
+
+    ///..
+    private final AdminSessionService adminSessionService;
 
     ///
     @Autowired
@@ -53,10 +56,12 @@ public final class SecurityInterceptor implements HandlerInterceptor {
 
     ) throws PropertyNotFoundException {
 
-        this.adminSessionService = adminSessionService;
-
         securityEnabled = propertyProvider.getProperty("app.security.enabled", Boolean.class);
+        loginHtmlPath = propertyProvider.getProperty("app.admin.loginHtmlPath", String.class);
+        cookieName = propertyProvider.getProperty("app.admin.cookieName", String.class);
         authenticatedUris = new HashSet<>(staticSite.getSitePaths("/admin"));
+
+        this.adminSessionService = adminSessionService;
     }
 
     ///
@@ -67,18 +72,18 @@ public final class SecurityInterceptor implements HandlerInterceptor {
         if(!securityEnabled) return true;
 
         final Cookie[] cookies = request.getCookies();
-        final String ip = request.getRemoteAddr();
+        final String fingerprint = GenericUtils.composeFingerprint(request.getRemoteAddr(), request.getHeader("User-Agent"));
 
-        if("/admin/login.html".equals(request.getRequestURI())) {
+        if(loginHtmlPath.equals(request.getRequestURI())) {
 
-            if(this.check(cookies, ip)) throw new RedirectException("/admin/index.html");
+            if(this.check(cookies, fingerprint)) throw new RedirectException("/admin/index.html");
             return true;
         }
 
         if(authenticatedUris.contains(request.getRequestURI())) {
 
-            if(this.check(cookies, ip)) return true;
-            throw new RedirectException("/admin/login.html");
+            if(this.check(cookies, fingerprint)) return true;
+            throw new RedirectException(loginHtmlPath);
         }
 
         return true;
@@ -100,23 +105,23 @@ public final class SecurityInterceptor implements HandlerInterceptor {
             authenticatedUris.addAll(entry.getKey().getDirectPaths().stream().filter(p -> p.contains("admin")).toList());
         }
 
-        authenticatedUris.remove("/admin/login.html");
+        authenticatedUris.remove(loginHtmlPath);
     }
 
     ///.
-    private boolean check(final Cookie[] cookies, final String ip) {
+    private boolean check(final Cookie[] cookies, final String fingerprint) {
 
         if(cookies == null || cookies.length == 0) return false;
 
         for(final Cookie cookie : cookies) {
 
-            if("GattosLabSessionId".equals(cookie.getName())) {
+            if(cookieName.equals(cookie.getName())) {
 
                 final boolean isOk = adminSessionService.check(cookie.getValue());
 
                 if(isOk) {
 
-                    log.info("Admin access by ip: {}", ip);
+                    log.info("Admin access by fingerprint: {}", fingerprint);
                     return true;
                 }
 

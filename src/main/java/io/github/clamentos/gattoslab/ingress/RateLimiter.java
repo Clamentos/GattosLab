@@ -33,13 +33,13 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public final class RateLimiter implements HandlerInterceptor {
 
     ///
-    private final AtomicInteger globalTokens;
-    private final Map<String, Pair<AtomicInteger, AtomicInteger>> tokensByIp;
-
-    ///..
     private final int maxGlobalTokens;
     private final int maxTokensPerIp;
     private final int blockCounterStart;
+
+    ///..
+    private final AtomicInteger globalTokens;
+    private final Map<String, Pair<AtomicInteger, AtomicInteger>> tokensByIp;
 
     ///
     @Autowired
@@ -49,7 +49,7 @@ public final class RateLimiter implements HandlerInterceptor {
         maxTokensPerIp = propertyProvider.getProperty("app.ratelimit.maxTokensPerIp", Integer.class);
 
         final int retryAfter = propertyProvider.getProperty("app.ratelimit.retryAfter", Integer.class);
-        blockCounterStart = retryAfter / propertyProvider.getProperty("app.ratelimit.replenishSchedule", Integer.class);
+        blockCounterStart = retryAfter / propertyProvider.getProperty("app.ratelimit.replenishRate", Integer.class);
 
         globalTokens = new AtomicInteger(maxGlobalTokens);
         tokensByIp = new ConcurrentHashMap<>();
@@ -76,7 +76,7 @@ public final class RateLimiter implements HandlerInterceptor {
 	}
 
     ///.
-    @Scheduled(fixedRateString = "${app.ratelimit.replenishSchedule}")
+    @Scheduled(fixedRateString = "${app.ratelimit.replenishRate}")
     protected void replenish() {
 
         globalTokens.set(maxGlobalTokens);

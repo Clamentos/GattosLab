@@ -2,12 +2,14 @@ package io.github.clamentos.gattoslab.admin;
 
 ///
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
 
 ///.
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Iterator;
@@ -34,6 +36,12 @@ import org.springframework.stereotype.Service;
 public final class AdminSessionService {
 
     ///
+    private final String apiKey;
+    private final long loginDelay;
+    private final long sessionDuration;
+    private final int maxSessions;
+
+    ///..
     private final Map<String, AdminSessionMetadata> sessions;
     private final AtomicInteger sizeCounter;
 
@@ -41,39 +49,34 @@ public final class AdminSessionService {
     private final Lock lock;
     private final Random random;
 
-    ///..
-    private final String apiKey;
-    private final long loginSleep;
-    private final int sessionDuration;
-    private final int maxSessions;
-
     ///
     @Autowired
     public AdminSessionService(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+
+        apiKey = propertyProvider.getProperty("app.admin.apiKey", String.class);
+        loginDelay = propertyProvider.getProperty("app.admin.loginDelay", Long.class);
+        sessionDuration = propertyProvider.getProperty("app.admin.sessionDuration", Long.class) * 1000L;
+        maxSessions = propertyProvider.getProperty("app.admin.maxSessions", Integer.class);
 
         sessions = new ConcurrentHashMap<>();
         sizeCounter = new AtomicInteger();
 
         lock = new ReentrantLock();
-        random = new Random();
-
-        apiKey = propertyProvider.getProperty("app.admin.apiKey", String.class);
-        loginSleep = propertyProvider.getProperty("app.admin.loginSleep", Long.class);
-        sessionDuration = propertyProvider.getProperty("app.admin.sessionDuration", Integer.class);
-        maxSessions = propertyProvider.getProperty("app.admin.maxSessions", Integer.class);
+        random = new SecureRandom();
     }
 
     ///
     // Designed to be slow when wrong on purpose.
-    @SuppressWarnings("squid:S2276")
     public boolean check(final String sessionId) {
 
-        if(sessions.get(sessionId) == null) {
+        final AdminSessionMetadata session = sessions.get(sessionId);
+
+        if(session == null || session.isExpired(System.currentTimeMillis())) {
 
             try {
 
                 lock.lock();
-                Thread.sleep(loginSleep);
+                Thread.sleep(loginDelay);
             }
 
             catch(final InterruptedException exc) {
@@ -90,11 +93,14 @@ public final class AdminSessionService {
     }
 
     ///..
-    public String createSession(final String apiKey, final String ip) throws ApiSecurityException {
+    public String createSession(final String apiKey, final String ip, final String userAgent) throws ApiSecurityException {
 
-        if(apiKey == null || !apiKey.equals(this.apiKey) || sizeCounter.getAndIncrement() >= maxSessions) {
+        final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
 
-            throw new ApiSecurityException("Invalid key for ip: " + ip);
+        if(apiKey == null || !apiKey.equals(this.apiKey)) {
+
+            if(sizeCounter.getAndIncrement() >= maxSessions) throw new ApiSecurityException("Too many sessions");
+            else throw new ApiSecurityException("Invalid key for fingerprint: " + fingerprint);
         }
 
         final long now = System.currentTimeMillis();
@@ -104,18 +110,14 @@ public final class AdminSessionService {
         final String sessionIdString = new String(Base64.getEncoder().encode(sessionId));
         sessions.put(sessionIdString, new AdminSessionMetadata(ip, now, now + sessionDuration));
 
-        log.info("Admin session created for ip: {}", ip);
+        log.info("Admin session created for fingerprint: {}", fingerprint);
         return sessionIdString;
     }
 
     ///..
-    public void deleteSession(final String sessionId, final String ip) {
+    public void deleteSession(final String sessionId) {
 
-        if(sessionId != null && sessions.remove(sessionId) != null) {
-
-            sizeCounter.decrementAndGet();
-            log.info("Admin session logout for ip: {}", ip);
-        }
+        this.removeSession(sessionId, "Admin session logout for fingerprint");
     }
 
     ///..
@@ -125,21 +127,30 @@ public final class AdminSessionService {
     }
 
     ///.
-    @Scheduled(fixedDelayString = "${app.admin.sessionCleanSchedule}")
+    @Scheduled(cron = "${app.admin.sessionCleanSchedule}")
     protected void cleanExpired() {
 
-        final Iterator<Map.Entry<String, AdminSessionMetadata>> entries = sessions.entrySet().iterator();
         final long now = System.currentTimeMillis();
+        final Iterator<Map.Entry<String, AdminSessionMetadata>> entries = sessions.entrySet().iterator();
 
         while(entries.hasNext()) {
 
             final Map.Entry<String, AdminSessionMetadata> entry = entries.next();
-            final AdminSessionMetadata metadata = entry.getValue();
+            if(entry.getValue().isExpired(now)) this.removeSession(entry.getKey(), "Admin session expired for fingerprint");
+        }
+    }
 
-            if(metadata.getExpiresAt() < now && sessions.remove(entry.getKey()) != null) {
+    ///.
+    private void removeSession(final String sessionId, final String message) {
+
+        if(sessionId != null && sessions.remove(sessionId) != null) {
+
+            final AdminSessionMetadata session = sessions.remove(sessionId);
+
+            if(session != null) {
 
                 sizeCounter.decrementAndGet();
-                log.info("Admin session expired for ip: {}", metadata.getIp());
+                log.info("{}: {}", message, session.getFingerprint());
             }
         }
     }

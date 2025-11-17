@@ -6,12 +6,12 @@ import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -27,50 +27,54 @@ import org.springframework.web.bind.annotation.RestController;
 public final class AdminController {
 
     ///
-    private final AdminSessionService adminSessionService;
+    private final String cookieAttributes;
+    private final String cookieName;
 
     ///..
-    private final String cookieAttributes;
+    private final AdminSessionService adminSessionService;
 
     ///..
     @Autowired
     public AdminController(final AdminSessionService adminSessionService, final PropertyProvider propertyProvider)
     throws PropertyNotFoundException {
 
-        this.adminSessionService = adminSessionService;
         cookieAttributes = propertyProvider.getProperty("app.admin.cookieAttributes", String.class);
+        cookieName = propertyProvider.getProperty("app.admin.cookieName", String.class);
+
+        this.adminSessionService = adminSessionService;
     }
 
     ///
     @PostMapping
     public ResponseEntity<Void> createSession(
 
-        @RequestHeader("Authorization") final String key,
-        @RequestAttribute("IP_ATTRIBUTE") final String ip
-    ) {
+        @RequestAttribute("IP_ATTRIBUTE") final String ip,
+        @RequestHeader(value = "Authorization", required = false) final String key,
+        @RequestHeader(value = "User-Agent", required = false) final String userAgent
 
-        try {
+    ) throws ApiSecurityException {
 
-            final String sessionId = adminSessionService.createSession(key, ip);
-            return ResponseEntity.ok().header("Set-Cookie", "GattosLabSessionId=" + sessionId + ";" + cookieAttributes).build();
-        }
-
-        catch(final ApiSecurityException _) {
-
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+        final String sessionId = adminSessionService.createSession(key, ip, userAgent);
+        return ResponseEntity.ok().header("Set-Cookie", cookieName + cookieAttributes.replace("$", sessionId)).build();
     }
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> deleteSession(
+    public ResponseEntity<Void> deleteSession(final HttpServletRequest request) throws ApiSecurityException {
 
-        @CookieValue("GattosLabSessionId") final String key,
-        @RequestAttribute("IP_ATTRIBUTE") final String ip
-    ) {
+        final Cookie[] cookies = request.getCookies();
+        if(cookies == null) throw new ApiSecurityException("Cookie header was null");
 
-        this.adminSessionService.deleteSession(key, ip);
-        return ResponseEntity.ok().build();
+        for(final Cookie cookie : cookies) {
+
+            if(cookie != null && cookieName.equals(cookie.getName())) {
+
+                this.adminSessionService.deleteSession(cookie.getValue());
+                return ResponseEntity.ok().build();
+            }
+        }
+
+        throw new ApiSecurityException(cookieName + "was not present in the request");
     }
 
     ///

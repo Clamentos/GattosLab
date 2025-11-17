@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.metrics.model;
+package io.github.clamentos.gattoslab.observability.metrics.charts.model;
 
 ///
 import io.github.clamentos.gattoslab.utils.Pair;
