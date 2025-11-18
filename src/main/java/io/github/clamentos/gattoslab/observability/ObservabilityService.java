@@ -167,7 +167,7 @@ public final class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    //@Scheduled(fixedRateString = "${app.metrics.dumpToDbRate}")
+    @Scheduled(fixedRateString = "${app.metrics.dumpToDbRate}")
     protected void dumpToDb() {
 
         final MetricsContainer container = observabilityContext.advance();

@@ -9,6 +9,7 @@ import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +63,8 @@ public final class MetricsContainer {
     ///..
     public void updateTime(final long timestamp) {
 
-        for(final RequestsPerSecondChart rpsChart : rpsCharts.values()) rpsChart.updateTime(timestamp);
+        this.updateTime(rpsCharts.values(), timestamp);
+        this.updateTime(latencyCharts.values(), timestamp);
     }
 
     ///..
@@ -79,6 +81,12 @@ public final class MetricsContainer {
         entities.put(DatabaseCollection.USER_AGENTS, this.countsToDocument(userAgentCounts, now));
 
         return entities;
+    }
+
+    ///.
+    private void updateTime(final Collection<? extends Chart<?>> charts, final long timestamp) {
+
+        for(final Chart<?> chart : charts) chart.updateTime(timestamp);
     }
 
     ///.

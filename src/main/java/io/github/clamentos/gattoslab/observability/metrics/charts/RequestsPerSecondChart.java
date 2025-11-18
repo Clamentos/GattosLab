@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.observability.metrics.charts;
 
 ///
+import io.github.clamentos.gattoslab.utils.GenericUtils;
+
+///.
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +67,7 @@ public final class RequestsPerSecondChart implements Chart<Void> {
 
         for(final Map.Entry<String, Map<Long, AtomicInteger>> dataset : datasets.entrySet()) {
 
-            final List<Integer> pointValues = this.initPointValues(sortedLabels.size());
+            final List<Integer> pointValues = GenericUtils.initList(sortedLabels.size(), 0);
             final Map<Long, AtomicInteger> value = dataset.getValue();
 
             for(int i = 0; i < pointValues.size(); i++) {
@@ -83,15 +86,6 @@ public final class RequestsPerSecondChart implements Chart<Void> {
         }
 
         return document;
-    }
-
-    ///.
-    private List<Integer> initPointValues(final int size) {
-
-        final List<Integer> pointValues = new ArrayList<>(size);
-        for(int i = 0; i < size; i++) pointValues.add(0);
-
-        return pointValues;
     }
 
     ///

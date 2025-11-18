@@ -72,11 +72,7 @@ public final class LatencyChart implements Chart<Integer> {
             final List<Document> pointValues = new ArrayList<>(sortedLabels.size());
             final Map<Long, List<LatencyBucket>> value = dataset.getValue();
 
-            for(int i = 0; i < pointValues.size(); i++) {
-
-                // x = time
-                // y = latency distrib.
-                // r = amount
+            for(int i = 0; i < sortedLabels.size(); i++) {
 
                 final long timestamp = sortedLabels.get(i);
                 final List<LatencyBucket> buckets = value.get(timestamp);
@@ -92,11 +88,6 @@ public final class LatencyChart implements Chart<Integer> {
 
                         pointValues.add(axisDocument);
                     }
-                }
-
-                else {
-
-                    pointValues.add(null);
                 }
             }
 
