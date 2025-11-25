@@ -4,7 +4,7 @@
     <head>
 
         <meta charset = "utf-8"/>
-        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Admin section landing page."/>
 
         <link rel = "stylesheet" href = "../styles.css"/>
@@ -18,17 +18,17 @@
 
         <nav class = "navbar">
 
-            <div class = "nav-item">
-                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
-                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
             </div>
 
-            <div class = "nav-item" style = "margin-left: 200px;">
-                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Admin</p>
-            </div>
-
-            <div class = "nav-item" style = "margin: 0px 50px 0px auto;">
-                <button class = "login-button" style = "margin-top: 0px;" type = "button" onclick = "handleLogout()">Logout</button>
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Admin
             </div>
 
         </nav>
@@ -52,15 +52,39 @@
 
                     <div class = "card-content-container">
 
-                        <h1 class = "card-title">Performance metrics</h1>
+                        <h1 class = "card-title">Metrics</h1>
 
                         <p class = "card-description">
-                            View the site requests per second and request latency charts.
+                            View the site performance metrics, such as requests per second, latency distributions and machine resource usage.
                         </p>
 
                         <div class = "card-footer-container">
                             <div class = "card-footer">
                                 <a href = "./metrics/metrics.html" target = "_blank">Goto metrics</a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class = "card">
+
+                    <div class = "card-header" style = "background-color: #080808">
+                        <img src = "../images/METRICS-IMG.svg" alt = ""/>
+                    </div>
+
+                    <div class = "card-content-container">
+
+                        <h1 class = "card-title">Logs</h1>
+
+                        <p class = "card-description">
+                            View the site requests logs.
+                        </p>
+
+                        <div class = "card-footer-container">
+                            <div class = "card-footer">
+                                <a href = "./metrics/logs.html" target = "_blank">Goto logs</a>
                             </div>
                         </div>
 
@@ -74,15 +98,11 @@
 
     </body>
 
+    <script src = "../js/CheckLogout.js"></script>
+
     <script>
 
-        function handleLogout() {
-
-            fetch("/admin/api/session", {method: "DELETE"}).then(response => {
-
-                if(response.status === 200) globalThis.location = "./login.html";
-            });
-        }
+        checkLogout("/admin/login.html");
 
     </script>
 

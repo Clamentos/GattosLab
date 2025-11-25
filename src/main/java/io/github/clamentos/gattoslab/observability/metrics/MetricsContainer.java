@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,38 +21,37 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
-///..
-import org.springframework.http.HttpStatus;
-
 ///
 public final class MetricsContainer {
 
     ///
-    private final Map<HttpStatus, RequestsPerSecondChart> rpsCharts;
-    private final Map<HttpStatus, LatencyChart> latencyCharts;
+    private final Map<Integer, RequestsPerSecondChart> rpsCharts;
+    private final Map<Integer, LatencyChart> latencyCharts;
     private final Map<String, AtomicInteger> pathsInvocationCounts;
     private final Map<String, AtomicInteger> userAgentCounts;
 
-    ///..
-    private final List<Pair<Integer, Integer>> latencyBuckets;
-
     ///
-    public MetricsContainer(final List<Pair<Integer, Integer>> latencyBuckets) {
+    public MetricsContainer(final List<Integer> httpStatuses, final Set<String> paths, final List<Pair<Integer, Integer>> latencyBuckets) {
 
         rpsCharts = new ConcurrentHashMap<>();
         latencyCharts = new ConcurrentHashMap<>();
+
+        for(final Integer httpStatus : httpStatuses) {
+
+            rpsCharts.put(httpStatus, new RequestsPerSecondChart(paths));
+            latencyCharts.put(httpStatus, new LatencyChart(paths, latencyBuckets));
+        }
+
         pathsInvocationCounts = new ConcurrentHashMap<>();
         userAgentCounts = new ConcurrentHashMap<>();
-
-        this.latencyBuckets = latencyBuckets;
     }
 
     ///..
-    public void updateRequests(final HttpStatus status, final String path, final long timestamp, final int latency) {
+    public void updateRequests(final int status, final String path, final String truePath, final long timestamp, final int latency) {
 
-        rpsCharts.computeIfAbsent(status, _ -> new RequestsPerSecondChart()).update(timestamp, path, null);
-        latencyCharts.computeIfAbsent(status, _ -> new LatencyChart(latencyBuckets)).update(timestamp, path, latency);
-        pathsInvocationCounts.computeIfAbsent(path, _ -> new AtomicInteger()).incrementAndGet();
+        rpsCharts.get(status).update(timestamp, path, null);
+        latencyCharts.get(status).update(timestamp, path, latency);
+        pathsInvocationCounts.computeIfAbsent(truePath, _ -> new AtomicInteger()).incrementAndGet();
     }
 
     ///..
@@ -90,11 +90,11 @@ public final class MetricsContainer {
     }
 
     ///.
-    private <T extends Chart<?>> List<Document> chartsToDocument(final Map<HttpStatus, T> charts, final long timestamp) {
+    private <T extends Chart<?>> List<Document> chartsToDocument(final Map<Integer, T> charts, final long timestamp) {
 
         final List<Document> documents = new ArrayList<>(rpsCharts.size() + latencyCharts.size());
 
-        for(final Map.Entry<HttpStatus, T> entry : charts.entrySet()) {
+        for(final Map.Entry<Integer, T> entry : charts.entrySet()) {
 
             final T chart = entry.getValue();
             final Document document = new Document();
@@ -102,7 +102,7 @@ public final class MetricsContainer {
             document.append("_id", new ObjectId());
             document.append("timestamp", timestamp);
             document.append("chartType", chart.getClass().getSimpleName());
-            document.append("httpStatus", entry.getKey().toString());
+            document.append("httpStatus", entry.getKey());
             document.append("chart", chart.toDocument());
 
             documents.add(document);

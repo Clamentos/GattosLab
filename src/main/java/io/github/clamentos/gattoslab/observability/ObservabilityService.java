@@ -14,8 +14,8 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.result.DeleteResult;
 
-import io.github.clamentos.gattoslab.observability.filters.ChartSearchFilter;
 ///.
+import io.github.clamentos.gattoslab.observability.filters.ChartSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.metrics.MetricsContainer;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
@@ -33,11 +33,9 @@ import jakarta.servlet.http.HttpServletResponse;
 
 ///.
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +46,6 @@ import org.bson.Document;
 ///..
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.support.ServletRequestHandledEvent;
@@ -84,15 +81,7 @@ public final class ObservabilityService implements HandlerInterceptor {
     ) throws PropertyNotFoundException {
 
         retention = propertyProvider.getProperty("app.retention.value", Long.class) * 1000 * 60 * 60 * 24;
-
-        sitePaths = staticSite.getSitePaths().stream().map(e -> "GET" + e).collect(Collectors.toCollection(HashSet::new));
-        sitePaths.add("GET/admin/api/observability/paths-count");
-        sitePaths.add("GET/admin/api/observability/user-agents-count");
-        sitePaths.add("GET/admin/api/observability/performance-charts");
-        sitePaths.add("GET/admin/api/observability/sessions-metadata");
-        sitePaths.add("GET/admin/api/observability/logs");
-        sitePaths.add("POST/admin/api/session/login");
-        sitePaths.add("DELETE/admin/api/session/logout");
+        sitePaths = staticSite.getPaths();
 
         this.observabilityContext = observabilityContext;
         this.mongoClientWrapper = mongoClientWrapper;
@@ -142,7 +131,14 @@ public final class ObservabilityService implements HandlerInterceptor {
             try(final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(outputStream)) {
 
                 generator.writeStartArray();
-                while(results.hasNext()) generator.writeObject(results.next());
+
+                while(results.hasNext()) {
+
+                    final Document document = results.next();
+                    document.remove("_id");
+                    generator.writeObject(document);
+                }
+
                 generator.writeEndArray();
             }
         };
@@ -158,16 +154,19 @@ public final class ObservabilityService implements HandlerInterceptor {
     @EventListener
     protected void handleRequestHandledEvent(final ServletRequestHandledEvent requestHandledEvent) {
 
-        final String trueUrl = requestHandledEvent.getMethod() + requestHandledEvent.getRequestUrl();
-        final String url = sitePaths.contains(trueUrl) ? trueUrl : "<other>";
-        final HttpStatus status = HttpStatus.valueOf(requestHandledEvent.getStatusCode());
-        final int processingTime = (int)requestHandledEvent.getProcessingTimeMillis();
+        final String trueUrl = requestHandledEvent.getRequestUrl();
 
-        observabilityContext.updateRequests(status, url, processingTime);
+        observabilityContext.updateRequests(
+    
+            requestHandledEvent.getStatusCode(),
+            sitePaths.contains(trueUrl) ? trueUrl : "<other>",
+            requestHandledEvent.getMethod() + trueUrl,
+            (int)requestHandledEvent.getProcessingTimeMillis()
+        );
     }
 
     ///..
-    @Scheduled(fixedRateString = "${app.metrics.dumpToDbRate}")
+    //@Scheduled(fixedRateString = "${app.metrics.dumpToDbRate}")
     protected void dumpToDb() {
 
         final MetricsContainer container = observabilityContext.advance();

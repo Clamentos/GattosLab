@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang = "en">
+    
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. Admin site logs page."/>
+
+        <link rel = "stylesheet" href = "../../styles.css"/>
+        <link rel = "icon" type = "image/x-icon" href = "../../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
+            </div>
+
+            <div class = "nav-crumb">
+                <a href = "../../index.html">Home</a> > <a href = "../index.html">Admin</a> > Logs
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "cards-container">
+
+                <form class = "charts-form" onsubmit = "onSubmitEvent(event)">
+
+                    <div class = "charts-form-group">
+
+                        <div class = "charts-form-input-group">
+                            <label for = "startTimestamp">Start timestamp</label>
+                            <input class = "chart-form-input" type = "datetime-local" name = "startTimestamp">
+                        </div>
+
+                        <div class = "charts-form-input-group">
+                            <label for = "endTimestamp">End timestamp</label>
+                            <input class = "chart-form-input" type = "datetime-local" name = "endTimestamp">
+                        </div>
+
+                    </div>
+
+                    <button class = "form-button" type = "submit">Filter</button>
+                    <p id = "API-error" class = "form-error"></p>
+
+                </form>
+
+            </div>
+
+        </main>
+
+    </body>
+
+</html>

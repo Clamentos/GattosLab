@@ -4,10 +4,10 @@
     <head>
 
         <meta charset = "utf-8"/>
-        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Coming-soon page."/>
 
-        <link rel = "stylesheet" href = "styles.css"/>
+        <link rel = "stylesheet" href = "./styles.css"/>
         <link rel = "icon" type = "image/x-icon" href = "./images/favicon.ico"/>
 
         <title>Gatto's Lab</title>
@@ -18,13 +18,17 @@
 
         <nav class = "navbar">
 
-            <div class = "nav-item">
-                <img src = "./images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
-                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "./images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
             </div>
 
-            <div class = "nav-item" style = "margin-left: 200px;">
-                <a href = "./index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Coming-soon</p>
+            <div class = "nav-crumb">
+                <a href = "./index.html">Home</a> > Coming-soon
             </div>
 
         </nav>
@@ -39,5 +43,13 @@
         </main>
 
     </body>
+
+    <script src = "./js/CheckLogout.js"></script>
+
+    <script>
+
+        checkLogout();
+
+    </script>
 
 </html>

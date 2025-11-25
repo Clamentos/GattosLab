@@ -4,7 +4,7 @@
     <head>
 
         <meta charset = "utf-8"/>
-        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Admin login page."/>
 
         <link rel = "stylesheet" href = "../styles.css"/>
@@ -18,13 +18,17 @@
 
         <nav class = "navbar">
 
-            <div class = "nav-item">
-                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
-                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
             </div>
 
-            <div class = "nav-item" style = "margin-left: 200px;">
-                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Login</p>
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Admin-login
             </div>
 
         </nav>
@@ -33,7 +37,7 @@
 
             <div class = "login-container">
 
-                <div class = "card-static">
+                <div class = "static-card">
 
                     <div class = "card-header" style = "background-color: white">
                         <img src = "../images/FABRISC-LOGO.png" alt = "FabRISC ISA project logo"/>
@@ -71,14 +75,12 @@
 
     <script>
 
-        const baseUrl = "http://localhost:8080";
-
         function onSubmitEvent(event) {
 
             event.preventDefault();
             document.getElementById("login-form-feedback").innerText = "";
 
-            fetch(`${baseUrl}/admin/api/session`, {
+            fetch("/admin/api/session", {
 
                 method: "POST",
 
@@ -91,7 +93,13 @@
 
                 switch(response.status) {
 
-                    case 200: globalThis.location = "./index.html"; break;
+                    case 200:
+
+                        localStorage.setItem("GattosLabIsLoggedIn", "true");
+                        globalThis.location = "./index.html";
+
+                    break;
+
                     case 401: document.getElementById("login-form-feedback").innerText = "Unauthorized"; break;
                     default: document.getElementById("login-form-feedback").innerText = `Error: ${response.status}`;
                 }

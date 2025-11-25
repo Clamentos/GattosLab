@@ -4,23 +4,27 @@ package io.github.clamentos.gattoslab.observability.metrics;
 import io.github.clamentos.gattoslab.observability.metrics.system.SystemStatus;
 import io.github.clamentos.gattoslab.utils.Pair;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
+import io.github.clamentos.gattoslab.web.StaticSite;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
 
 ///.
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 ///
@@ -33,6 +37,8 @@ public final class ObservabilityContext {
     ///
     private final long limitTimeSlotIncrement;
     private final List<Pair<Integer, Integer>> latencyBuckets;
+    private final List<Integer> httpStatuses;
+    private final Set<String> paths;
 
     ///..
     private final AtomicReference<MetricsContainer> container;
@@ -45,7 +51,14 @@ public final class ObservabilityContext {
 
     ///
     @Autowired
-    public ObservabilityContext(final SystemMetrics systemMetrics, final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public ObservabilityContext(final StaticSite staticSite, final SystemMetrics systemMetrics, final PropertyProvider propertyProvider)
+    throws PropertyNotFoundException {
+
+        limitTimeSlotIncrement =
+
+            propertyProvider.getProperty("app.metrics.rateCapacity", Long.class) *
+            propertyProvider.getProperty("app.metrics.dumpToDbRate", Long.class)
+        ;
 
         latencyBuckets = Arrays
 
@@ -59,13 +72,20 @@ public final class ObservabilityContext {
             .toList()
         ;
 
-        limitTimeSlotIncrement =
+        httpStatuses = Arrays
 
-            propertyProvider.getProperty("app.metrics.rateCapacity", Long.class) *
-            propertyProvider.getProperty("app.metrics.dumpToDbRate", Long.class)
+            .asList(propertyProvider.getProperty("app.metrics.httpStatuses", String.class).split(","))
+            .stream()
+            .map(Integer::parseInt)
+            .collect(Collectors.toCollection(ArrayList::new))
         ;
 
-        container = new AtomicReference<>(new MetricsContainer(latencyBuckets));
+        httpStatuses.add(-1); // Used as a "catch-all" value.
+
+        paths = new HashSet<>(staticSite.getPaths());
+        paths.add("<other>");
+
+        container = new AtomicReference<>(new MetricsContainer(httpStatuses, paths, latencyBuckets));
         this.systemMetrics = systemMetrics;
 
         final long now = System.currentTimeMillis();
@@ -76,9 +96,10 @@ public final class ObservabilityContext {
     }
 
     ///
-    public void updateRequests(final HttpStatus status, final String path, final int latency) {
+    public void updateRequests(final int status, final String path, final String truePath, final int latency) {
 
-        this.updateMetrics(_ -> this.waitForAvailable().updateRequests(status, path, currentTimeSlot.get(), latency));
+        final int actualStatus = httpStatuses.contains(status) ? status : -1;
+        this.updateMetrics(_ -> this.waitForAvailable().updateRequests(actualStatus, path, truePath, currentTimeSlot.get(), latency));
     }
 
     ///..
@@ -97,10 +118,10 @@ public final class ObservabilityContext {
     public MetricsContainer advance() {
 
         final long now = System.currentTimeMillis();
-        currentTimeSlot.set(now);
 
-        if(currentTimeSlot.get() >= limitTimeSlot.get()) {
+        if(now >= limitTimeSlot.get()) {
 
+            currentTimeSlot.set(now);
             final long currentVisitors = visitorCounter.getAndSet(-1);
 
             while(visitorCounter.get() + currentVisitors != -1) {
@@ -117,16 +138,22 @@ public final class ObservabilityContext {
                 }
             }
 
-            final MetricsContainer oldContainer = container.getAndSet(new MetricsContainer(latencyBuckets));
+            final MetricsContainer oldContainer = container.getAndSet(new MetricsContainer(httpStatuses, paths, latencyBuckets));
 
+            container.get().updateTime(now);
             limitTimeSlot.set(now + limitTimeSlotIncrement);
             visitorCounter.set(0);
 
             return oldContainer;
         }
 
-        container.get().updateTime(now);
-        return null;
+        else {
+
+            currentTimeSlot.set(now);
+            container.get().updateTime(now);
+
+            return null;
+        }
     }
 
     ///.

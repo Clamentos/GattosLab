@@ -7,6 +7,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,24 +28,22 @@ public final class RequestsPerSecondChart implements Chart<Void> {
     private final Map<String, Map<Long, AtomicInteger>> datasets; // path -> timestamp -> counts
 
     ///
-    public RequestsPerSecondChart() {
+    public RequestsPerSecondChart(final Set<String> paths) {
 
         labels = new ConcurrentHashMap<>();
         datasets = new ConcurrentHashMap<>();
+
+        for(final String path : paths) datasets.put(path, new ConcurrentHashMap<>());
     }
 
     ///
     @Override
     public void update(final long timestamp, final String path, final Void data) {
 
-        labels.putIfAbsent(timestamp, timestamp);
+        Map<Long, AtomicInteger> dataset = datasets.get(path);
+        if(dataset == null) dataset = datasets.get("<other>");
 
-        datasets
-
-            .computeIfAbsent(path, _ -> new ConcurrentHashMap<>())
-            .computeIfAbsent(timestamp, _ -> new AtomicInteger())
-            .incrementAndGet()
-        ;
+        dataset.computeIfAbsent(timestamp, _ -> new AtomicInteger()).incrementAndGet();
     }
 
     ///..

@@ -4,7 +4,7 @@
     <head>
 
         <meta charset = "utf-8"/>
-        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Gatto's Lab project page."/>
 
         <link rel = "stylesheet" href = "../styles.css"/>
@@ -18,22 +18,26 @@
 
         <nav class = "navbar">
 
-            <div class = "nav-item">
-                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
-                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
             </div>
 
-            <div class = "nav-item" style = "margin-left: 200px;">
-                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Gatto's Lab</p>
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Gatto's Lab
             </div>
 
         </nav>
 
         <main>
 
-            <div class = "project-text-container">
+            <div class = "project-container">
 
-                <h1 class = "header-title project-title">Gatto's Lab</h1>
+                <h1 class = "project-title">Gatto's Lab</h1>
 
                 <p class = "project-text">
                     As you might have figured out by now, it's this website! I always wanted to have my own slice of the internet all for myself and so i decided to develop a simple website, with my GitHub projects as the subject.
@@ -61,5 +65,13 @@
         </main>
 
     </body>
+
+    <script src = "../js/CheckLogout.js"></script>
+
+    <script>
+
+        checkLogout();
+
+    </script>
 
 </html>

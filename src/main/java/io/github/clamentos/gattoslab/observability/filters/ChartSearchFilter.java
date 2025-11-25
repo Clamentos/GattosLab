@@ -11,16 +11,12 @@ import com.mongodb.client.model.Filters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 ///.
 import lombok.Getter;
 
 ///.
 import org.bson.conversions.Bson;
-
-///..
-import org.springframework.http.HttpStatus;
 
 ///
 @Getter
@@ -30,7 +26,7 @@ public final class ChartSearchFilter extends TemporalSearchFilter {
 
     ///
     private final Set<String> chartTypes;
-    private final Set<String> httpStatuses;
+    private final Set<Integer> httpStatuses;
 
     ///
     @JsonCreator
@@ -45,7 +41,7 @@ public final class ChartSearchFilter extends TemporalSearchFilter {
         super(startTimestamp, endTimestamp);
 
         this.chartTypes = chartTypes;
-        this.httpStatuses = httpStatuses != null ? httpStatuses.stream().map(e -> HttpStatus.valueOf(e).toString()).collect(Collectors.toSet()) : null;
+        this.httpStatuses = httpStatuses;
     }
 
     ///

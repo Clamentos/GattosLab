@@ -4,7 +4,7 @@
     <head>
 
         <meta charset = "utf-8"/>
-        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Code Separator project page."/>
 
         <link rel = "stylesheet" href = "../styles.css"/>
@@ -18,25 +18,29 @@
 
         <nav class = "navbar">
 
-            <div class = "nav-item">
-                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
-                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
             </div>
 
-            <div class = "nav-item" style = "margin-left: 200px;">
-                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Code Separator</p>
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Code Separator
             </div>
 
         </nav>
 
         <main>
 
-            <div class = "project-text-container">
+            <div class = "project-container">
 
-                <h1 class = "header-title project-title">Code Separator</h1>
+                <h1 class = "project-title">Code Separator</h1>
 
                 <p class = "project-text">
-                    This project came into existence due to a small personal need when writing software, regardless of the language. I used to write comments like this: <code>//-------------------------------------</code>...
+                    This project came into existence due to a small personal need when writing software, regardless of the language. I used to write comments like this: <code>//-------------------------</code>...
                     to logically separate sections of the code. After a while i got tired of it as it was inconsistent across the different screen sizes of my desktop and my laptop due to word wrapping. I ultimately decided to develop a simple VSCode extension to draw a separating line for the whole length of the text editor given a specific comment pattern. This was also an opportunity to delve into this world, as i often wondered how one would develop such things.
 
                     <br/><br/>
@@ -62,5 +66,13 @@
         </main>
 
     </body>
+
+    <script src = "../js/CheckLogout.js"></script>
+
+    <script>
+
+        checkLogout();
+
+    </script>
 
 </html>

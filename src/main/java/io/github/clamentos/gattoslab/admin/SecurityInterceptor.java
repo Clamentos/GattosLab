@@ -14,7 +14,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 ///.
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 ///.
@@ -22,13 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.ContextRefreshedEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
-import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 ///
 @Component
@@ -59,7 +53,9 @@ public final class SecurityInterceptor implements HandlerInterceptor {
         securityEnabled = propertyProvider.getProperty("app.security.enabled", Boolean.class);
         loginHtmlPath = propertyProvider.getProperty("app.admin.loginHtmlPath", String.class);
         cookieName = propertyProvider.getProperty("app.admin.cookieName", String.class);
-        authenticatedUris = new HashSet<>(staticSite.getSitePaths("/admin"));
+
+        authenticatedUris = new HashSet<>(staticSite.getPaths("/admin"));
+        authenticatedUris.remove(loginHtmlPath);
 
         this.adminSessionService = adminSessionService;
     }
@@ -87,25 +83,6 @@ public final class SecurityInterceptor implements HandlerInterceptor {
         }
 
         return true;
-    }
-
-    ///.
-    @EventListener
-    protected void handleContextRefresh(final ContextRefreshedEvent contextRefreshedEvent) {
-
-        final Map<RequestMappingInfo, HandlerMethod> mappings = contextRefreshedEvent
-
-            .getApplicationContext()
-            .getBean("requestMappingHandlerMapping", RequestMappingHandlerMapping.class)
-            .getHandlerMethods()
-        ;
-
-        for(final Map.Entry<RequestMappingInfo, HandlerMethod> entry : mappings.entrySet()) {
-
-            authenticatedUris.addAll(entry.getKey().getDirectPaths().stream().filter(p -> p.contains("admin")).toList());
-        }
-
-        authenticatedUris.remove(loginHtmlPath);
     }
 
     ///.

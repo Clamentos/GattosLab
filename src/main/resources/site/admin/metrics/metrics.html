@@ -4,7 +4,7 @@
     <head>
 
         <meta charset = "utf-8"/>
-        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Admin site performance metrics page."/>
 
         <link rel = "stylesheet" href = "../../styles.css"/>
@@ -18,394 +18,379 @@
 
         <nav class = "navbar">
 
-            <div class = "nav-item">
-                <img src = "../../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
-                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
             </div>
 
-            <div class = "nav-item" style = "margin-left: 200px;">
-                <a href = "../../index.html" class = "nav-link">Home</a>
-                <a href = "../index.html" class = "nav-link">/ Admin</a>
-                <p class = "nav-link">/ Performance metrics</p>
-            </div>
-
-            <div class = "nav-item" style = "margin: 0px 50px 0px auto;">
-                <a href = "https://gattoslab.dev/admin/api/session/logout" class = "nav-link">Logout</a>
+            <div class = "nav-crumb">
+                <a href = "../../index.html">Home</a> > <a href = "../index.html">Admin</a> > Metrics
             </div>
 
         </nav>
 
         <main>
+
             <div class = "cards-container">
 
                 <form class = "charts-form" onsubmit = "onSubmitEvent(event)">
-                    <input class = "login-input" type = "datetime-local" name = "startTimestamp" placeholder = "Start timestamp">
-                    <input class = "login-input" type = "datetime-local" name = "endTimestamp" placeholder = "End timestamp">
-                    <button class = "login-button" type = "submit">Filter</button>
+
+                    <div class = "charts-form-group">
+
+                        <div class = "charts-form-input-group">
+                            <label for = "startTimestamp">Start timestamp</label>
+                            <input class = "chart-form-input" type = "datetime-local" name = "startTimestamp">
+                        </div>
+
+                        <div class = "charts-form-input-group">
+                            <label for = "endTimestamp">End timestamp</label>
+                            <input class = "chart-form-input" type = "datetime-local" name = "endTimestamp">
+                        </div>
+
+                        <div class = "charts-form-input-group">
+                            <label for = "chartTypes">Chart types</label>
+                            <input class = "chart-form-input" type = "text" name = "chartTypes" placeholder = "RequestsPerSecondChart,...">
+                        </div>
+
+                        <div class = "charts-form-input-group">
+                            <label for = "httpStatuses">HTTP Statuses</label>
+                            <input class = "chart-form-input" type = "text" name = "httpStatuses" placeholder = "200,404,...">
+                        </div>
+
+                    </div>
+
+                    <button class = "form-button" type = "submit">Filter</button>
+                    <p id = "API-error" class = "form-error"></p>
+
                 </form>
 
-                <div id = "rps-charts"></div>
-                <div id = "latency-charts"></div>
+                <div id = "RequestsPerSecondChart"></div>
+                <div id = "LatencyChart"></div>
 
             </div>
+
         </main>
 
     </body>
 
-    <script src = "https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src = "../../js/CheckLogout.js"></script>
+    <script src = "https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
 
     <script>
 
-        const numBuckets = 12;
-        const bucketSize = 5000; // Milliseconds
-        const baseUrl = "https://gattoslab.dev";
         Chart.defaults.color = "#FFFFFF";
+        const allChartTypes = ["RequestsPerSecondChart", "LatencyChart"];
+        const allCollectedStatuses = [200, 304, 400, 401, 403, 404, 405, 415, 429, 500, 503];
+        const allLatencyBuckets = ["1-5", "6-10", "11-20", "21-50", "51-100", "101-500"];
 
         const charts = [];
-        fetchAndRenderMetrics();
+        const visitedCharts = new Map(); // chart type -> status[]
 
-        // in: submit event, out: void
+        document.getElementById("API-error").innerHTML = "";
+        checkLogout("/admin/login.html");
+        fetchAndRenderMetrics(0, 999999999999999, allChartTypes, allCollectedStatuses);
+
         function onSubmitEvent(event) {
 
             event.preventDefault();
 
             const formStartTimestamp = event.target.startTimestamp.value;
             const formEndTimestamp = event.target.endTimestamp.value;
+            const chartTypes = event.target.chartTypes.value;
+            const httpStatuses = event.target.httpStatuses.value;
 
             fetchAndRenderMetrics(
 
-                formStartTimestamp === "" ? undefined : new Date(formStartTimestamp).getMilliseconds(),
-                formEndTimestamp === "" ? undefined : new Date(formEndTimestamp).getMilliseconds()
+                formStartTimestamp === "" ? 0 : new Date(formStartTimestamp).getMilliseconds(),
+                formEndTimestamp === "" ? 999999999999999 : new Date(formEndTimestamp).getMilliseconds(),
+                chartTypes === "" ? null : String(chartTypes).split(","),
+                httpStatuses === "" ? null : String(httpStatuses).split(",").map(s => Number.parseInt(s))
             );
         }
 
-        // in: (number, number), out: void
-        function fetchAndRenderMetrics(start = 0, end = 999999999999999) {
+        function fetchAndRenderMetrics(startTimestampFilter, endTimestampFilter, chartTypesFilter, httpStatusesFilter) {
 
-            fetch(`${baseUrl}/admin/api/metrics/performance-metrics?startTimestamp=${start}&endTimestamp=${end}`).then(response => {
+            fetch(
+
+                "/admin/api/observability/performance-charts",
+
+                {
+                    method: "POST",
+                    headers: new Headers({"content-type": "application/json"}),
+
+                    body: JSON.stringify({
+
+                        startTimestamp: startTimestampFilter,
+                        endTimestamp: endTimestampFilter,
+                        chartTypes: chartTypesFilter,
+                        httpStatuses: httpStatusesFilter
+                    })
+                }
+
+            ).then(response => {
 
                 if(response.status === 200) {
 
                     response.json().then(json => {
 
-                        for(const metric of json) metric.data = JSON.parse(metric.data);
+                        visitedCharts.clear();
+                        visitedCharts.set("RequestsPerSecondChart", new Set());
+                        visitedCharts.set("LatencyChart", new Set());
+                        for(const chart of charts) chart.destroy();
 
-                        destroyCharts();
-                        drawRpsGraphs(json);
-                        drawLatencyGraphs(json);
+                        const rpsChartMap = new Map(); // status -> chart[]
+                        const latencyChartMap = new Map(); // status -> chart[]
+                        const collectedStatuses = new Map(); // chartType -> status[]
+                        aggregateByStatus(json, rpsChartMap, latencyChartMap, collectedStatuses);
+
+                        const rpsDatasetsMap = new Map();  // status -> path -> data[]
+                        const rpsTimestampsMap = new Map(); // status -> timestamp[]
+                        const latencyDatasetsMap = new Map(); // status -> path -> data[]
+                        joinCharts(rpsChartMap, rpsDatasetsMap, rpsTimestampsMap, latencyChartMap, latencyDatasetsMap);
+
+                        const rpsDatasets = new Map(); // status -> chartData[]
+                        const latencyDatasets = new Map(); // status -> chartData[]
+                        finalizeDatasets(rpsDatasetsMap, rpsDatasets, latencyDatasetsMap, latencyDatasets, collectedStatuses);
+
+                        const collectedRpsStatuses = collectedStatuses.get("RequestsPerSecondChart");
+                        const collectedLatencyStatuses = collectedStatuses.get("LatencyChart");
+                        tabs(collectedRpsStatuses, "RequestsPerSecondChart", rpsTimestampsMap, rpsDatasets, null);
+                        tabs(collectedLatencyStatuses, "LatencyChart", null, null, latencyDatasets);
+                        selectTab("RequestsPerSecondChart", collectedRpsStatuses[0], true);
+                        selectTab("LatencyChart", collectedLatencyStatuses[0], true);
                     });
                 }
 
                 else {
 
-                    error(response);
+                    showError(response);
                 }
             })
-            .catch(error_ => error(error_));
+            .catch(error_ => showError(error_));
         }
 
-        // in: Metric[], out: void
-        function drawRpsGraphs(metrics) {
+        function aggregateByStatus(json, rpsChartMap, latencyChartMap, collectedStatuses) {
 
-            const timestampMap = new Map(); // status -> timestamp[]
-            const dataMap = new Map(); // status -> path -> values[]
+            for(const item of json) {
 
-            for(const metric of metrics) {
+                mapComputeIfAbsent(collectedStatuses, item.chartType, () => []).push(item.httpStatus);
 
-                for(const status of Object.keys(metric.data)) {
+                mapComputeIfAbsent(
 
-                    fillMap(timestampMap, status, expandTimestamp(metric.timestamp));
+                    item.chartType === "LatencyChart" ? latencyChartMap : rpsChartMap,
+                    item.httpStatus,
+                    () => []
+                )
+                .push(item);
+            }
+        }
 
-                    let pathMap = new Map();
-                    if(dataMap.has(status)) pathMap = dataMap.get(status);
-                    else dataMap.set(status, pathMap);
+        function joinCharts(rpsChartMap, rpsDatasetsMap, rpsTimestampsMap, latencyChartMap, latencyDatasetsMap) {
 
-                    for(const path of Object.keys(metric.data[status].requestsPerSecond)) {
+            for(const [status, data] of rpsChartMap) {
 
-                        fillMap(pathMap, path, metric.data[status].requestsPerSecond[path]);
+                for(const chart of data) {
+
+                    const innerMap = mapComputeIfAbsent(rpsDatasetsMap, status, () => new Map());
+                    const timestamps = chart.chart.labels.map(e => new Date(e).toLocaleString());
+                    mapComputeIfAbsent(rpsTimestampsMap, status, () => []).push(...timestamps);
+
+                    for(const dataset of chart.chart.datasets) {
+
+                        mapComputeIfAbsent(innerMap, dataset.label, () => []).push(...dataset.data);
                     }
                 }
             }
 
-            const chartData = [];
-            const statuses = [];
+            for(const [status, data] of latencyChartMap) {
 
-            for(const [status, timestamps] of timestampMap) {
+                for(const chart of data) {
 
-                const datasets = [];
+                    const innerMap = mapComputeIfAbsent(latencyDatasetsMap, status, () => new Map());
 
-                for(const [path, values] of dataMap.get(status)) {
+                    for(const dataset of chart.chart.datasets) {
 
-                    datasets.push({
+                        mapComputeIfAbsent(innerMap, dataset.label, () => []).push(...dataset.data);
+                    }
+                }
+            }
+        }
+
+        function finalizeDatasets(rpsDatasetsMap, rpsDatasets, latencyDatasetsMap, latencyDatasets, collectedStatuses) {
+
+            for(const status of collectedStatuses.get("RequestsPerSecondChart")) {
+
+                const rpsDatasetsArr = [];
+
+                for(const [path, data] of rpsDatasetsMap.get(status)) {
+
+                    rpsDatasetsArr.push({
 
                         label: path,
-                        data: values,
+                        data: data,
                         fill: true,
                         borderWidth: 1,
                         pointRadius: 2,
-                        hidden: path !== "GET/"
+                        hidden: path !== "/"
                     });
                 }
 
-                statuses.push(status);
-
-                chartData.push({
-
-                    timestamps: timestamps,
-                    datasets: datasets,
-                    status: status
-                });
+                rpsDatasets.set(status, rpsDatasetsArr);
             }
 
-            const canvases = tabs(statuses, "rps-charts");
-            selectTab("rps-charts", statuses[0]);
+            for(const status of collectedStatuses.get("LatencyChart")) {
 
-            for(let i = 0; i < canvases.length; i++) {
+                const latencyDatasetsArr = [];
 
-                generateRpsGraph(canvases[i], chartData[i].timestamps, chartData[i].datasets, chartData[i].status);
+                for(const [path, data] of latencyDatasetsMap.get(status)) {
+
+                    latencyDatasetsArr.push({
+
+                        label: path,
+                        data: data,
+                        hidden: path !== "/"
+                    });
+                }
+
+                latencyDatasets.set(status, latencyDatasetsArr);
             }
         }
 
-        function generateRpsGraph(chartCanvas, timestamps, datasets, status) {
+        function getChartOptions(title, xCallback, yCallback) {
 
-            const labels = [];
-            const valuesMap = new Map(); // path -> number[]
+            const options = {
 
-            labels.push(new Date(timestamps[0]).toLocaleString());
-            for(const dataset of datasets) valuesMap.set(dataset.label, [dataset.data[0]]);
+                responsive: true,
 
-            for(let i = 1; i <= timestamps.length - 1; i++) {
+                plugins: {
 
-                const difference = (timestamps[i] - timestamps[i - 1]) / bucketSize;
+                    legend: {
 
-                if(difference > 1) {
+                        position: "right"
+                    },
 
-                    for(let j = 1; j < difference; j++) {
+                    title: {
 
-                        labels.push(new Date(timestamps[i - 1] + (bucketSize * j)).toLocaleString());
-                        for(const values of valuesMap.values()) values.push(0);
+                        display: true,
+                        text: title
+                    },
+
+                    colors: {
+
+                        enabled: true
+                    },
+
+                    decimation: {
+
+                        enabled: true,
+                        algorithm: 'min-max',
                     }
-                }
-
-                labels.push(new Date(timestamps[i]).toLocaleString());
-                for(const dataset of datasets) valuesMap.get(dataset.label).push(dataset.data[i]);
-            }
-
-            for(const dataset of datasets) dataset.data = valuesMap.get(dataset.label);
-
-            charts.push(new Chart(chartCanvas, {
-
-                type: "line",
-
-                data: {
-
-                    labels: labels,
-                    datasets: datasets
                 },
 
-                options: {
+                scales: {
 
-                    responsive: true,
+                    x: {
 
-                    plugins: {
+                        grid: {
 
-                        legend: {
-
-                            position: "right"
-                        },
-
-                        title: {
-
-                            display: true,
-                            text: `Requests per second for HTTP status: ${status}`
-                        },
-
-                        colors: {
-
-                            enabled: true
+                            color: "rgba(255, 255, 255, 0.15)"
                         }
                     },
 
-                    scales: {
+                    y: {
 
-                        x: {
+                        grid: {
 
-                            grid: {
-
-                                color: "rgba(255, 255, 255, 0.15)"
-                            }
-                        },
-
-                        y: {
-
-                            grid: {
-
-                                color: "rgba(255, 255, 255, 0.15)"
-                            }
+                            color: "rgba(255, 255, 255, 0.15)"
                         }
                     }
                 }
-            }));
+            };
+
+            if(xCallback !== undefined) options.scales.x["ticks"] = { callback: xCallback };
+            if(yCallback !== undefined) options.scales.y["ticks"] = { callback: yCallback };
+
+            return options;
         }
 
-        function drawLatencyGraphs(metrics) {
+        function renderChart(status, chartType, canvas, rpsTimestampsMap, rpsDatasets, latencyDatasets) {
 
-            const dataMap = new Map(); // status -> path -> counts
+            if(visitedCharts.get(chartType).has(status)) return;
+            let chart = null;
 
-            for(const metric of metrics) {
+            if(chartType === "RequestsPerSecondChart") {
 
-                for(const status of Object.keys(metric.data)) {
+                chart = new Chart(canvas, {
 
-                    for(const path of Object.keys(metric.data[status].latencyDistributions)) {
-
-                        const pathMap = initMap(dataMap, status, new Map());
-                        const distributions = initMap(pathMap, path, new Map());
-
-                        for(const bucket of Object.keys(metric.data[status].latencyDistributions[path])) {
-
-                            const count = metric.data[status].latencyDistributions[path][bucket];
-
-                            if(distributions.has(bucket)) distributions.set(bucket, distributions.get(bucket) + count);
-                            else distributions.set(bucket, 0);
-                        }
-                    }
-                }
-            }
-
-            const statuses = [];
-            const chartData = [];
-
-            for(const [status, pathMap] of dataMap) {
-
-                const labels = new Set();
-                const datasets = [];
-
-                statuses.push(status);
-
-                for(const [path, distributions] of pathMap) {
-
-                    const sortedDistributions = new Map(Array.from(distributions).sort((a, b) => {
-
-                        return Number(a[0].substring(0, a[0].indexOf("-"))) - Number(b[0].substring(0, b[0].indexOf("-")));
-                    }));
-
-                    const values = [];
-
-                    for(const [bucket, count] of sortedDistributions) {
-
-                        labels.add(bucket);
-                        values.push(count);
-                    }
-
-                    datasets.push({
-
-                        label: path,
-                        data: values,
-                        fill: true,
-                        borderWidth: 1,
-                        barPercentage: 0.75
-                    });
-                }
-
-                chartData.push({
-
-                    labels: labels,
-                    datasets: datasets
-                });
-            }
-
-            const canvases = tabs(statuses, "latency-charts");
-            selectTab("latency-charts", statuses[0]);
-
-            for(let i = 0; i < canvases.length; i++) {
-
-                charts.push(new Chart(canvases[i], {
-
-                    type: "bar",
+                    type: "line",
 
                     data: {
 
-                        labels: [...chartData[i].labels],
-                        datasets: chartData[i].datasets
+                        labels: rpsTimestampsMap.get(status),
+                        datasets: rpsDatasets.get(status)
                     },
 
-                    options: {
+                    options: getChartOptions(`Requests per second for HTTP status: ${status}`)
+                });
+            }
 
-                        scales: {
+            else {
 
-                            y: {
+                chart = new Chart(canvas, {
 
-                                beginAtZero: true
-                            }
-                        },
+                    type: "bubble",
 
-                        responsive: true,
+                    data: {
 
-                        plugins: {
+                        datasets: latencyDatasets.get(status)
+                    },
 
-                            legend: {
+                    options: getChartOptions(
 
-                                position: "top"
-                            },
+                        `Latency distributions HTTP status: ${status}`,
 
-                            title: {
+                        (value, index, ticks) => new Date(value).toLocaleString(),
 
-                                display: true,
-                                text: `Latency distributions for HTTP status: ${status}`
-                            },
+                        (value, index, ticks) => {
 
-                            colors: {
+                            const val = Number.parseInt(value);
 
-                                enabled: true
-                            }
+                            if(val % 1 === 0) return `${allLatencyBuckets[val]} ms`;
+                            else return "-";
                         }
-                    }
-                }));
-            }
-        }
-
-        // in: (number, number, number), out: number[]
-        function expandTimestamp(timestamp) {
-
-            const expanded = [];
-            for(let i = numBuckets - 1; i >= 0; i--) expanded.push(timestamp - (i * bucketSize));
-
-            return expanded;
-        }
-
-        // in: (Map<any, any>, any, any), out: Map<any, any>
-        function initMap(map, key, value) {
-
-            if(!map.has(key)) {
-
-                map.set(key, value);
-                return value;
+                    )
+                });
             }
 
-            return map.get(key);
+            visitedCharts.get(chartType).add(status);
+            charts.push(chart);
         }
 
-        // in: (Map<any, any>, any, Array<any>), out:
-        function fillMap(map, key, arrayVals) {
+        function mapComputeIfAbsent(map, key, func) {
 
-            const vals = map.get(key);
-            if(vals !== null && vals !== undefined) vals.push(...arrayVals);
-            else map.set(key, arrayVals);
+            const current = map.get(key);
+
+            if(current == null) {
+
+                const newValue = func();
+                map.set(key, newValue);
+
+                return newValue;
+            }
+
+            return current;
         }
 
-        // in: any, out:void
         function showError(error) {
 
-            // TODO: ...
+            document.getElementById("API-error").innerHTML = `Error: ${error}`;
         }
 
-        // in: void, out: void
-        function destroyCharts() {
-
-            for(const chart of charts) chart.destroy();
-        }
-
-        function tabs(statuses, rootId) {
+        function tabs(statuses, rootId, rpsTimestampsMap, rpsDatasets, latencyDatasets) {
 
             /*
                 <div id = "{{rootId}}">
@@ -419,8 +404,6 @@
                     </div>
                 </div>
             */
-
-            const canvases = [];
 
             const tabsHeaderDiv = document.createElement("div");
             tabsHeaderDiv.className = "tabs-header";
@@ -441,7 +424,7 @@
                 tabSelectButton.id = `button-${id}`;
                 tabSelectButton.className = "tabs-button";
                 tabSelectButton.innerText = `Status: ${status}`;
-                tabSelectButton.onclick = () => selectTab(rootId, status);
+
                 tabsHeaderDiv.appendChild(tabSelectButton);
 
                 const chartCanvas = document.createElement("canvas");
@@ -449,21 +432,31 @@
                 chartCanvas.className = "chartjs-canvas"; 
                 tabsContentDiv.appendChild(chartCanvas);
 
-                canvases.push(chartCanvas);
-            }
+                tabSelectButton.onclick = () => {
 
-            return canvases;
+                    selectTab(rootId, status);
+                    renderChart(status, rootId, chartCanvas, rpsTimestampsMap, rpsDatasets, latencyDatasets);
+                }
+            }
         }
 
-        function selectTab(rootId, status) {
+        function selectTab(rootId, status, forceClick) {
 
             const id = `${rootId}-${status}`;
             const chartsDiv = document.getElementById(rootId);
 
             for(const button of chartsDiv.getElementsByTagName("button")) {
 
-                if(button.id === `button-${id}`) button.className = "tabs-button-selected";
-                else button.className = "tabs-button";
+                if(button.id === `button-${id}`) {
+
+                    button.className = "tabs-button-selected";
+                    button.click();
+                }
+
+                else {
+
+                    button.className = "tabs-button";
+                }
             }
 
             for(const canvas of chartsDiv.getElementsByTagName("canvas")) {

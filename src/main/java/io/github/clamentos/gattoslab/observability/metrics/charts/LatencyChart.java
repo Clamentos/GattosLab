@@ -8,6 +8,7 @@ import io.github.clamentos.gattoslab.utils.Pair;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 ///.
@@ -24,10 +25,12 @@ public final class LatencyChart implements Chart<Integer> {
     private final List<Pair<Integer, Integer>> latencyBuckets;
 
     ///
-    public LatencyChart(final List<Pair<Integer, Integer>> latencyBuckets) {
+    public LatencyChart(final Set<String> paths, final List<Pair<Integer, Integer>> latencyBuckets) {
 
         xAxis = new ConcurrentHashMap<>();
         datasets = new ConcurrentHashMap<>();
+
+        for(final String path : paths) datasets.put(path, new ConcurrentHashMap<>());
 
         this.latencyBuckets = latencyBuckets;
     }
@@ -36,13 +39,10 @@ public final class LatencyChart implements Chart<Integer> {
     @Override
     public void update(final long timestamp, final String path, final Integer data) {
 
-        xAxis.putIfAbsent(timestamp, timestamp);
+        Map<Long, List<LatencyBucket>> dataset = datasets.get(path);
 
-        final List<LatencyBucket> buckets = datasets
-
-            .computeIfAbsent(path, _ -> new ConcurrentHashMap<>())
-            .computeIfAbsent(timestamp, _ -> latencyBuckets.stream().map(LatencyBucket::new).toList())
-        ;
+        if(dataset == null) dataset = datasets.get("<other>");
+        final List<LatencyBucket> buckets = dataset.computeIfAbsent(timestamp, _ -> latencyBuckets.stream().map(LatencyBucket::new).toList());
 
         for(final LatencyBucket bucket : buckets) {
 

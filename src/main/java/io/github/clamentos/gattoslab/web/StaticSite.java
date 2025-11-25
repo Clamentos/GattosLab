@@ -15,6 +15,7 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +51,7 @@ public final class StaticSite {
 
     ///..
     private final Map<String, Pair<String, byte[]>> website;
+    private final Set<String> apiPaths;
 
     ///
     @Autowired
@@ -83,6 +85,17 @@ public final class StaticSite {
 
         website.put("/", website.get("/index.html"));
         log.info("Website resource paths: {}", website.keySet());
+
+        apiPaths = new HashSet<>();
+        apiPaths.add("/admin/api/session");
+        apiPaths.add("/admin/api/observability/paths-count");
+        apiPaths.add("/admin/api/observability/user-agents-count");
+        apiPaths.add("/admin/api/observability/performance-charts");
+        apiPaths.add("/admin/api/observability/jvm-metrics");
+        apiPaths.add("/admin/api/observability/sessions-metadata");
+        apiPaths.add("/admin/api/observability/logs");
+
+        log.info("Website API paths: {}", apiPaths);
     }
 
     ///
@@ -92,15 +105,18 @@ public final class StaticSite {
     }
 
     ///..
-    public Set<String> getSitePaths() {
+    public Set<String> getPaths() {
 
-        return website.keySet();
+        final Set<String> result = new HashSet<>(website.keySet());
+        result.addAll(apiPaths);
+
+        return result;
     }
 
     ///..
-    public Set<String> getSitePaths(final String basePath) {
+    public Set<String> getPaths(final String basePath) {
 
-        return website.keySet().stream().filter(p -> p.startsWith(basePath)).collect(Collectors.toSet());
+        return this.getPaths().stream().filter(p -> p.startsWith(basePath)).collect(Collectors.toCollection(HashSet::new));
     }
 
     ///..

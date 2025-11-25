@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 ///.
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,21 +43,21 @@ public final class ObservabilityController {
     private final LogsService logsService;
 
     ///
-    @GetMapping(path = "/paths-count", consumes = "application/json", produces = "application/json")
+    @PostMapping(path = "/paths-count", consumes = "application/json", produces = "application/json")
     public ResponseEntity<Map<String, MutableLong>> getPathsCount(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
 
         return ResponseEntity.ok(observabilityService.getPathsCount(searchFilter));
     }
 
     ///..
-    @GetMapping(path = "/user-agents-count", consumes = "application/json", produces = "application/json")
+    @PostMapping(path = "/user-agents-count", consumes = "application/json", produces = "application/json")
     public ResponseEntity<Map<String, MutableLong>> getUserAgentsCount(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
 
         return ResponseEntity.ok(observabilityService.getUserAgentsCount(searchFilter));
     }
 
     ///..
-    @GetMapping(path = "/performance-charts", consumes = "application/json", produces = "application/json")
+    @PostMapping(path = "/performance-charts", consumes = "application/json", produces = "application/json")
     public ResponseEntity<StreamingResponseBody> getCharts(@RequestBody final ChartSearchFilter chartSearchFilter) throws MongoException {
 
         return ResponseEntity.ok().body(observabilityService.getCharts(chartSearchFilter));
@@ -77,7 +78,7 @@ public final class ObservabilityController {
     }
 
     ///..
-    @GetMapping(path = "/logs", consumes = "application/json", produces = "application/json")
+    @PostMapping(path = "/logs", consumes = "application/json", produces = "application/json")
     public ResponseEntity<StreamingResponseBody> getLogs(@RequestBody final LogSearchFilter logSearchFilter) throws MongoException {
 
         return ResponseEntity.ok().body(logsService.getLogs(logSearchFilter));

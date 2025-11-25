@@ -4,7 +4,7 @@
     <head>
 
         <meta charset = "utf-8"/>
-        <meta name = "viewport" content = "width=device-width, initial-scale=0.5"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Logi-Block project page."/>
 
         <link rel = "stylesheet" href = "../styles.css"/>
@@ -18,22 +18,26 @@
 
         <nav class = "navbar">
 
-            <div class = "nav-item">
-                <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
-                <a href = "https://github.com/Clamentos" class = "nav-link" target = "_blank">Follow me on GitHub</a>
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
             </div>
 
-            <div class = "nav-item" style = "margin-left: 200px;">
-                <a href = "../index.html" class = "nav-link">Home</a> <p class = "nav-link">/ Logi-Block</p>
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Logi-Block
             </div>
 
         </nav>
 
         <main>
 
-            <div class = "project-text-container">
+            <div class = "project-container">
 
-                <h1 class = "header-title project-title">Logi-Block</h1>
+                <h1 class = "project-title">Logi-Block</h1>
 
                 <p class = "project-text">
                     With this project i wanted to delve in the world of electronics in a more "serious" way. I always played around with breadboards and designed a couple of boards with <a href = "https://www.kicad.org/" target = "_blank">KiCad</a>, but i have never actually <i>manufactured</i> anything up until this point. I designed Logi-Block simply to have something to fabricate, just to see how the experience of the whole process is.
@@ -80,5 +84,13 @@
         </main>
 
     </body>
+
+    <script src = "../js/CheckLogout.js"></script>
+
+    <script>
+
+        checkLogout();
+
+    </script>
 
 </html>
