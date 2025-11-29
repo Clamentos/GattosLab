@@ -25,8 +25,7 @@ app:
     supportedMimeTypes: "html|text/html,css|text/css,png|image/png,jpg|image/jpg,jpeg|image/jpeg,svg|image/svg+xml,webp|image/webp,xml|application/xml,txt|text/plain,ico|image/x-icon,gif|image/gif,js|application/javascript"
 server:
   compression:
-    enabled: true
-    min-response-size: 4096 # Bytes
+    enabled: false
   connection-timeout: 30000 # Milliseconds
   forward-headers-strategy: "framework"
   http2:

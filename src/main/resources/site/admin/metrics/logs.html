@@ -51,6 +51,21 @@
                             <input class = "chart-form-input" type = "datetime-local" name = "endTimestamp">
                         </div>
 
+                        <div class = "charts-form-input-group">
+                            <label for = "severities">Severities</label>
+                            <input class = "chart-form-input" type = "text" name = "severities", placeholder = "INFO, ERROR, WARN">
+                        </div>
+
+                        <div class = "charts-form-input-group">
+                            <label for = "threads">Threads</label>
+                            <input class = "chart-form-input" type = "text" name = "threads">
+                        </div>
+
+                        <div class = "charts-form-input-group">
+                            <label for = "loggers">Loggers</label>
+                            <input class = "chart-form-input" type = "text" name = "loggers">
+                        </div>
+
                     </div>
 
                     <button class = "form-button" type = "submit">Filter</button>
@@ -58,10 +73,137 @@
 
                 </form>
 
+                <div class = "table-container">
+
+                    <table class = "logs-table">
+
+                        <thead class = "logs-table-header">
+                            <tr>
+                                <th style = "width: 5%;">Timestamp</th>
+                                <th style = "width: 4%;">Severity</th>
+                                <th style = "width: 50%;">Message</th>
+                                <th style = "width: 19%;">Logger</th>
+                                <th style = "width: 19%;">Thread</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id = "table-hook"></tbody>
+
+                    </table>
+
+                </div>
+
             </div>
 
         </main>
 
     </body>
+
+    <script src = "../../js/CheckLogout.js"></script>
+
+    <script>
+
+        checkLogout("/admin/login.html");
+        fetchAndRenderLogs(new Date(new Date().toISOString().slice(0, 10)).getTime(), 999999999999999, null, null, null);
+
+        function onSubmitEvent(event) {
+
+            event.preventDefault();
+
+            const formStartTimestamp = event.target.startTimestamp.value;
+            const formEndTimestamp = event.target.endTimestamp.value;
+            const formSeverities = event.target.severities.value;
+            const formThreads = event.target.threads.value;
+            const formLoggers = event.target.loggers.value;
+
+            fetchAndRenderLogs(
+
+                formStartTimestamp === "" ? 0 : new Date(formStartTimestamp).getMilliseconds(),
+                formEndTimestamp === "" ? 999999999999999 : new Date(formEndTimestamp).getMilliseconds(),
+                formSeverities === "" ? null : formSeverities.split(","),
+                formThreads === "" ? null : formThreads.split(","),
+                formLoggers === "" ? null : formLoggers.split(",")
+            );
+        }
+
+        function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threads, loggers) {
+
+            document.getElementById("API-error").innerHTML = "";
+            const tableBody = document.getElementById("table-hook");
+            tableBody.replaceChildren();
+
+            fetch(
+
+                "/admin/api/observability/logs",
+
+                {
+                    method: "POST",
+                    headers: new Headers({"content-type": "application/json"}),
+
+                    body: JSON.stringify({
+
+                        startTimestamp: startTimestamp,
+                        endTimestamp: endTimestamp,
+                        severities: severities,
+                        threads: threads,
+                        loggers: loggers
+                    })
+                }
+
+            ).then((response) => {
+
+                if(response.status === 200) {
+
+                    response.json().then(json => {
+
+                        for(const log of json) appendRow(log, tableBody);
+                    });
+                }
+
+                else {
+
+                    showError(response);
+                }
+            })
+            .catch(error_ => showError(error_));
+        }
+
+        function appendRow(log, table) {
+
+            const tr = document.createElement("tr");
+
+            if(log.severity === "ERROR") tr.style = "color: red";
+            if(log.severity === "WARN") tr.style = "color: orange";
+
+            const timestamp = document.createElement("td");
+            const severity = document.createElement("td");
+            const message = document.createElement("td");
+            const logger = document.createElement("td");
+            const thread = document.createElement("td");
+
+            timestamp.innerText = new Date(log.timestamp).toLocaleString();
+
+            severity.innerText = log.severity;
+            severity.style = "text-align: center";
+
+            message.innerText = log.message;
+            logger.innerText = log.logger;
+            thread.innerText = log.thread;
+
+            tr.appendChild(timestamp);
+            tr.appendChild(severity);
+            tr.appendChild(message);
+            tr.appendChild(logger);
+            tr.appendChild(thread);
+
+            table.appendChild(tr);
+        }
+
+        function showError(error) {
+
+            document.getElementById("API-error").innerHTML = `Error: ${error}`;
+        }
+
+    </script>
 
 </html>

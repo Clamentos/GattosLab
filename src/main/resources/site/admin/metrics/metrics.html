@@ -90,9 +90,9 @@
         const charts = [];
         const visitedCharts = new Map(); // chart type -> status[]
 
-        document.getElementById("API-error").innerHTML = "";
         checkLogout("/admin/login.html");
-        fetchAndRenderMetrics(0, 999999999999999, allChartTypes, allCollectedStatuses);
+        document.getElementById("API-error").innerHTML = "";
+        fetchAndRenderMetrics(Date.now(), 999999999999999, allChartTypes, allCollectedStatuses);
 
         function onSubmitEvent(event) {
 

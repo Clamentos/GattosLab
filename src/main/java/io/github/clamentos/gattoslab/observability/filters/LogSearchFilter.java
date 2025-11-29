@@ -26,25 +26,28 @@ public final class LogSearchFilter extends TemporalSearchFilter {
 
     ///
     final Set<String> severities;
-    final Set<String> threads;
-    final Set<String> loggers;
+    final String threadPattern;
+    final String loggerPattern;
+    final String messagePattern;
 
     ///
     @JsonCreator
     public LogSearchFilter(
 
-        @JsonProperty("startTimestamp") long startTimestamp,
-        @JsonProperty("endTimestamp") long endTimestamp,
-        @JsonProperty("severities") Set<String> severities,
-        @JsonProperty("threads") Set<String> threads,
-        @JsonProperty("loggers") Set<String> loggers
+        @JsonProperty("startTimestamp") final long startTimestamp,
+        @JsonProperty("endTimestamp") final long endTimestamp,
+        @JsonProperty("severities") final Set<String> severities,
+        @JsonProperty("threadPattern") final String threadPattern,
+        @JsonProperty("loggerPattern") final String loggerPattern,
+        @JsonProperty("messagePattern") final String messagePattern
     ) {
 
         super(startTimestamp, endTimestamp);
 
         this.severities = severities;
-        this.threads = threads;
-        this.loggers = loggers;
+        this.threadPattern = threadPattern;
+        this.loggerPattern = loggerPattern;
+        this.messagePattern = messagePattern;
     }
 
     ///
@@ -57,8 +60,9 @@ public final class LogSearchFilter extends TemporalSearchFilter {
         filters.add(Filters.lte("timestamp", super.getEndTimestamp()));
 
         if(severities != null && !severities.isEmpty()) filters.add(Filters.in("severity", severities));
-        if(threads != null && !threads.isEmpty()) filters.add(Filters.in("thread", threads));
-        if(loggers != null && !loggers.isEmpty()) filters.add(Filters.in("logger", loggers));
+        if(threadPattern != null && !threadPattern.isEmpty()) filters.add(Filters.regex("thread", threadPattern));
+        if(loggerPattern != null && !loggerPattern.isEmpty()) filters.add(Filters.in("logger", threadPattern));
+        if(messagePattern != null && !messagePattern.isEmpty()) filters.add(Filters.in("message", messagePattern));
 
         return Filters.and(filters);
     }

@@ -1,6 +1,7 @@
 package io.github.clamentos.gattoslab.web;
 
 ///
+import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
 import io.github.clamentos.gattoslab.utils.Pair;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
@@ -8,6 +9,7 @@ import io.github.clamentos.gattoslab.utils.PropertyProvider;
 import jakarta.el.PropertyNotFoundException;
 
 ///.
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URLDecoder;
@@ -70,7 +72,12 @@ public final class StaticSite {
         timeAtStartup = OffsetDateTime.now();
 
         final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+
         website = new HashMap<>();
+        log.info("Loading and compressing the site into memory...");
+
+        long uncompressedSize = 0;
+        long compressedSize = 0;
 
         for(final String path : this.listSiteResourcePaths("site", resolver)) {
 
@@ -78,13 +85,15 @@ public final class StaticSite {
 
                 final String adjustedPath = path.contains("site") ? path.substring(4) : pathDelimiter + path;
                 final byte[] content = new ClassPathResource("site" + adjustedPath).getInputStream().readAllBytes();
+                final byte[] compressedContent = this.compress(content);
 
-                website.put(adjustedPath, new Pair<>(this.getMediaType(adjustedPath), content));
+                uncompressedSize += content.length;
+                compressedSize += compressedContent.length;
+                website.put(adjustedPath, new Pair<>(this.getMediaType(adjustedPath), compressedContent));
             }
         }
 
         website.put("/", website.get("/index.html"));
-        log.info("Website resource paths: {}", website.keySet());
 
         apiPaths = new HashSet<>();
         apiPaths.add("/admin/api/session");
@@ -95,6 +104,8 @@ public final class StaticSite {
         apiPaths.add("/admin/api/observability/sessions-metadata");
         apiPaths.add("/admin/api/observability/logs");
 
+        log.info("Loading and compressing the site into memory complete. Before: {}, after: {}", uncompressedSize, compressedSize);
+        log.info("Website resource paths: {}", website.keySet());
         log.info("Website API paths: {}", apiPaths);
     }
 
@@ -128,6 +139,7 @@ public final class StaticSite {
             .header("Content-Type", content.getA())
             .header("Cache-Control", "max-age=" + cacheDuration + ", public")
             .header("Last-Modified", DateTimeFormatter.RFC_1123_DATE_TIME.format(timeAtStartup))
+            .header("Content-Encoding", "gzip")
             .body(content.getB())
         ; 
     }
@@ -223,6 +235,18 @@ public final class StaticSite {
     private Resource[] getResources(String path, final PathMatchingResourcePatternResolver resolver) throws IOException {
 
         return resolver.getResources(path.replace("\\", pathDelimiter));
+    }
+
+    ///..
+    private byte[] compress(final byte[] content) throws IOException {
+
+        final ByteArrayOutputStream compressedContent = new ByteArrayOutputStream();
+        final CompressingOutputStream outputStream = new CompressingOutputStream(compressedContent, 9);
+
+        outputStream.write(content);
+        outputStream.close();
+
+        return compressedContent.toByteArray();
     }
 
     ///

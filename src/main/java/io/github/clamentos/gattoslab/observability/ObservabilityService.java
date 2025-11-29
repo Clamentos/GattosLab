@@ -22,6 +22,7 @@ import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
 import io.github.clamentos.gattoslab.observability.metrics.system.SystemStatus;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
+import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
 import io.github.clamentos.gattoslab.utils.MutableLong;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
 import io.github.clamentos.gattoslab.web.StaticSite;
@@ -128,17 +129,10 @@ public final class ObservabilityService implements HandlerInterceptor {
 
         return outputStream -> {
 
-            try(final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(outputStream)) {
+            try(final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(new CompressingOutputStream(outputStream))) {
 
                 generator.writeStartArray();
-
-                while(results.hasNext()) {
-
-                    final Document document = results.next();
-                    document.remove("_id");
-                    generator.writeObject(document);
-                }
-
+                while(results.hasNext()) generator.writeObject(results.next());
                 generator.writeEndArray();
             }
         };

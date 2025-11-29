@@ -60,7 +60,7 @@ public final class ObservabilityController {
     @PostMapping(path = "/performance-charts", consumes = "application/json", produces = "application/json")
     public ResponseEntity<StreamingResponseBody> getCharts(@RequestBody final ChartSearchFilter chartSearchFilter) throws MongoException {
 
-        return ResponseEntity.ok().body(observabilityService.getCharts(chartSearchFilter));
+        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(observabilityService.getCharts(chartSearchFilter));
     }
 
     ///..
@@ -81,7 +81,7 @@ public final class ObservabilityController {
     @PostMapping(path = "/logs", consumes = "application/json", produces = "application/json")
     public ResponseEntity<StreamingResponseBody> getLogs(@RequestBody final LogSearchFilter logSearchFilter) throws MongoException {
 
-        return ResponseEntity.ok().body(logsService.getLogs(logSearchFilter));
+        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(logsService.getLogs(logSearchFilter));
     }
 
     ///

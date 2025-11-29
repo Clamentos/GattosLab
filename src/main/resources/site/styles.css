@@ -265,7 +265,7 @@ button {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    max-width: 400px;
+    max-width: 350px;
     min-width: 300px;
     margin-top: 10px;
 }
@@ -351,6 +351,37 @@ button {
 #API-error {
 
     margin-top: 20px;
+}
+
+
+.table-container {
+
+    width: 100%;
+    margin: 100px;
+    overflow: scroll;
+}
+
+.logs-table {
+    
+    display: block;
+    table-layout: fixed;
+    width: 200%;
+    border-collapse: collapse;
+    background-color: #020617;
+    word-break: break-all;
+}
+
+.logs-table * {
+
+    border: 2px solid #0079a2;
+    padding: 8px;
+}
+
+.logs-table-header * {
+
+    height: 100px;
+    font-weight: bold;
+    font-size: 24px;
 }
 
 

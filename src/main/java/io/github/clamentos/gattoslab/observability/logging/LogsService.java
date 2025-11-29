@@ -11,11 +11,13 @@ import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 import com.mongodb.client.result.DeleteResult;
 
 ///.
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
+import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
 import io.github.clamentos.gattoslab.utils.PropertyProvider;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 
@@ -63,11 +65,11 @@ public final class LogsService {
     public StreamingResponseBody getLogs(final LogSearchFilter logSearchFilter) throws MongoException {
 
         final MongoCollection<Document> logsCollection = mongoClientWrapper.getCollection(DatabaseCollection.LOGS);
-        final MongoCursor<Document> cursor = logsCollection.find(logSearchFilter.toBsonFilter()).iterator();
+        final MongoCursor<Document> cursor = logsCollection.find(logSearchFilter.toBsonFilter()).sort(Sorts.ascending("timestamp")).iterator();
 
         return outputStream -> {
 
-            try(final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(outputStream)) {
+            try(final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(new CompressingOutputStream(outputStream))) {
 
                 generator.writeStartArray();
                 while(cursor.hasNext()) generator.writeObject(cursor.next());
