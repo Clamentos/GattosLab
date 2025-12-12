@@ -1,19 +1,17 @@
 app:
-  retention:
-    cleanSchedule: "0 0 0 * * *" # Every day at 00:00:00
-    value: 30 # Days
   admin:
     cookieName: "GattosLabSessionId"
-    loginHtmlPath: "/admin/login.html"
     loginDelay: 500 # Milliseconds
     maxSessions: 20
-    sessionCleanSchedule: "0 * * * * *" # Every minute
+    cleanSchedule: "0 * * * * *" # Every minute
     sessionDuration: 14400 # Seconds
+  batch:
+    poolSize: 4
+    terminationWaitPeriod: 4 # Seconds
   metrics:
-    dumpToDbRate: 5000 # Milliseconds
-    httpStatuses: "200,304,400,401,403,404,405,415,429,500,503"
-    latencyBuckets: "1-5,6-10,11-20,21-50,51-100,101-500" # Milliseconds
-    rateCapacity: 12 # Time slots, 12 * 5s = 60s window
+    dumpToDbRate: "0 * * * * *" # Every minute
+  properties:
+    refreshSchedule: "0 */5 0 * * *" # Every 5 minutes
   ratelimit:
     maxGlobalTokens: 10000
     maxTokensPerIp: 200
@@ -21,7 +19,6 @@ app:
     retryAfter: 60000 # Milliseconds
   site:
     cacheDuration: 1440 # Minutes
-    notFoundPath: "/errors/not-found.html"
     supportedMimeTypes: "html|text/html,css|text/css,png|image/png,jpg|image/jpg,jpeg|image/jpeg,svg|image/svg+xml,webp|image/webp,xml|application/xml,txt|text/plain,ico|image/x-icon,gif|image/gif,js|application/javascript"
 server:
   compression:
@@ -33,11 +30,11 @@ server:
   max-http-request-header-size: 2048 # Bytes
   shutdown: "graceful"
   tomcat:
-    accept-count: 256
+    accept-count: 256 # Maximum pending connection queue depth
     max-connections: 8192
     max-keep-alive-requests: 256
     max-swallow-size: 1048576 # Bytes
-    processor-cache: 256
+    processor-cache: 256 # Number of request "processors" to keep cached (to avoid frequent object creation)
 spring:
   application:
     name: "Gatto's lab"

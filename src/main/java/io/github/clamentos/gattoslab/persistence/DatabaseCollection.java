@@ -13,8 +13,9 @@ public enum DatabaseCollection {
 
     ///
     LOGS("Logs"),
-    CHARTS("Charts"),
     PATHS_INVOCATIONS("PathsInvocations"),
+    REQUEST_METRICS("RequestMetrics"),
+    SYSTEM_METRICS("SystemMetrics"),
     USER_AGENTS("UserAgents");
 
     ///

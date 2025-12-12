@@ -1,9 +1,9 @@
 package io.github.clamentos.gattoslab.admin;
 
 ///
+import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -67,11 +67,11 @@ public final class AdminSessionService {
 
     ///
     // Designed to be slow when wrong on purpose.
-    public boolean check(final String sessionId) {
+    public boolean check(final String sessionId, final String fingerprint) {
 
         final AdminSessionMetadata session = sessions.get(sessionId);
 
-        if(session == null || session.isExpired(System.currentTimeMillis())) {
+        if(session == null || !session.isValid(System.currentTimeMillis(), fingerprint)) {
 
             try {
 
@@ -127,7 +127,7 @@ public final class AdminSessionService {
     }
 
     ///.
-    @Scheduled(cron = "${app.admin.sessionCleanSchedule}")
+    @Scheduled(cron = "${app.admin.cleanSchedule}")
     protected void cleanExpired() {
 
         final long now = System.currentTimeMillis();
@@ -136,7 +136,7 @@ public final class AdminSessionService {
         while(entries.hasNext()) {
 
             final Map.Entry<String, AdminSessionMetadata> entry = entries.next();
-            if(entry.getValue().isExpired(now)) this.removeSession(entry.getKey(), "Admin session expired for fingerprint");
+            if(!entry.getValue().isValid(now, null)) this.removeSession(entry.getKey(), "Admin session expired for fingerprint");
         }
     }
 

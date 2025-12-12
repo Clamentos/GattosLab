@@ -1,24 +1,28 @@
-package io.github.clamentos.gattoslab.utils;
+package io.github.clamentos.gattoslab.configuration;
 
 ///
 import jakarta.el.PropertyNotFoundException;
 
 ///.
-import lombok.RequiredArgsConstructor;
-
-///.
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 ///
 @Component
-@RequiredArgsConstructor
 
 ///
 public final class PropertyProvider {
 
     ///
     private final Environment environment;
+
+    ///
+    @Autowired
+    public PropertyProvider(final Environment environment) {
+
+        this.environment = environment;
+    }
 
     ///
     public <T> T getProperty(final String key, final Class<T> type) throws PropertyNotFoundException {

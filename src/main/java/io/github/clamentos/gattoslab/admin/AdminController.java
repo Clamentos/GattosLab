@@ -1,8 +1,8 @@
 package io.github.clamentos.gattoslab.admin;
 
 ///
+import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
-import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -35,8 +35,7 @@ public final class AdminController {
 
     ///..
     @Autowired
-    public AdminController(final AdminSessionService adminSessionService, final PropertyProvider propertyProvider)
-    throws PropertyNotFoundException {
+    public AdminController(final PropertyProvider propertyProvider, final AdminSessionService adminSessionService) throws PropertyNotFoundException {
 
         cookieAttributes = propertyProvider.getProperty("app.admin.cookieAttributes", String.class);
         cookieName = propertyProvider.getProperty("app.admin.cookieName", String.class);
@@ -74,7 +73,7 @@ public final class AdminController {
             }
         }
 
-        throw new ApiSecurityException(cookieName + "was not present in the request");
+        throw new ApiSecurityException(cookieName + " was not present in the request");
     }
 
     ///

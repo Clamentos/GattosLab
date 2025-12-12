@@ -3,14 +3,17 @@ package io.github.clamentos.gattoslab.observability.logging;
 ///
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
 
 ///.
-import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
+import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 
 ///.
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 ///.
@@ -24,6 +27,7 @@ import org.bson.types.ObjectId;
 public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
     ///
+    public static final String FALLBACK_FILE_PATH = "./fallback_logs.log";
     private static final long JOIN_TIMEOUT = 10_000L;
 
     ///..
@@ -39,7 +43,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
         super();
 
         mongoClientReference = new AtomicReference<>();
-        fallbackFile = new FallbackFile(mongoClientReference, 2_500L, "./fallback_logs.log");
+        fallbackFile = new FallbackFile(mongoClientReference, 2_500L, FALLBACK_FILE_PATH);
 
         dumper = Thread.startVirtualThread(fallbackFile);
     }
@@ -63,6 +67,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
         }
     }
 
+    ///..
     @Override
     public void stop() {
 
@@ -87,24 +92,35 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     ///.
     private void writeToFallbackFile(final ILoggingEvent logEvent) {
 
+        /*
+            1) timestamp|severity|thread|logger|message
+            2) timestamp|severity|thread|logger|message|exceptionClass|exceptionMessage
+            3) timestamp|severity|thread|logger|message|exceptionClass|exceptionMessage|trace1|trace2|trace3|...
+
+            \u0001 to separate message sections & stacktrace entries, \u0002 as a placeholder for \n.
+            \u0000 as a placeholder for nulls in special cases.
+        */
+
         try {
 
             final StringBuilder sb = new StringBuilder();
+            final String message = logEvent.getFormattedMessage();
+            final IThrowableProxy throwableProxy = logEvent.getThrowableProxy(); 
 
             sb.append(logEvent.getTimeStamp()).append("\u0001");
-            sb.append(logEvent.getLevel().toString()).append("\u0001");
-            sb.append(logEvent.getThreadName()).append("\u0001");
-            sb.append(logEvent.getLoggerName()).append("\u0001");
-            sb.append(logEvent.getFormattedMessage().replace("\n", "\u0002"));
-
-            final IThrowableProxy throwableProxy = logEvent.getThrowableProxy(); 
+            sb.append(this.normalize(logEvent.getLevel())).append("\u0001");
+            sb.append(this.normalize(logEvent.getThreadName())).append("\u0001");
+            sb.append(this.normalize(logEvent.getLoggerName())).append("\u0001");
+            sb.append(this.normalize(message).replace("\n", "\u0002"));
 
             if(throwableProxy != null) {
 
-                final String message = throwableProxy.getMessage();
+                final StackTraceElementProxy[] stacktrace = throwableProxy.getStackTraceElementProxyArray();
 
-                sb.append("\u0001").append(throwableProxy.getClassName());
-                if(message != null) sb.append("\u0001").append(message.replace("\n", "\u0002"));
+                sb.append("\u0001").append(throwableProxy.getClassName()).append("\u0001");
+                sb.append(this.normalize(throwableProxy.getMessage()).replace("\n", "\u0002"));
+
+                if(stacktrace != null) sb.append("\u0001").append(this.formatStacktraceForFile(stacktrace));
             }
 
             sb.append("\n");
@@ -135,14 +151,49 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
             final Document exception = new Document();
 
-            exception.append("name", throwableProxy.getClassName());
+            exception.append("className", throwableProxy.getClassName());
             exception.append("message", throwableProxy.getMessage());
-            // stacktrace?
+            exception.append("stacktrace", this.formatStacktraceForDb(throwableProxy.getStackTraceElementProxyArray()));
 
             document.append("exception", exception);
         }
 
         return document;
+    }
+
+    ///..
+    private String normalize(final Object input) {
+
+        if(input == null) return "\u0000";
+        else return input.toString();
+    }
+
+    ///..
+    private List<String> formatStacktraceForDb(final StackTraceElementProxy[] stacktrace) {
+
+        final List<String> formattedStacktrace = new ArrayList<>(stacktrace.length);
+
+        for(int i = 0; i < stacktrace.length; i++) {
+
+            final StackTraceElementProxy proxy = stacktrace[i];
+            formattedStacktrace.add(proxy != null ? proxy.toString() : null);
+        }
+
+        return formattedStacktrace;
+    }
+
+    ///..
+    private String formatStacktraceForFile(final StackTraceElementProxy[] stacktrace) {
+
+        final StringBuilder sb = new StringBuilder();
+
+        for(final StackTraceElementProxy element : stacktrace) {
+
+            sb.append(this.normalize(element).replace("\n", "\u0002")).append("\u0001");
+        }
+
+        sb.deleteCharAt(sb.length() - 1);
+        return sb.toString();
     }
 
     ///

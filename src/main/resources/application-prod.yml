@@ -1,11 +1,11 @@
+# apiKey: injected from CI/CD pipe
+# database.connectionString: injected from CI/CD pipe
+
 app:
   admin:
     cookieAttributes: "=$; Secure; HttpOnly; Domain=gattoslab.dev; SameSite=Strict; Max-Age=86400; Path=/admin;"
-  baseUrl: "https://gattoslab.dev:"
   cors:
     configuration: "https://gattoslab.dev,https://www.gattoslab.dev"
-  database:
-    connectionString: "mongodb://localhost:27017/GattosLabMongoDB"
   security:
     enabled: true
 security:

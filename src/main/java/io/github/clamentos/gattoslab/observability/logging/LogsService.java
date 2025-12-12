@@ -5,24 +5,21 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-///.
+///..
 import com.mongodb.MongoException;
-import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
-import com.mongodb.client.result.DeleteResult;
 
 ///.
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
+import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
-import io.github.clamentos.gattoslab.utils.PropertyProvider;
-import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 
 ///.
-import jakarta.el.PropertyNotFoundException;
+import java.io.BufferedReader;
+import java.io.FileReader;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +29,6 @@ import org.bson.Document;
 
 ///..
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -44,18 +40,12 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public final class LogsService {
 
     ///
-    private final long retention;
-
-    ///.
     private final MongoClientWrapper mongoClientWrapper;
     private final ObjectMapper objectMapper;
 
     ///
     @Autowired
-    public LogsService(final MongoClientWrapper mongoClientWrapper, final ObjectMapper objectMapper, final PropertyProvider propertyProvider)
-    throws PropertyNotFoundException {
-
-        retention = propertyProvider.getProperty("app.retention.value", Long.class) * 1000 * 60 * 60 * 24;
+    public LogsService(final MongoClientWrapper mongoClientWrapper, final ObjectMapper objectMapper) {
 
         this.mongoClientWrapper = mongoClientWrapper;
         this.objectMapper = objectMapper;
@@ -78,31 +68,21 @@ public final class LogsService {
         };
     }
 
-    ///.
-    @Scheduled(cron = "${app.retention.cleanSchedule}")
-    protected void cleanOldLogs() {
+    ///..
+    public StreamingResponseBody getFallbackLogs() {
 
-        final ClientSession session = mongoClientWrapper.getClient().startSession();
+        return outputStream -> {
 
-        try {
+            try(
+                final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(new CompressingOutputStream(outputStream));
+                final BufferedReader fileReader = new BufferedReader(new FileReader(MongoAppender.FALLBACK_FILE_PATH))
+            ) {
 
-            session.startTransaction();
-
-            final MongoCollection<Document> logsCollection = mongoClientWrapper.getCollection(DatabaseCollection.LOGS);
-            final DeleteResult result = logsCollection.deleteMany(Filters.lte("timestamp", System.currentTimeMillis() - retention));
-            final long count = result.getDeletedCount();
-
-            session.commitTransaction();
-            log.info("Logs cleaned: {}", count);
-        }
-
-        catch(final MongoException exc) {
-
-            session.abortTransaction();
-            log.error("Could not delete logs", exc);
-        }
-
-        session.close();
+                generator.writeStartArray();
+                generator.writeString(fileReader.readLine());
+                generator.writeEndArray();
+            }
+        };
     }
 
     ///

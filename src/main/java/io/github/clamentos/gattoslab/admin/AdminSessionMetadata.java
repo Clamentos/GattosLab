@@ -17,9 +17,9 @@ public final class AdminSessionMetadata {
     private final long expiresAt;
 
     ///
-    public boolean isExpired(final long reference) {
+    public boolean isValid(final long reference, final String incomingFingerprint) {
 
-        return expiresAt < reference;
+        return expiresAt < reference || (incomingFingerprint != null && !fingerprint.equals(incomingFingerprint));
     }
 
     ///

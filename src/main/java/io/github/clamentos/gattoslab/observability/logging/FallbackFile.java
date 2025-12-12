@@ -6,8 +6,8 @@ import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 
 ///.
-import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
+import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.utils.BeanProvider;
 
 ///.
@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -143,22 +144,37 @@ public final class FallbackFile implements Runnable {
 
         document.append("_id", new ObjectId());
         document.append("timestamp", Long.parseLong(splits[0]));
-        document.append("severity", splits[1]);
-        document.append("thread", splits[2]);
-        document.append("logger", splits[3]);
-        document.append("message", splits[4]);
+        document.append("severity", this.undoNormalization(splits[1]));
+        document.append("thread", this.undoNormalization(splits[2]));
+        document.append("logger", this.undoNormalization(splits[3]));
+        document.append("message", this.undoNormalization(splits[4].replace("\u0002", "\n")));
 
         if(splits.length > 5) {
 
             final Document exception = new Document();
 
-            exception.append("name", splits[5]);
-            if(splits.length > 6) exception.append("message", splits[6].replace("\u0002", "\n"));
+            exception.append("className", splits[5]);
+            exception.append("message", this.undoNormalization(splits[6].replace("\u0002", "\n")));
+
+            if(splits.length > 7) {
+
+                final String[] stacktrace = new String[splits.length - 7];
+                for(int i = 7; i < splits.length; i++) stacktrace[i - 7] = this.undoNormalization(splits[i].replace("\u0002", "\n"));
+
+                exception.append("stacktrace", List.of(stacktrace));
+            }
 
             document.append("exception", exception);
         }
 
         return document;
+    }
+
+    ///..
+    private String undoNormalization(final String input) {
+
+        if("\u0000".equals(input)) return null;
+        else return input;
     }
 
     ///

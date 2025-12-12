@@ -1,27 +1,21 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import io.github.clamentos.gattoslab.observability.metrics.system.SystemStatus;
+import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.utils.Pair;
-import io.github.clamentos.gattoslab.utils.PropertyProvider;
-import io.github.clamentos.gattoslab.web.StaticSite;
 
 ///.
-import jakarta.el.PropertyNotFoundException;
-
-///.
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
+
+///.
+import org.bson.Document;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,141 +29,81 @@ import org.springframework.stereotype.Component;
 public final class ObservabilityContext {
 
     ///
-    private final long limitTimeSlotIncrement;
-    private final List<Pair<Integer, Integer>> latencyBuckets;
-    private final List<Integer> httpStatuses;
-    private final Set<String> paths;
-
-    ///..
     private final AtomicReference<MetricsContainer> container;
     private final SystemMetrics systemMetrics;
 
     ///..
-    private final AtomicLong currentTimeSlot;
-    private final AtomicLong limitTimeSlot;
     private final AtomicLong visitorCounter;
 
     ///
     @Autowired
-    public ObservabilityContext(final StaticSite staticSite, final SystemMetrics systemMetrics, final PropertyProvider propertyProvider)
-    throws PropertyNotFoundException {
+    public ObservabilityContext(final SystemMetrics systemMetrics) {
 
-        limitTimeSlotIncrement =
-
-            propertyProvider.getProperty("app.metrics.rateCapacity", Long.class) *
-            propertyProvider.getProperty("app.metrics.dumpToDbRate", Long.class)
-        ;
-
-        latencyBuckets = Arrays
-
-            .asList(propertyProvider.getProperty("app.metrics.latencyBuckets", String.class).split(","))
-            .stream()
-            .map(element -> {
-
-                final String[] pair = element.split("-");
-                return new Pair<>(Integer.parseInt(pair[0]), Integer.parseInt(pair[1]));
-            })
-            .toList()
-        ;
-
-        httpStatuses = Arrays
-
-            .asList(propertyProvider.getProperty("app.metrics.httpStatuses", String.class).split(","))
-            .stream()
-            .map(Integer::parseInt)
-            .collect(Collectors.toCollection(ArrayList::new))
-        ;
-
-        httpStatuses.add(-1); // Used as a "catch-all" value.
-
-        paths = new HashSet<>(staticSite.getPaths());
-        paths.add("<other>");
-
-        container = new AtomicReference<>(new MetricsContainer(httpStatuses, paths, latencyBuckets));
+        container = new AtomicReference<>(new MetricsContainer());
         this.systemMetrics = systemMetrics;
 
-        final long now = System.currentTimeMillis();
-
-        currentTimeSlot = new AtomicLong(now);
-        limitTimeSlot = new AtomicLong(now + limitTimeSlotIncrement);
         visitorCounter = new AtomicLong();
     }
 
     ///
-    public void updateRequests(final int status, final String path, final String truePath, final int latency) {
+    public void updateRequests(final int latency, final short status, final String path) {
 
-        final int actualStatus = httpStatuses.contains(status) ? status : -1;
-        this.updateMetrics(_ -> this.waitForAvailable().updateRequests(actualStatus, path, truePath, currentTimeSlot.get(), latency));
+        this.updateMetrics(_ -> this.waitForAvailable().updateRequests(latency, status, path));
     }
 
     ///..
-    public void updateUserAgents(final String userAgent) {
+    public void updatePathInvocations(final String path) {
 
-        this.updateMetrics(_ -> this.waitForAvailable().updateUserAgents(userAgent));
+        this.updateMetrics(_ -> this.waitForAvailable().updatePathInvocations(path));
     }
 
     ///..
-    public SystemStatus getJvmMetrics() {
+    public void updateUserAgentCounts(final String userAgent) {
 
-        return systemMetrics.getJvmMetrics();
+        this.updateMetrics(_ -> this.waitForAvailable().updateUserAgentCounts(userAgent));
     }
 
     ///..
-    public MetricsContainer advance() {
+    public Pair<MetricsContainer, Map<DatabaseCollection, List<Document>>> dumpToDb() {
 
-        final long now = System.currentTimeMillis();
+        final long currentVisitors = visitorCounter.getAndSet(-1);
 
-        if(now >= limitTimeSlot.get()) {
+        while(visitorCounter.get() + currentVisitors != -1) {
 
-            currentTimeSlot.set(now);
-            final long currentVisitors = visitorCounter.getAndSet(-1);
+            try {
 
-            while(visitorCounter.get() + currentVisitors != -1) {
-
-                try {
-
-                    Thread.sleep(25);
-                }
-
-                catch(final InterruptedException _) {
-
-                    Thread.currentThread().interrupt();
-                    log.warn("Interrupted while sleeping, force quitting");
-                }
+                Thread.sleep(25);
             }
 
-            final MetricsContainer oldContainer = container.getAndSet(new MetricsContainer(httpStatuses, paths, latencyBuckets));
+            catch(final InterruptedException _) {
 
-            container.get().updateTime(now);
-            limitTimeSlot.set(now + limitTimeSlotIncrement);
-            visitorCounter.set(0);
-
-            return oldContainer;
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while sleeping, force quitting");
+            }
         }
 
-        else {
+        final MetricsContainer oldContainer = container.getAndSet(new MetricsContainer());
+        visitorCounter.set(0);
 
-            currentTimeSlot.set(now);
-            container.get().updateTime(now);
+        final Map<DatabaseCollection, List<Document>> metricsToSave = oldContainer.toDocuments();
+        metricsToSave.put(DatabaseCollection.SYSTEM_METRICS, List.of(systemMetrics.toDocument()));
 
-            return null;
-        }
+        return new Pair<>(oldContainer, metricsToSave);
+    }
+
+    ///..
+    public void merge(final MetricsContainer oldMetricsContainer) {
+
+        container.get().merge(oldMetricsContainer);
     }
 
     ///.
     private void updateMetrics(Consumer<Void> action) {
 
-        try {
+        try { action.accept(null); }
+        catch(final Exception exc) { log.error("Could not update metrics", exc); }
 
-            action.accept(null);
-            visitorCounter.decrementAndGet();
-        }
-
-        catch(final Exception exc) {
-
-            visitorCounter.decrementAndGet();
-            log.error("Could not update metrics", exc);
-        }
+        visitorCounter.decrementAndGet();
     }
 
     ///..

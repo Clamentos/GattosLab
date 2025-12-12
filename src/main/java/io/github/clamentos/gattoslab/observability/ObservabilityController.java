@@ -7,10 +7,9 @@ import com.mongodb.MongoException;
 import io.github.clamentos.gattoslab.admin.AdminSessionMetadata;
 import io.github.clamentos.gattoslab.admin.AdminSessionService;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.ChartSearchFilter;
+import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
-import io.github.clamentos.gattoslab.observability.metrics.system.SystemStatus;
 import io.github.clamentos.gattoslab.utils.MutableLong;
 
 ///.
@@ -43,10 +42,10 @@ public final class ObservabilityController {
     private final LogsService logsService;
 
     ///
-    @PostMapping(path = "/paths-count", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Map<String, MutableLong>> getPathsCount(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
+    @PostMapping(path = "/paths-invocations", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<Map<String, MutableLong>> getPathInvocations(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
 
-        return ResponseEntity.ok(observabilityService.getPathsCount(searchFilter));
+        return ResponseEntity.ok(observabilityService.getPathInvocations(searchFilter));
     }
 
     ///..
@@ -57,17 +56,18 @@ public final class ObservabilityController {
     }
 
     ///..
-    @PostMapping(path = "/performance-charts", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<StreamingResponseBody> getCharts(@RequestBody final ChartSearchFilter chartSearchFilter) throws MongoException {
+    @PostMapping(path = "/request-metrics", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<StreamingResponseBody> getRequestMetrics(@RequestBody final RequestMetricsSearchFilter chartSearchFilter)
+    throws MongoException {
 
-        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(observabilityService.getCharts(chartSearchFilter));
+        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(observabilityService.getRequestMetrics(chartSearchFilter));
     }
 
     ///..
-    @GetMapping(path = "/jvm-metrics", produces = "application/json")
-    public ResponseEntity<SystemStatus> getJvmMetrics() {
+    @PostMapping(path = "/system-metrics", produces = "application/json")
+    public ResponseEntity<StreamingResponseBody> getSystemMetrics(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
 
-        return ResponseEntity.ok().body(observabilityService.getJvmMetrics());
+        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(observabilityService.getSystemMetrics(searchFilter));
     }
 
     ///..
@@ -82,6 +82,13 @@ public final class ObservabilityController {
     public ResponseEntity<StreamingResponseBody> getLogs(@RequestBody final LogSearchFilter logSearchFilter) throws MongoException {
 
         return ResponseEntity.ok().header("Content-Encoding", "gzip").body(logsService.getLogs(logSearchFilter));
+    }
+
+    ///..
+    @GetMapping(path = "/fallback-logs", produces = "application/json")
+    public ResponseEntity<StreamingResponseBody> getFallbackLogs() {
+
+        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(logsService.getFallbackLogs());
     }
 
     ///

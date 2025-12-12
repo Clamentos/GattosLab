@@ -1,15 +1,12 @@
 package io.github.clamentos.gattoslab.exceptions;
 
 ///
-import java.io.IOException;
-
-///
-public final class RedirectException extends IOException {
+public final class RedirectException extends Exception {
 
     ///
     public RedirectException(final String message) {
 
-        super(message);
+        super(message, null, false, false);
     }
 
     ///

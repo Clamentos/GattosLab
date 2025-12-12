@@ -8,7 +8,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
 ///.
-import io.github.clamentos.gattoslab.utils.PropertyProvider;
+import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 
 ///.
 import java.util.EnumMap;
@@ -19,6 +19,8 @@ import lombok.Getter;
 
 ///.
 import org.bson.Document;
+
+///..
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +33,7 @@ public final class MongoClientWrapper {
     ///
     @Getter
     final MongoClient client;
+
     final Map<DatabaseCollection, MongoCollection<Document>> collections;
 
     ///

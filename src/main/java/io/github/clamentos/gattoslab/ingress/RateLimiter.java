@@ -1,9 +1,9 @@
 package io.github.clamentos.gattoslab.ingress;
 
 ///
+import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
 import io.github.clamentos.gattoslab.utils.Pair;
-import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -61,7 +61,9 @@ public final class RateLimiter implements HandlerInterceptor {
     throws TooManyRequestsException {
 
         final String ip = request.getRemoteAddr();
+
         request.setAttribute("IP_ATTRIBUTE", ip);
+        request.setAttribute("REQUEST_METHOD", request.getMethod());
 
         if(globalTokens.getAndDecrement() <= 0) this.tooManyRequests("Server is overloaded");
 

@@ -22,25 +22,25 @@ import org.bson.conversions.Bson;
 @Getter
 
 ///
-public final class ChartSearchFilter extends TemporalSearchFilter {
+public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
     ///
-    private final Set<String> chartTypes;
+    private final Set<String> paths;
     private final Set<Integer> httpStatuses;
 
     ///
     @JsonCreator
-    public ChartSearchFilter(
+    public RequestMetricsSearchFilter(
 
         @JsonProperty("startTimestamp") final long startTimestamp,
         @JsonProperty("endTimestamp") final long endTimestamp,
-        @JsonProperty("chartTypes") final Set<String> chartTypes,
+        @JsonProperty("paths") final Set<String> paths,
         @JsonProperty("httpStatuses") final Set<Integer> httpStatuses
     ) {
 
         super(startTimestamp, endTimestamp);
 
-        this.chartTypes = chartTypes;
+        this.paths = paths;
         this.httpStatuses = httpStatuses;
     }
 
@@ -53,7 +53,7 @@ public final class ChartSearchFilter extends TemporalSearchFilter {
         filters.add(Filters.gte("timestamp", super.getStartTimestamp()));
         filters.add(Filters.lte("timestamp", super.getEndTimestamp()));
 
-        if(chartTypes != null && !chartTypes.isEmpty()) filters.add(Filters.in("chartType", chartTypes));
+        if(paths != null && !paths.isEmpty()) filters.add(Filters.in("path", paths));
         if(httpStatuses != null && !httpStatuses.isEmpty()) filters.add(Filters.in("httpStatus", httpStatuses));
 
         return Filters.and(filters);

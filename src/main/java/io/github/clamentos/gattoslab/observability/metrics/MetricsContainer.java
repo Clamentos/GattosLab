@@ -1,20 +1,16 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import io.github.clamentos.gattoslab.observability.metrics.charts.Chart;
-import io.github.clamentos.gattoslab.observability.metrics.charts.LatencyChart;
-import io.github.clamentos.gattoslab.observability.metrics.charts.RequestsPerSecondChart;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
-import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 ///.
@@ -25,46 +21,34 @@ import org.bson.types.ObjectId;
 public final class MetricsContainer {
 
     ///
-    private final Map<Integer, RequestsPerSecondChart> rpsCharts;
-    private final Map<Integer, LatencyChart> latencyCharts;
+    private final Queue<RequestMetric> requestMetrics;
     private final Map<String, AtomicInteger> pathsInvocationCounts;
     private final Map<String, AtomicInteger> userAgentCounts;
 
     ///
-    public MetricsContainer(final List<Integer> httpStatuses, final Set<String> paths, final List<Pair<Integer, Integer>> latencyBuckets) {
+    public MetricsContainer() {
 
-        rpsCharts = new ConcurrentHashMap<>();
-        latencyCharts = new ConcurrentHashMap<>();
-
-        for(final Integer httpStatus : httpStatuses) {
-
-            rpsCharts.put(httpStatus, new RequestsPerSecondChart(paths));
-            latencyCharts.put(httpStatus, new LatencyChart(paths, latencyBuckets));
-        }
-
+        requestMetrics = new ConcurrentLinkedQueue<>();
         pathsInvocationCounts = new ConcurrentHashMap<>();
         userAgentCounts = new ConcurrentHashMap<>();
     }
 
     ///..
-    public void updateRequests(final int status, final String path, final String truePath, final long timestamp, final int latency) {
+    public void updateRequests(final int latency, final short status, final String path) {
 
-        rpsCharts.get(status).update(timestamp, path, null);
-        latencyCharts.get(status).update(timestamp, path, latency);
-        pathsInvocationCounts.computeIfAbsent(truePath, _ -> new AtomicInteger()).incrementAndGet();
+        requestMetrics.add(new RequestMetric(System.currentTimeMillis(), path, latency, status));
     }
 
     ///..
-    public void updateUserAgents(final String userAgent) {
+    public void updatePathInvocations(final String path) {
+
+        pathsInvocationCounts.computeIfAbsent(path, _ -> new AtomicInteger()).incrementAndGet();
+    }
+
+    ///..
+    public void updateUserAgentCounts(final String userAgent) {
 
         userAgentCounts.computeIfAbsent(userAgent, _ -> new AtomicInteger()).incrementAndGet();
-    }
-
-    ///..
-    public void updateTime(final long timestamp) {
-
-        this.updateTime(rpsCharts.values(), timestamp);
-        this.updateTime(latencyCharts.values(), timestamp);
     }
 
     ///..
@@ -72,49 +56,37 @@ public final class MetricsContainer {
 
         final long now = System.currentTimeMillis();
         final Map<DatabaseCollection, List<Document>> entities = new EnumMap<>(DatabaseCollection.class);
-        final List<Document> charts = this.chartsToDocument(rpsCharts, now);
 
-        charts.addAll(this.chartsToDocument(latencyCharts, now));
-        entities.put(DatabaseCollection.CHARTS, charts);
-
-        entities.put(DatabaseCollection.PATHS_INVOCATIONS, this.countsToDocument(pathsInvocationCounts, now));
-        entities.put(DatabaseCollection.USER_AGENTS, this.countsToDocument(userAgentCounts, now));
+        entities.put(DatabaseCollection.REQUEST_METRICS, this.metricsToDocument());
+        entities.put(DatabaseCollection.PATHS_INVOCATIONS, this.invocationsToDocument(pathsInvocationCounts, now));
+        entities.put(DatabaseCollection.USER_AGENTS, this.invocationsToDocument(userAgentCounts, now));
 
         return entities;
     }
 
-    ///.
-    private void updateTime(final Collection<? extends Chart<?>> charts, final long timestamp) {
+    ///..
+    public void merge(final MetricsContainer oldMetricsContainer) {
 
-        for(final Chart<?> chart : charts) chart.updateTime(timestamp);
+        requestMetrics.addAll(oldMetricsContainer.requestMetrics);
+        pathsInvocationCounts.putAll(oldMetricsContainer.pathsInvocationCounts);
+        userAgentCounts.putAll(oldMetricsContainer.userAgentCounts);
     }
 
     ///.
-    private <T extends Chart<?>> List<Document> chartsToDocument(final Map<Integer, T> charts, final long timestamp) {
+    private List<Document> metricsToDocument() {
 
-        final List<Document> documents = new ArrayList<>(rpsCharts.size() + latencyCharts.size());
-
-        for(final Map.Entry<Integer, T> entry : charts.entrySet()) {
-
-            final T chart = entry.getValue();
-            final Document document = new Document();
-
-            document.append("_id", new ObjectId());
-            document.append("timestamp", timestamp);
-            document.append("chartType", chart.getClass().getSimpleName());
-            document.append("httpStatus", entry.getKey());
-            document.append("chart", chart.toDocument());
-
-            documents.add(document);
-        }
+        final List<Document> documents = new ArrayList<>();
+        for(final RequestMetric requestMetric : requestMetrics) documents.add(requestMetric.toDocument());
 
         return documents;
     }
 
     ///..
-    private List<Document> countsToDocument(final Map<String, AtomicInteger> counts, final long timestamp) {
+    private List<Document> invocationsToDocument(final Map<String, AtomicInteger> counts, final long timestamp) {
 
-        final List<Map<String, Object>> elements = new ArrayList<>(counts.size());
+        if(counts.isEmpty()) return List.of();
+
+        final List<Map<String, Object>> elements = new ArrayList<>();
         final Document document = new Document();
 
         document.append("_id", new ObjectId());

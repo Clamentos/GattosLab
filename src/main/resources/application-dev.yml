@@ -2,7 +2,6 @@ app:
   admin:
     apiKey: "test"
     cookieAttributes: "=$; Max-Age=86400; Path=/admin;"
-  baseUrl: "http://localhost:"
   cors:
     configuration: "http://localhost:8080"
   database:

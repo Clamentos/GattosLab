@@ -4,14 +4,17 @@ package io.github.clamentos.gattoslab.configuration;
 import io.github.clamentos.gattoslab.admin.SecurityInterceptor;
 import io.github.clamentos.gattoslab.ingress.RateLimiter;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
-import io.github.clamentos.gattoslab.utils.PropertyProvider;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
 
 ///.
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -33,13 +36,14 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
     private final ObservabilityService observabilityService;
 
     ///
+    @Autowired
     public ApplicationConfiguration(
-        
+
+        final PropertyProvider propertyProvider,
         final RateLimiter rateLimiter,
         final SecurityInterceptor securityInterceptor,
-        final ObservabilityService observabilityService,
-        final PropertyProvider propertyProvider
-    
+        final ObservabilityService observabilityService
+
     ) throws PropertyNotFoundException {
 
         corsConfiguration = propertyProvider.getProperty("app.cors.configuration", String.class);
@@ -68,16 +72,28 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
 
     ///..
     @Override
-    public void addCorsMappings(CorsRegistry registry) {
+    public void addCorsMappings(final CorsRegistry registry) {
 
         registry
 
             .addMapping("/**")
             .allowedOrigins(corsConfiguration.split(","))
             .allowedMethods("GET", "POST", "PUT", "DELETE")
-            .allowedHeaders("*")
-            .allowCredentials(true)
         ;
+    }
+
+    ///..
+    @Bean
+    public TaskScheduler batchScheduler(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+
+        final ThreadPoolTaskScheduler threadPoolTaskScheduler = new ThreadPoolTaskScheduler();
+
+        threadPoolTaskScheduler.setPoolSize(propertyProvider.getProperty("app.batch.poolSize", Integer.class));
+        threadPoolTaskScheduler.setAwaitTerminationSeconds(propertyProvider.getProperty("app.batch.terminationWaitPeriod", Integer.class));
+        threadPoolTaskScheduler.setThreadNamePrefix("GattosLabBatch");
+        threadPoolTaskScheduler.setVirtualThreads(false);
+
+        return threadPoolTaskScheduler;
     }
 
     ///

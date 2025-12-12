@@ -43,7 +43,7 @@
 
                         <div class = "charts-form-input-group">
                             <label for = "startTimestamp">Start timestamp</label>
-                            <input class = "chart-form-input" type = "datetime-local" name = "startTimestamp">
+                            <input class = "chart-form-input" type = "datetime-local" name = "startTimestamp" id = "start-timestamp">
                         </div>
 
                         <div class = "charts-form-input-group">
@@ -75,15 +75,18 @@
 
                 <div class = "table-container">
 
+                    <p id = "logs-count"></p>
+
                     <table class = "logs-table">
 
                         <thead class = "logs-table-header">
                             <tr>
                                 <th style = "width: 5%;">Timestamp</th>
-                                <th style = "width: 4%;">Severity</th>
-                                <th style = "width: 50%;">Message</th>
-                                <th style = "width: 19%;">Logger</th>
-                                <th style = "width: 19%;">Thread</th>
+                                <th style = "width: 5%;">Severity</th>
+                                <th style = "width: 45%;">Message</th>
+                                <th style = "width: 15%;">Logger</th>
+                                <th style = "width: 15%;">Thread</th>
+                                <th style = "width: 15%;">Exception</th>
                             </tr>
                         </thead>
 
@@ -99,12 +102,14 @@
 
     </body>
 
-    <script src = "../../js/CheckLogout.js"></script>
-
     <script>
 
-        checkLogout("/admin/login.html");
-        fetchAndRenderLogs(new Date(new Date().toISOString().slice(0, 10)).getTime(), 999999999999999, null, null, null);
+        const timestampMax = 999999999999999;
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+        document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
+
+        fetchAndRenderLogs(today.getTime(), timestampMax, null, null, null);
 
         function onSubmitEvent(event) {
 
@@ -118,8 +123,8 @@
 
             fetchAndRenderLogs(
 
-                formStartTimestamp === "" ? 0 : new Date(formStartTimestamp).getMilliseconds(),
-                formEndTimestamp === "" ? 999999999999999 : new Date(formEndTimestamp).getMilliseconds(),
+                formStartTimestamp === "" ? 0 : Date.parse(formStartTimestamp),
+                formEndTimestamp === "" ? timestampMax : Date.parse(formEndTimestamp),
                 formSeverities === "" ? null : formSeverities.split(","),
                 formThreads === "" ? null : formThreads.split(","),
                 formLoggers === "" ? null : formLoggers.split(",")
@@ -129,12 +134,12 @@
         function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threads, loggers) {
 
             document.getElementById("API-error").innerHTML = "";
+            document.getElementById("logs-count").innerText = "Logs count: -";
+
             const tableBody = document.getElementById("table-hook");
             tableBody.replaceChildren();
 
-            fetch(
-
-                "/admin/api/observability/logs",
+            fetch("/admin/api/observability/logs",
 
                 {
                     method: "POST",
@@ -149,13 +154,14 @@
                         loggers: loggers
                     })
                 }
-
-            ).then((response) => {
+            )
+            .then((response) => {
 
                 if(response.status === 200) {
 
                     response.json().then(json => {
 
+                        document.getElementById("logs-count").innerText = `Logs count: ${json.length}`;
                         for(const log of json) appendRow(log, tableBody);
                     });
                 }
@@ -180,6 +186,7 @@
             const message = document.createElement("td");
             const logger = document.createElement("td");
             const thread = document.createElement("td");
+            const exception = document.createElement("td");
 
             timestamp.innerText = new Date(log.timestamp).toLocaleString();
 
@@ -190,13 +197,30 @@
             logger.innerText = log.logger;
             thread.innerText = log.thread;
 
+            if(log.exception !== null && log.exception !== undefined) exception.innerText = formatException(log.exception);
+            else exception.innerText = "";
+
             tr.appendChild(timestamp);
             tr.appendChild(severity);
             tr.appendChild(message);
             tr.appendChild(logger);
             tr.appendChild(thread);
+            tr.appendChild(exception);
 
             table.appendChild(tr);
+        }
+
+        function formatException(exception) {
+
+            const message = (exception.message !== null && exception.message !== undefined) ? exception.message : "";
+            let trace = "";
+
+            if(exception.stacktrace !== null && exception.stacktrace !== undefined) {
+
+                for(const entry of exception.stacktrace) trace += `${entry}\n`;
+            }
+
+            return `${exception.className}: ${message} trace: ${trace}`;
         }
 
         function showError(error) {

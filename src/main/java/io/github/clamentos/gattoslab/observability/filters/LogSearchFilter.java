@@ -4,7 +4,7 @@ package io.github.clamentos.gattoslab.observability.filters;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-///.
+///..
 import com.mongodb.client.model.Filters;
 
 ///.
@@ -25,10 +25,11 @@ import org.bson.conversions.Bson;
 public final class LogSearchFilter extends TemporalSearchFilter {
 
     ///
-    final Set<String> severities;
-    final String threadPattern;
-    final String loggerPattern;
-    final String messagePattern;
+    private final Set<String> severities;
+    private final String threadPattern;
+    private final String loggerPattern;
+    private final String messagePattern;
+    private final String exceptionClassPattern;
 
     ///
     @JsonCreator
@@ -39,7 +40,8 @@ public final class LogSearchFilter extends TemporalSearchFilter {
         @JsonProperty("severities") final Set<String> severities,
         @JsonProperty("threadPattern") final String threadPattern,
         @JsonProperty("loggerPattern") final String loggerPattern,
-        @JsonProperty("messagePattern") final String messagePattern
+        @JsonProperty("messagePattern") final String messagePattern,
+        @JsonProperty("exceptionClassPattern") final String exceptionClassPattern
     ) {
 
         super(startTimestamp, endTimestamp);
@@ -48,6 +50,7 @@ public final class LogSearchFilter extends TemporalSearchFilter {
         this.threadPattern = threadPattern;
         this.loggerPattern = loggerPattern;
         this.messagePattern = messagePattern;
+        this.exceptionClassPattern = exceptionClassPattern;
     }
 
     ///
@@ -61,8 +64,9 @@ public final class LogSearchFilter extends TemporalSearchFilter {
 
         if(severities != null && !severities.isEmpty()) filters.add(Filters.in("severity", severities));
         if(threadPattern != null && !threadPattern.isEmpty()) filters.add(Filters.regex("thread", threadPattern));
-        if(loggerPattern != null && !loggerPattern.isEmpty()) filters.add(Filters.in("logger", threadPattern));
-        if(messagePattern != null && !messagePattern.isEmpty()) filters.add(Filters.in("message", messagePattern));
+        if(loggerPattern != null && !loggerPattern.isEmpty()) filters.add(Filters.regex("logger", loggerPattern));
+        if(messagePattern != null && !messagePattern.isEmpty()) filters.add(Filters.regex("message", messagePattern));
+        if(exceptionClassPattern != null && !exceptionClassPattern.isEmpty()) filters.add(Filters.regex("exception.className", exceptionClassPattern));
 
         return Filters.and(filters);
     }
