@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang = "en">
+    
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. Admin site invocations page."/>
+
+        <link rel = "stylesheet" href = "../../css/base.css"/>
+        <link rel = "stylesheet" href = "../../css/header.css"/>
+        <link rel = "stylesheet" href = "../../css/form.css"/>
+        <link rel = "stylesheet" href = "../../css/table.css"/>
+        <link rel = "stylesheet" href = "../../css/loader.css"/>
+
+        <link rel = "icon" type = "image/x-icon" href = "../../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
+            </div>
+
+            <div class = "nav-crumb">
+                <a href = "../../index.html">Home</a> > <a href = "../index.html">Admin</a> > Invocations
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "default-container">
+
+                <form class = "form-container" onsubmit = "onSubmitEvent(event)">
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "datetime-local" name = "startTimestamp" id = "start-timestamp">
+
+                        <p class = "form-field-description">
+
+                            <strong>Start time:</strong> specify the start time of the window. On page load, it's automatically set to the current day. Clearing this field will cause the search to ignore this field and fetch arbitrarily far into the past.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "datetime-local" name = "endTimestamp">
+
+                        <p class = "form-field-description">
+
+                            <strong>End time:</strong> specify the end time of the window. Clearing this field will cause the search to ignore this filter and fetch arbitrarily far into the future.
+                        </p>
+
+                    </div>
+
+                    <button class = "form-button" type = "submit">Filter</button>
+                    <div id = "submit-loader" class = "loader" style = "display: none"></div>
+                    <p id = "API-error" class = "form-error"></p>
+
+                </form>
+
+                <div class = "table-container">
+
+                    <strong id = "invocations-count"></strong>
+
+                    <div class = "narrow-table">
+
+                        <div class = "table-header-row">
+
+                            <div style = "width: 80%; border-left: none">Key</div>
+                            <div style = "width: 20%">Count</div>
+
+                        </div>
+
+                        <div class = "table-data" id = "invocations-table-hook"></div>
+
+                    </div>
+
+                </div>
+
+                <div class = "table-container">
+
+                    <strong id = "user-agents-count"></strong>
+
+                    <div class = "narrow-table">
+
+                        <div class = "table-header-row">
+
+                            <div style = "width: 80%; border-left: none">Key</div>
+                            <div style = "width: 20%">Count</div>
+
+                        </div>
+
+                        <div class = "table-data" id = "user-agents-table-hook"></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </main>
+
+    </body>
+
+    <script src = "../../js/invocations.js"></script>
+
+</html>

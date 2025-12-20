@@ -137,7 +137,7 @@ public final class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    @Scheduled(cron = "${app.metrics.dumpToDbRate}")
+    @Scheduled(cron = "${app.metrics.dumpToDbRate}", scheduler = "batchScheduler")
     protected void dumpToDb() {
 
         final Pair<MetricsContainer, Map<DatabaseCollection, List<Document>>> context = observabilityContext.dumpToDb();

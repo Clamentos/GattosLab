@@ -78,7 +78,7 @@ public final class RateLimiter implements HandlerInterceptor {
 	}
 
     ///.
-    @Scheduled(fixedRateString = "${app.ratelimit.replenishRate}")
+    @Scheduled(fixedRateString = "${app.ratelimit.replenishRate}", scheduler = "batchScheduler")
     protected void replenish() {
 
         globalTokens.set(maxGlobalTokens);

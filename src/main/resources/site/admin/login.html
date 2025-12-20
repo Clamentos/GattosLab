@@ -7,12 +7,18 @@
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Admin login page."/>
 
-        <link rel = "stylesheet" href = "../styles.css"/>
+        <link rel = "stylesheet" href = "../css/base.css">
+        <link rel = "stylesheet" href = "../css/card.css">
+        <link rel = "stylesheet" href = "../css/form.css">
+        <link rel = "stylesheet" href = "../css/loader.css">
+
         <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
 
         <title>Gatto's Lab</title>
 
     </head>
+
+    <script src = "../js/login.js"></script>
 
     <body class = "background">
 
@@ -35,12 +41,12 @@
 
         <main>
 
-            <div class = "login-container">
+            <div class = "default-container">
 
-                <div class = "static-card">
+                <div class = "no-hover-card">
 
-                    <div class = "card-header" style = "background-color: white">
-                        <img src = "../images/FABRISC-LOGO.png" alt = "FabRISC ISA project logo"/>
+                    <div class = "card-header" style = "background-color: #080808">
+                        <img src = "../images/LOGIN.svg" alt = "FabRISC ISA project logo"/>
                     </div>
 
                     <div class = "card-content-container">
@@ -58,8 +64,9 @@
                                 required
                             >
 
-                            <p id = "login-form-feedback" class = "form-error"></p>
-                            <button class = "login-button" type = "submit">Submit</button>
+                            <button class = "form-button" type = "submit">Submit</button>
+                            <div id = "submit-loader" class = "loader" style = "display: none"></div>
+                            <p id = "API-error" class = "form-error"></p>
 
                         </form>
 
@@ -72,35 +79,5 @@
         </main>
 
     </body>
-
-    <script>
-
-        function onSubmitEvent(event) {
-
-            event.preventDefault();
-            document.getElementById("login-form-feedback").innerText = "";
-
-            fetch("/admin/api/session", {
-
-                method: "POST",
-                headers: { "Authorization": event.target.apiKey.value }
-            })
-            .then(response => {
-
-                switch(response.status) {
-
-                    case 200: globalThis.location = "./index.html"; break;
-                    case 401: document.getElementById("login-form-feedback").innerText = "Unauthorized"; break;
-
-                    default: document.getElementById("login-form-feedback").innerText = `Error: ${response.status}`;
-                }
-            })
-            .catch(error_ => {
-
-                document.getElementById("login-form-feedback").innerText = `Error: ${error_}`;
-            });
-        }
-
-    </script>
 
 </html>

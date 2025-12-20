@@ -127,7 +127,7 @@ public final class AdminSessionService {
     }
 
     ///.
-    @Scheduled(cron = "${app.admin.cleanSchedule}")
+    @Scheduled(cron = "${app.admin.cleanSchedule}", scheduler = "batchScheduler")
     protected void cleanExpired() {
 
         final long now = System.currentTimeMillis();

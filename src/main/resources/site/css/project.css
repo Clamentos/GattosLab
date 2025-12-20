@@ -1,0 +1,41 @@
+.project-container {
+
+    margin: 200px 400px;
+    padding: 100px;
+    border: 2px solid #0079a2;
+    background-color: #00000cbf;
+    border-radius: 30px;
+}
+
+.project-title {
+
+    margin-bottom: 60px;
+    font-size: 100px;
+}
+
+.project-subtitle {
+
+    margin: 40px 0px 15px 0px;
+    font-size: 25px;
+}
+
+/* Mobile screens */
+@media screen and (max-width: 1000px) {
+
+    .project-container {
+
+        margin: 50px 15px;
+        padding: 25px;
+    }
+
+    .project-title {
+
+        font-size: 50px;
+        margin-bottom: 30px;
+    }
+
+    .project-subtitle {
+
+        margin-top: 30px;
+    }
+}

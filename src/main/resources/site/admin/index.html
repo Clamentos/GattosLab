@@ -7,7 +7,10 @@
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Admin section landing page."/>
 
-        <link rel = "stylesheet" href = "../styles.css"/>
+        <link rel = "stylesheet" href = "../css/base.css"/>
+        <link rel = "stylesheet" href = "../css/header.css"/>
+        <link rel = "stylesheet" href = "../css/card.css"/>
+
         <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
 
         <title>Gatto's Lab</title>
@@ -42,7 +45,7 @@
                 </p>
             </div>
 
-            <div class = "cards-container">
+            <div class = "default-container">
 
                 <div class = "card">
 
@@ -85,6 +88,30 @@
                         <div class = "card-footer-container">
                             <div class = "card-footer">
                                 <a href = "./observability/logs.html" target = "_blank">Goto logs</a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class = "card">
+
+                    <div class = "card-header" style = "background-color: #080808">
+                        <img src = "../images/METRICS-IMG.svg" alt = ""/>
+                    </div>
+
+                    <div class = "card-content-container">
+
+                        <h1 class = "card-title">Invocations</h1>
+
+                        <p class = "card-description">
+                            View the site requested paths, including non existing ones, and user agents.
+                        </p>
+
+                        <div class = "card-footer-container">
+                            <div class = "card-footer">
+                                <a href = "./observability/invocations.html" target = "_blank">Goto invocations</a>
                             </div>
                         </div>
 

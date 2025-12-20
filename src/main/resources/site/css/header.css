@@ -1,0 +1,35 @@
+.header-container {
+
+    padding: 200px 150px;
+}
+
+.header-title {
+
+    font-size: 144px;
+}
+
+.header-text {
+
+    max-width: 700px;
+    font-size: 22px;
+    text-align: justify;
+}
+
+/* Mobile screens */
+@media screen and (max-width: 1000px) {
+
+    .header-container {
+
+        padding: 80px 30px;
+    }
+
+    .header-title {
+
+        font-size: 64px;
+    }
+
+    .header-text {
+
+        font-size: 18px;
+    }
+}

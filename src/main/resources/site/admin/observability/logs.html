@@ -7,7 +7,12 @@
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Admin site logs page."/>
 
-        <link rel = "stylesheet" href = "../../styles.css"/>
+        <link rel = "stylesheet" href = "../../css/base.css"/>
+        <link rel = "stylesheet" href = "../../css/header.css"/>
+        <link rel = "stylesheet" href = "../../css/form.css"/>
+        <link rel = "stylesheet" href = "../../css/table.css"/>
+        <link rel = "stylesheet" href = "../../css/loader.css"/>
+
         <link rel = "icon" type = "image/x-icon" href = "../../images/favicon.ico"/>
 
         <title>Gatto's Lab</title>
@@ -35,64 +40,119 @@
 
         <main>
 
-            <div class = "cards-container">
+            <div class = "default-container">
 
-                <form class = "charts-form" onsubmit = "onSubmitEvent(event)">
+                <form class = "form-container" onsubmit = "onSubmitEvent(event)">
 
-                    <div class = "charts-form-group">
+                    <div class = "form-input-group">
 
-                        <div class = "charts-form-input-group">
-                            <label for = "startTimestamp">Start timestamp</label>
-                            <input class = "chart-form-input" type = "datetime-local" name = "startTimestamp" id = "start-timestamp">
-                        </div>
+                        <input class = "form-input" type = "datetime-local" name = "startTimestamp" id = "start-timestamp">
 
-                        <div class = "charts-form-input-group">
-                            <label for = "endTimestamp">End timestamp</label>
-                            <input class = "chart-form-input" type = "datetime-local" name = "endTimestamp">
-                        </div>
+                        <p class = "form-field-description">
 
-                        <div class = "charts-form-input-group">
-                            <label for = "severities">Severities</label>
-                            <input class = "chart-form-input" type = "text" name = "severities", placeholder = "INFO, ERROR, WARN">
-                        </div>
+                            <strong>Start time:</strong> specify the start time of the window. On page load, it's automatically set to the current day. Clearing this field will cause the search to ignore this field and fetch arbitrarily far into the past.
+                        </p>
 
-                        <div class = "charts-form-input-group">
-                            <label for = "threads">Threads</label>
-                            <input class = "chart-form-input" type = "text" name = "threads">
-                        </div>
+                    </div>
 
-                        <div class = "charts-form-input-group">
-                            <label for = "loggers">Loggers</label>
-                            <input class = "chart-form-input" type = "text" name = "loggers">
-                        </div>
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "datetime-local" name = "endTimestamp">
+
+                        <p class = "form-field-description">
+
+                            <strong>End time:</strong> specify the end time of the window. Clearing this field will cause the search to ignore this filter and fetch arbitrarily far into the future.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "severities", placeholder = "INFO, ERROR, WARN">
+
+                        <p class = "form-field-description">
+
+                            <strong>Severities:</strong> specify the log severities to be included in the search. To specify multiple, simply separate the names with a comma (no spaces). Clearing this field will cause the search to ignore this filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "threadPattern">
+
+                        <p class = "form-field-description">
+
+                            <strong>Thread pattern:</strong> specify the thread's name pattern. Clearing this field will cause the search to ignore this filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "loggerPattern">
+
+                        <p class = "form-field-description">
+
+                            <strong>Logger pattern:</strong> specify the logger's name pattern. Clearing this field will cause the search to ignore this filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "messagePattern">
+
+                        <p class = "form-field-description">
+
+                            <strong>Message pattern:</strong> specify the message pattern. Clearing this field will cause the search to ignore this filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "exceptionClassPattern">
+
+                        <p class = "form-field-description">
+
+                            <strong>Exception class pattern:</strong> specify the exception class pattern. Clearing this field will cause the search to ignore this filter.
+
+                        </p>
 
                     </div>
 
                     <button class = "form-button" type = "submit">Filter</button>
+                    <div id = "submit-loader" class = "loader" style = "display: none"></div>
                     <p id = "API-error" class = "form-error"></p>
 
                 </form>
 
                 <div class = "table-container">
 
-                    <p id = "logs-count"></p>
+                    <strong id = "logs-count"></strong>
 
-                    <table class = "logs-table">
+                    <div class = "table">
 
-                        <thead class = "logs-table-header">
-                            <tr>
-                                <th style = "width: 5%;">Timestamp</th>
-                                <th style = "width: 5%;">Severity</th>
-                                <th style = "width: 45%;">Message</th>
-                                <th style = "width: 15%;">Logger</th>
-                                <th style = "width: 15%;">Thread</th>
-                                <th style = "width: 15%;">Exception</th>
-                            </tr>
-                        </thead>
+                        <div class = "table-header-row">
 
-                        <tbody id = "table-hook"></tbody>
+                            <div style = "width: 5%; border-left: none">Timestamp</div>
+                            <div style = "width: 5%">Severity</div>
+                            <div style = "width: 45%">Message</div>
+                            <div style = "width: 15%">Logger</div>
+                            <div style = "width: 15%">Thread</div>
+                            <div style = "width: 15%">Exception</div>
 
-                    </table>
+                        </div>
+
+                        <div class = "table-data" id = "table-data-hook"></div>
+
+                    </div>
 
                 </div>
 
@@ -102,132 +162,6 @@
 
     </body>
 
-    <script>
-
-        const timestampMax = 999999999999999;
-        const today = new Date();
-        today.setUTCHours(0, 0, 0, 0);
-        document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
-
-        fetchAndRenderLogs(today.getTime(), timestampMax, null, null, null);
-
-        function onSubmitEvent(event) {
-
-            event.preventDefault();
-
-            const formStartTimestamp = event.target.startTimestamp.value;
-            const formEndTimestamp = event.target.endTimestamp.value;
-            const formSeverities = event.target.severities.value;
-            const formThreads = event.target.threads.value;
-            const formLoggers = event.target.loggers.value;
-
-            fetchAndRenderLogs(
-
-                formStartTimestamp === "" ? 0 : Date.parse(formStartTimestamp),
-                formEndTimestamp === "" ? timestampMax : Date.parse(formEndTimestamp),
-                formSeverities === "" ? null : formSeverities.split(","),
-                formThreads === "" ? null : formThreads.split(","),
-                formLoggers === "" ? null : formLoggers.split(",")
-            );
-        }
-
-        function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threads, loggers) {
-
-            document.getElementById("API-error").innerHTML = "";
-            document.getElementById("logs-count").innerText = "Logs count: -";
-
-            const tableBody = document.getElementById("table-hook");
-            tableBody.replaceChildren();
-
-            fetch("/admin/api/observability/logs",
-
-                {
-                    method: "POST",
-                    headers: new Headers({"content-type": "application/json"}),
-
-                    body: JSON.stringify({
-
-                        startTimestamp: startTimestamp,
-                        endTimestamp: endTimestamp,
-                        severities: severities,
-                        threads: threads,
-                        loggers: loggers
-                    })
-                }
-            )
-            .then((response) => {
-
-                if(response.status === 200) {
-
-                    response.json().then(json => {
-
-                        document.getElementById("logs-count").innerText = `Logs count: ${json.length}`;
-                        for(const log of json) appendRow(log, tableBody);
-                    });
-                }
-
-                else {
-
-                    showError(response);
-                }
-            })
-            .catch(error_ => showError(error_));
-        }
-
-        function appendRow(log, table) {
-
-            const tr = document.createElement("tr");
-
-            if(log.severity === "ERROR") tr.style = "color: red";
-            if(log.severity === "WARN") tr.style = "color: orange";
-
-            const timestamp = document.createElement("td");
-            const severity = document.createElement("td");
-            const message = document.createElement("td");
-            const logger = document.createElement("td");
-            const thread = document.createElement("td");
-            const exception = document.createElement("td");
-
-            timestamp.innerText = new Date(log.timestamp).toLocaleString();
-
-            severity.innerText = log.severity;
-            severity.style = "text-align: center";
-
-            message.innerText = log.message;
-            logger.innerText = log.logger;
-            thread.innerText = log.thread;
-
-            if(log.exception !== null && log.exception !== undefined) exception.innerText = formatException(log.exception);
-            else exception.innerText = "";
-
-            tr.appendChild(timestamp);
-            tr.appendChild(severity);
-            tr.appendChild(message);
-            tr.appendChild(logger);
-            tr.appendChild(thread);
-            tr.appendChild(exception);
-
-            table.appendChild(tr);
-        }
-
-        function formatException(exception) {
-
-            const message = (exception.message !== null && exception.message !== undefined) ? exception.message : "";
-            let trace = "";
-
-            if(exception.stacktrace !== null && exception.stacktrace !== undefined) {
-
-                for(const entry of exception.stacktrace) trace += `${entry}\n`;
-            }
-
-            return `${exception.className}: ${message} trace: ${trace}`;
-        }
-
-        function showError(error) {
-
-            document.getElementById("API-error").innerHTML = `Error: ${error}`;
-        }
-
-    </script>
+    <script src = "../../js/logs.js"></script>
 
 </html>

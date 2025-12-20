@@ -1,0 +1,90 @@
+.form-container {
+
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 50px;
+    background-color: #020617;
+    border: 2px solid #0079a2;
+    border-radius: 30px;
+}
+
+.form-input-group {
+
+    display: flex;
+    align-items: center;
+    padding-bottom: 15px;
+}
+
+.form-input {
+
+    width: 400px;
+    height: 40px;
+    flex-shrink: 0;
+    padding: 0px 10px;
+    background-color: black;
+    border: 2px solid #0079a2;
+    border-radius: 15px;
+}
+
+.form-field-description {
+
+    width: 100%;
+    min-width: 200px;
+    padding-left: 50px;
+}
+
+.form-button {
+
+    width: 100%;
+    height: 40px;
+    margin-top: 45px;
+    background-color: black;
+    border: 2px solid #0079a2;
+    border-radius: 15px;
+}
+
+.form-button:hover {
+
+    cursor: pointer;
+    transition: 0.15s;
+    box-shadow: 0px 0px 6px #00bfff;
+}
+
+.form-error {
+
+    width: 100%;
+    padding-top: 20px;
+    color: #ff4040;
+    text-align: left;
+}
+
+.login-input {
+
+    width: 100%;
+    height: 40px;
+    margin-top: 45px;
+    padding-left: 10px;
+    background-color: black;
+    border: 2px solid #0079a2;
+    border-radius: 15px;
+}
+
+/* Mobile screens */
+@media screen and (max-width: 1400px) {
+
+    .form-input-group {
+
+        flex-wrap: wrap;
+    }
+
+    .form-field-description {
+
+        padding-left: 0px;
+    }
+
+    .form-input {
+
+        width: 100%;
+    }
+}
