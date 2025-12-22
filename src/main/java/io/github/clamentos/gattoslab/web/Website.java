@@ -170,12 +170,7 @@ public final class Website {
     }
 
     ///..
-    private void addPath(
-
-        final Map<String, WebsiteResource> websiteStructure,
-        final String path,
-        final Set<HttpMethod> supportedMethods
-    ) {
+    private void addPath(final Map<String, WebsiteResource> websiteStructure, final String path, final Set<HttpMethod> supportedMethods) {
 
         websiteStructure.put(path, new WebsiteResource(path, "application/json", null, true, supportedMethods));
     }

@@ -1,15 +1,12 @@
 package io.github.clamentos.gattoslab.exceptions;
 
 ///
-import java.io.IOException;
-
-///
-public final class TooManyRequestsException extends IOException {
+public final class TooManyRequestsException extends Exception {
 
     ///
     public TooManyRequestsException(final String message) {
 
-        super(message);
+        super(message, null, false, false);
     }
 
     ///

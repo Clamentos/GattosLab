@@ -46,21 +46,16 @@ public final class ObservabilityContext {
     }
 
     ///
-    public void updateRequests(final int latency, final short status, final String path) {
+    public void updateMetrics(final int latency, final short status, final String path, final String truePath, final String userAgent) {
 
-        this.updateMetrics(_ -> this.waitForAvailable().updateRequests(latency, status, path));
-    }
+        this.updateMetrics(_ -> {
 
-    ///..
-    public void updatePathInvocations(final String path) {
+            final MetricsContainer metricsContainer = this.waitForAvailable();
 
-        this.updateMetrics(_ -> this.waitForAvailable().updatePathInvocations(path));
-    }
-
-    ///..
-    public void updateUserAgentCounts(final String userAgent) {
-
-        this.updateMetrics(_ -> this.waitForAvailable().updateUserAgentCounts(userAgent));
+            metricsContainer.updateRequests(latency, status, path);
+            metricsContainer.updatePathInvocations(truePath);
+            metricsContainer.updateUserAgentCounts(userAgent);
+        });
     }
 
     ///..

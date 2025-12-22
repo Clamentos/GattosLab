@@ -99,8 +99,13 @@ public final class AdminSessionService {
 
         if(apiKey == null || !apiKey.equals(this.apiKey)) {
 
-            if(sizeCounter.getAndIncrement() >= maxSessions) throw new ApiSecurityException("Too many sessions");
-            else throw new ApiSecurityException("Invalid key for fingerprint: " + fingerprint);
+            if(sizeCounter.incrementAndGet() > maxSessions) {
+
+                sizeCounter.decrementAndGet();
+                throw new ApiSecurityException("Too many sessions");
+            }
+
+            throw new ApiSecurityException("Invalid key for fingerprint: " + fingerprint);
         }
 
         final long now = System.currentTimeMillis();

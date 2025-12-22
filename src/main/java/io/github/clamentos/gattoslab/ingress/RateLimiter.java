@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.ingress;
 ///
 import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
 import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
@@ -33,25 +34,26 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public final class RateLimiter implements HandlerInterceptor {
 
     ///
-    private final int maxGlobalTokens;
     private final int maxTokensPerIp;
     private final int blockCounterStart;
 
     ///..
-    private final AtomicInteger globalTokens;
+    private final SquashedLogContainer squashedLogContainer;
+
+    ///..
     private final Map<String, Pair<AtomicInteger, AtomicInteger>> tokensByIp;
 
     ///
     @Autowired
-    public RateLimiter(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public RateLimiter(final PropertyProvider propertyProvider, final SquashedLogContainer squashedLogContainer) throws PropertyNotFoundException {
 
-        maxGlobalTokens = propertyProvider.getProperty("app.ratelimit.maxGlobalTokens", Integer.class);
         maxTokensPerIp = propertyProvider.getProperty("app.ratelimit.maxTokensPerIp", Integer.class);
 
         final int retryAfter = propertyProvider.getProperty("app.ratelimit.retryAfter", Integer.class);
         blockCounterStart = retryAfter / propertyProvider.getProperty("app.ratelimit.replenishRate", Integer.class);
 
-        globalTokens = new AtomicInteger(maxGlobalTokens);
+        this.squashedLogContainer = squashedLogContainer;
+
         tokensByIp = new ConcurrentHashMap<>();
     }
 
@@ -64,8 +66,7 @@ public final class RateLimiter implements HandlerInterceptor {
 
         request.setAttribute("IP_ATTRIBUTE", ip);
         request.setAttribute("REQUEST_METHOD", request.getMethod());
-
-        if(globalTokens.getAndDecrement() <= 0) this.tooManyRequests("Server is overloaded");
+        request.setAttribute("START_TIME", System.currentTimeMillis());
 
         final Pair<AtomicInteger, AtomicInteger> entry = tokensByIp.computeIfAbsent(ip, _ -> new Pair<>(
 
@@ -73,7 +74,7 @@ public final class RateLimiter implements HandlerInterceptor {
             new AtomicInteger(blockCounterStart)
         ));
 
-        if(entry.getA().getAndDecrement() <= 0) this.tooManyRequests("Rate limit reached for ip: " + ip);
+        if(entry.getA().getAndDecrement() <= 0) this.tooManyRequests(ip, "Rate limit reached for ip: " + ip);
 		return true;
 	}
 
@@ -81,7 +82,6 @@ public final class RateLimiter implements HandlerInterceptor {
     @Scheduled(fixedRateString = "${app.ratelimit.replenishRate}", scheduler = "batchScheduler")
     protected void replenish() {
 
-        globalTokens.set(maxGlobalTokens);
         final Iterator<Map.Entry<String, Pair<AtomicInteger, AtomicInteger>>> entries = tokensByIp.entrySet().iterator();
 
         while(entries.hasNext()) {
@@ -100,9 +100,9 @@ public final class RateLimiter implements HandlerInterceptor {
     }
 
     ///.
-    private void tooManyRequests(final String message) throws TooManyRequestsException {
+    private void tooManyRequests(final String key, final String message) throws TooManyRequestsException {
 
-        log.warn(message);
+        squashedLogContainer.squashRateLimitLog(key);
         throw new TooManyRequestsException(message);
     }
 

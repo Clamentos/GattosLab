@@ -14,7 +14,6 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 
 ///.
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.SearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
@@ -46,10 +45,8 @@ import org.bson.Document;
 
 ///..
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.support.ServletRequestHandledEvent;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -72,7 +69,6 @@ public final class ObservabilityService implements HandlerInterceptor {
     @Autowired
     public ObservabilityService(
 
-        final PropertyProvider propertyProvider,
         final Website website,
         final ObservabilityContext observabilityContext,
         final MongoClientWrapper mongoClientWrapper,
@@ -89,13 +85,15 @@ public final class ObservabilityService implements HandlerInterceptor {
 
     ///
     @Override
-    public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler) {
+    public void afterCompletion(final HttpServletRequest request, final HttpServletResponse response, final Object handler, final Exception exc) {
 
+        final String trueUrl = request.getRequestURI();
+        final String path = monitoredPaths.contains(trueUrl) ? trueUrl : "<others>";
         final String userAgent = request.getHeader("User-Agent");
-        observabilityContext.updateUserAgentCounts(userAgent != null ? userAgent : "null");
+        final int processingTime = (int)(System.currentTimeMillis() - (long)request.getAttribute("START_TIME"));
 
-        return true;
-    }
+        observabilityContext.updateMetrics(processingTime, (short)response.getStatus(), path, trueUrl, userAgent != null ? userAgent : "null");
+	}
 
     ///..
     public Map<String, MutableLong> getPathInvocations(final TemporalSearchFilter searchFilter) throws MongoException {
@@ -122,22 +120,7 @@ public final class ObservabilityService implements HandlerInterceptor {
     }
 
     ///.
-    @EventListener
-    protected void handleRequestHandledEvent(final ServletRequestHandledEvent requestHandledEvent) {
-
-        final String trueUrl = requestHandledEvent.getRequestUrl();
-        observabilityContext.updatePathInvocations(trueUrl);
-
-        observabilityContext.updateRequests(
-
-            (int)requestHandledEvent.getProcessingTimeMillis(),
-            (short)requestHandledEvent.getStatusCode(),
-            monitoredPaths.contains(trueUrl) ? trueUrl : "<others>"
-        );
-    }
-
-    ///..
-    @Scheduled(cron = "${app.metrics.dumpToDbRate}", scheduler = "batchScheduler")
+    @Scheduled(cron = "${app.metrics.dumpToDbSchedule}", scheduler = "batchScheduler")
     protected void dumpToDb() {
 
         final Pair<MetricsContainer, Map<DatabaseCollection, List<Document>>> context = observabilityContext.dumpToDb();

@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.web;
 
 ///
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -35,12 +35,19 @@ public final class WebsiteController {
 
     ///
     private final Website website;
+    private final SquashedLogContainer squashedLogContainer;
+
+    ///..
+    private final WebsiteResource notFoundResource;
 
     ///
     @Autowired
-    public WebsiteController(final Website staticSite, final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public WebsiteController(final Website staticSite, final SquashedLogContainer squashedLogContainer) throws PropertyNotFoundException {
 
         this.website = staticSite;
+        this.squashedLogContainer = squashedLogContainer;
+
+        notFoundResource = staticSite.getContent("/errors/not-found.html");
     }
 
     ///
@@ -53,11 +60,11 @@ public final class WebsiteController {
     ) {
 
         final WebsiteResource content = website.getContent(path);
-        if(content == null) return website.buildResponseForStaticContent(HttpStatus.NOT_FOUND, website.getContent("/errors/not-found.html"));
+        if(content == null) return website.buildResponseForStaticContent(HttpStatus.NOT_FOUND, notFoundResource);
 
         if(requestMethod.equals("GET")) {
 
-            if(ifModifiedSince != null) {
+            if(ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
 
                 try {
 
@@ -65,10 +72,10 @@ public final class WebsiteController {
                     if(date.compareTo(website.getTimeAtStartup()) > 0) return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
                 }
 
-                catch(final DateTimeParseException exc) {
+                catch(final DateTimeParseException _) {
 
                     // Continue without caching.
-                    log.warn("Date-time parse exception for header If-Modified-Since: {}", exc);
+                    squashedLogContainer.squashIfModifiedSinceParseLog();
                 }
             }
 
@@ -77,23 +84,21 @@ public final class WebsiteController {
 
         else {
 
-            String message = "Method " + requestMethod + " is not supported for this endpoint.";
+            final StringBuilder message = new StringBuilder("Method ");
 
-            if(content.isApi()) message += "Supported methods are: " + content.getSupportedMethods();
-            else message += "Supported methods are: [GET]";
+            message.append(requestMethod);
+            message.append(" is not supported for this endpoint.");
+
+            if(content.isApi()) message.append(" Supported methods are: ").append(content.getSupportedMethods());
+            else message.append(" Supported methods are: [GET]");
 
             final ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.METHOD_NOT_ALLOWED);
 
             problemDetail.setTitle("HTTP method not allowed");
-            problemDetail.setDetail(message);
+            problemDetail.setDetail(message.toString());
             problemDetail.setInstance(URI.create(path));
 
-            return ResponseEntity
-
-                .status(HttpStatus.METHOD_NOT_ALLOWED)
-                .header("Content-Type", "application/json")
-                .body(problemDetail)
-            ;
+            return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).header("Content-Type", "application/json").body(problemDetail);
         }
     }
 

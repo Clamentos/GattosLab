@@ -98,6 +98,9 @@
 					<profiles>
 						<profile>dev</profile>
 					</profiles>
+					<jvmArguments>
+						-Xverify:none -XX:+UseG1GC -XX:+UseStringDeduplication -XX:-FlightRecorder -XX:+AlwaysPreTouch -XX:+UseTransparentHugePages -XX:+UnlockExperimentalVMOptions -XX:+UseCompactObjectHeaders -XX:-StackTraceInThrowable
+					</jvmArguments>
 				</configuration>
 			</plugin>
 

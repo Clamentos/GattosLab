@@ -317,7 +317,8 @@ function assignLatencies(metrics, timestamp, latencyDataset) {
 
             x: timestamp,
             y: i,
-            r: latencyData[i] * bubbleScale
+            //r: latencyData[i] * bubbleScale
+            r: Math.log(latencyData[i] + 1) * bubbleScale
         });
     }
 }

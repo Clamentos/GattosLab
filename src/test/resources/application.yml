@@ -9,17 +9,14 @@ app:
     sessionDuration: 14400 # Seconds
   batch:
     poolSize: 4
-    terminationWaitPeriod: 4 # Seconds
+    terminationWaitPeriod: 10 # Seconds
   cors:
     configuration: "http://localhost:8080"
   database:
     connectionString: "mongodb://localhost:27017/GattosLabTestMongoDB"
   metrics:
-    dumpToDbRate: "0 * * * * *" # Every minute
-  properties:
-    refreshSchedule: "0 */5 0 * * *" # Every 5 minutes
+    dumpToDbSchedule: "0 * * * * *" # Every minute
   ratelimit:
-    maxGlobalTokens: 10000
     maxTokensPerIp: 200
     replenishRate: 10000 # Milliseconds
     retryAfter: 60000 # Milliseconds
@@ -28,6 +25,8 @@ app:
   site:
     cacheDuration: 1440 # Minutes
     supportedMimeTypes: "html|text/html,css|text/css,png|image/png,jpg|image/jpg,jpeg|image/jpeg,svg|image/svg+xml,webp|image/webp,xml|application/xml,txt|text/plain,ico|image/x-icon,gif|image/gif,js|application/javascript"
+  squash:
+    logSchedule: "0 * * * * *" # Every minute
 server:
   compression:
     enabled: false
@@ -54,7 +53,9 @@ spring:
   jmx:
     enabled: false
   lifecycle:
-    timeout-per-shutdown-phase: "10s" # Seconds
+    timeout-per-shutdown-phase: "15s" # Seconds
+  mvc:
+    publish-request-handled-events: false
   profiles:
     active: "test"
   threads:

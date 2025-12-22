@@ -192,7 +192,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
             sb.append(this.normalize(element).replace("\n", "\u0002")).append("\u0001");
         }
 
-        sb.deleteCharAt(sb.length() - 1);
+        if(!sb.isEmpty()) sb.deleteCharAt(sb.length() - 1);
         return sb.toString();
     }
 
