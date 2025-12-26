@@ -17,13 +17,12 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
-// TODO: finish
 public class SiteCollapser {
 
-    // html-minifier-next --input-dir ./src/main/resources/site --output-dir ./src/main/resources/minified --file-ext=html,css,js --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --minify-css=true --minify-js=true
+    // html-minifier-next --input-dir ./src/main/resources/site-src --output-dir ./src/main/resources/minified --config-file=./src/main/resources/minifier-config.json
 
-    private static final String SOURCE_ROOT = "site";
-    private static final String DESTINATION_ROOT = "processed";
+    private static final String SOURCE_ROOT = "minified";
+    private static final String DESTINATION_ROOT = "site";
 
     public static void main(String[] args) throws IOException {
 
@@ -31,6 +30,7 @@ public class SiteCollapser {
         final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
         final Set<String> paths = resourceWalker.listSiteResourcePaths(SOURCE_ROOT, resolver)
+
             .stream()
             .filter(p -> p.contains("."))
             .collect(Collectors.toSet())
@@ -55,8 +55,11 @@ public class SiteCollapser {
         final Path htmlPath = Path.of(path);
         final Document html = Jsoup.parse(new String(data));
 
+        html.outputSettings().prettyPrint(false);
+
         concatenateCss(html, htmlPath);
         concatenateSvg(html, htmlPath);
+        concatenateJs(html, htmlPath);
 
         return html.toString().getBytes();
     }
@@ -116,6 +119,20 @@ public class SiteCollapser {
 
             final byte[] svgB64 = new ClassPathResource(getPath(htmlPath.getParent(), img.attr("src"))).getInputStream().readAllBytes();
             img.attr("src", "data:image/svg+xml;utf8;base64, " + new String(encoder.encode(svgB64)));
+        }
+    }
+
+    private static void concatenateJs(final Document html, final Path htmlPath) throws IOException {
+
+        final List<Element> scripts = html.getElementsByTag("script").stream().toList();
+
+        for(final Element script : scripts) {
+
+            final String jsRef = script.attr("src");
+            final String jsSource = new String(new ClassPathResource(getPath(htmlPath.getParent(), jsRef)).getInputStream().readAllBytes());
+
+            script.removeAttr("src");
+            script.text(jsSource);
         }
     }
 }

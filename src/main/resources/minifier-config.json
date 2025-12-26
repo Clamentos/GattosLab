@@ -1,0 +1,14 @@
+{
+
+    "continueOnMinifyError": true,
+    "continueOnParseError": true,
+    "fileExt": "html,css,js",
+    "collapseWhitespace": true,
+    "removeComments": true,
+    "removeOptionalTags": true,
+    "removeRedundantAttributes": true,
+    "removeScriptTypeAttributes": true,
+    "removeTagWhitespace": true,
+    "minifyCss": true,
+    "minifyJs": true
+}

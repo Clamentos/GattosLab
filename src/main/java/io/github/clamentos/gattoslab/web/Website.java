@@ -82,7 +82,7 @@ public final class Website {
 
             if(path.contains(".")) {
 
-                final String adjustedPath = path.contains(siteRoot) ? path.substring(4) : resourceWalker.getPathDelimiter() + path;
+                final String adjustedPath = path.contains(siteRoot) ? path.substring(siteRoot.length()) : resourceWalker.getPathDelimiter() + path;
                 final byte[] content = new ClassPathResource(siteRoot + adjustedPath).getInputStream().readAllBytes();
                 final byte[] compressedContent = this.compress(content);
 
