@@ -1,11 +1,6 @@
 package io.github.clamentos.gattoslab.observability;
 
 ///
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-///.
 import com.mongodb.MongoException;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
@@ -14,14 +9,17 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 
 ///.
+import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.SearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
-import io.github.clamentos.gattoslab.observability.metrics.MetricsContainer;
+import io.github.clamentos.gattoslab.observability.metrics.DrainMetricsEvent;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
+import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.MutableLong;
 import io.github.clamentos.gattoslab.utils.Pair;
 import io.github.clamentos.gattoslab.web.Website;
@@ -35,7 +33,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -45,10 +47,16 @@ import org.bson.Document;
 
 ///..
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+///.
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.json.JsonMapper;
 
 ///
 @Service
@@ -58,29 +66,46 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 public final class ObservabilityService implements HandlerInterceptor {
 
     ///
+    private final int siphonCapacity;
     private final Set<String> monitoredPaths;
 
     ///..
-    private final ObservabilityContext observabilityContext;
+    private final SystemMetrics systemMetrics;
     private final MongoClientWrapper mongoClientWrapper;
-    private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final JsonMapper jsonMapper;
+
+    ///..
+    private final AtomicReference<ObservabilityContext> primaryContext;
+    private final AtomicReference<ObservabilityContext> secondaryContext;
+    private final Queue<Pair<ObservabilityContext, Document>> dumpFailures;
+    private final AtomicBoolean isHandlingEvent;
 
     ///
     @Autowired
     public ObservabilityService(
 
+        final PropertyProvider propertyProvider,
         final Website website,
-        final ObservabilityContext observabilityContext,
+        final SystemMetrics systemMetrics,
         final MongoClientWrapper mongoClientWrapper,
-        final ObjectMapper objectMapper
+        final ApplicationEventPublisher applicationEventPublisher,
+        final JsonMapper jsonMapper
 
     ) throws PropertyNotFoundException {
 
-        monitoredPaths = website.getPaths(null);
+        siphonCapacity = propertyProvider.getProperty("app.metrics.siphonCapacity", Integer.class);
+        monitoredPaths = website.getPaths();
 
-        this.observabilityContext = observabilityContext;
+        this.systemMetrics = systemMetrics;
         this.mongoClientWrapper = mongoClientWrapper;
-        this.objectMapper = objectMapper;
+        this.applicationEventPublisher = applicationEventPublisher;
+        this.jsonMapper = jsonMapper;
+
+        primaryContext = new AtomicReference<>(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
+        secondaryContext = new AtomicReference<>(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
+        dumpFailures = new ConcurrentLinkedQueue<>();
+        isHandlingEvent = new AtomicBoolean();
     }
 
     ///
@@ -89,10 +114,14 @@ public final class ObservabilityService implements HandlerInterceptor {
 
         final String trueUrl = request.getRequestURI();
         final String path = monitoredPaths.contains(trueUrl) ? trueUrl : "<others>";
-        final String userAgent = request.getHeader("User-Agent");
-        final int processingTime = (int)(System.currentTimeMillis() - (long)request.getAttribute("START_TIME"));
+        final String userAgent = GenericUtils.getOrDefault(request.getHeader("User-Agent"), "null");
+        final int processingTime = (int)(System.currentTimeMillis() - (long)request.getAttribute("START_TIME_ATTRIBUTE"));
 
-        observabilityContext.updateMetrics(processingTime, (short)response.getStatus(), path, trueUrl, userAgent != null ? userAgent : "null");
+        while(true) {
+
+            if(primaryContext.get().updateMetrics(processingTime, response.getStatus(), path, trueUrl, userAgent)) break;
+            else GenericUtils.sleep(5L);
+        }
 	}
 
     ///..
@@ -123,42 +152,49 @@ public final class ObservabilityService implements HandlerInterceptor {
     @Scheduled(cron = "${app.metrics.dumpToDbSchedule}", scheduler = "batchScheduler")
     protected void dumpToDb() {
 
-        final Pair<MetricsContainer, Map<DatabaseCollection, List<Document>>> context = observabilityContext.dumpToDb();
-        final ClientSession session = mongoClientWrapper.getClient().startSession();
+        applicationEventPublisher.publishEvent(new DrainMetricsEvent());
+    }
 
-        try {
+    ///..
+    @EventListener
+    protected void handleDrainEvent(final DrainMetricsEvent event) {
 
-            session.startTransaction();
+        if(isHandlingEvent.compareAndSet(false, true)) {
 
-            for(final Map.Entry<DatabaseCollection, List<Document>> entity : context.getB().entrySet()) {
+            final ObservabilityContext oldPrimary = this.swapContexts();
+            final Document systemMetricsSample = systemMetrics.toDocument();
+            final ClientSession session = mongoClientWrapper.getClient().startSession();
 
-                final List<Document> documents = entity.getValue();
-                if(!documents.isEmpty()) mongoClientWrapper.getCollection(entity.getKey()).insertMany(documents);
+            try {
+
+                session.startTransaction();
+                this.insertMetrics(oldPrimary, systemMetricsSample);
+
+                final Pair<ObservabilityContext, Document> failureEntry = dumpFailures.peek();
+                if(failureEntry != null) this.insertMetrics(failureEntry.getA(), failureEntry.getB());
+
+                session.commitTransaction();
             }
 
-            session.commitTransaction();
+            catch(final Exception exc) {
+
+                log.error("Could not write metrics to DB", exc);
+
+                session.abortTransaction();
+                dumpFailures.add(new Pair<>(oldPrimary, systemMetricsSample));
+                secondaryContext.set(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
+            }
+
+            session.close();
+            dumpFailures.poll();
+            isHandlingEvent.set(false);
         }
-
-        catch(final Exception exc) {
-
-            log.error("Could not write metrics to DB", exc);
-
-            session.abortTransaction();
-            observabilityContext.merge(context.getA());
-        }
-
-        session.close();
     }
 
     ///.
     @SuppressWarnings("unchecked")
-    private Map<String, MutableLong> getAbsoluteCounts(
-
-        final long startTimestamp,
-        final long endTimestamp,
-        final DatabaseCollection mongoCollection
-
-    ) throws MongoException {
+    private Map<String, MutableLong> getAbsoluteCounts(final long startTimestamp, final long endTimestamp, final DatabaseCollection mongoCollection) 
+    throws MongoException {
 
         final Map<String, MutableLong> result = new HashMap<>();
         final MongoCollection<Document> collection = mongoClientWrapper.getCollection(mongoCollection);
@@ -187,21 +223,46 @@ public final class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    private StreamingResponseBody fetchMetrics(final DatabaseCollection databaseCollection, final SearchFilter searchFilter)
-    throws MongoException {
+    private StreamingResponseBody fetchMetrics(final DatabaseCollection databaseCollection, final SearchFilter searchFilter) throws MongoException {
 
         final MongoCollection<Document> collection = mongoClientWrapper.getCollection(databaseCollection);
         final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).sort(Sorts.ascending("timestamp")).iterator();
 
         return outputStream -> {
 
-            try(final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(new CompressingOutputStream(outputStream))) {
+            try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
 
                 generator.writeStartArray();
-                while(results.hasNext()) generator.writeObject(results.next());
+                while(results.hasNext()) generator.writePOJO(results.next());
                 generator.writeEndArray();
             }
         };
+    }
+
+    ///..
+    private ObservabilityContext swapContexts() {
+
+        final ObservabilityContext primary = primaryContext.get();
+
+        primaryContext.set(secondaryContext.get());
+        secondaryContext.set(primary);
+
+        return primary;
+    }
+
+    ///..
+    private void insertMetrics(final ObservabilityContext context, final Document systemMetricsSample) throws MongoException {
+
+        while(!context.isNoOneThere()) GenericUtils.sleep(5L);
+        mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(systemMetricsSample);
+
+        for(final Map.Entry<DatabaseCollection, List<Document>> entity : context.toDocuments().entrySet()) {
+
+            final List<Document> documents = entity.getValue();
+            if(!documents.isEmpty()) mongoClientWrapper.getCollection(entity.getKey()).insertMany(documents);
+        }
+
+        context.reset();
     }
 
     ///

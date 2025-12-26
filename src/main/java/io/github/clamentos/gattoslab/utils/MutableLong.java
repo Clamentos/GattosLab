@@ -1,11 +1,11 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-
-///.
 import lombok.Getter;
 import lombok.Setter;
+
+///.
+import tools.jackson.databind.annotation.JsonSerialize;
 
 ///
 @JsonSerialize(using = MutableLongSerializer.class)

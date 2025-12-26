@@ -1,19 +1,17 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-
-///.
-import java.io.IOException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
 ///
-public final class MutableLongSerializer extends JsonSerializer<MutableLong> {
+public final class MutableLongSerializer extends ValueSerializer<MutableLong> {
 
     ///
     @Override
-    public void serialize(final MutableLong value, final JsonGenerator gen, final SerializerProvider serializers) throws IOException {
+    public void serialize(MutableLong value, JsonGenerator gen, SerializationContext ctxt) throws JacksonException {
 
         gen.writeNumber(value.getValue());
     }

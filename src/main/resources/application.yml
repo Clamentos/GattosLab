@@ -1,22 +1,26 @@
 app:
-  admin:
+  session:
+    admin:
+      maxSessions: 20
+      sessionDuration: 14400 # Seconds
     cookieName: "GattosLabSessionId"
     loginDelay: 500 # Milliseconds
-    maxSessions: 20
     cleanSchedule: "0 * * * * *" # Every minute
-    sessionDuration: 14400 # Seconds
   batch:
     poolSize: 4
     terminationWaitPeriod: 10 # Seconds
   metrics:
     dumpToDbSchedule: "0 * * * * *" # Every minute
+    enabled: true # Only affects performance metrics, system (JVM) metrics will be collected regardless
+    siphonCapacity: 100000
   ratelimit:
-    maxTokensPerIp: 99999999 #200
+    enabled: true
+    maxTokensPerIp: 200
     replenishRate: 10000 # Milliseconds
     retryAfter: 60000 # Milliseconds
   site:
     cacheDuration: 1440 # Minutes
-    supportedMimeTypes: "html|text/html,css|text/css,png|image/png,jpg|image/jpg,jpeg|image/jpeg,svg|image/svg+xml,webp|image/webp,xml|application/xml,txt|text/plain,ico|image/x-icon,gif|image/gif,js|application/javascript"
+    root: site
   squash:
     logSchedule: "0 * * * * *" # Every minute
 server:

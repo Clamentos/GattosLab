@@ -1,12 +1,6 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
-
-///.
-import jakarta.el.PropertyNotFoundException;
-
-///.
 import java.io.File;
 import java.io.IOException;
 import java.net.URLDecoder;
@@ -17,7 +11,6 @@ import java.util.List;
 import lombok.Getter;
 
 ///.
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
@@ -33,23 +26,13 @@ public final class ResourceWalker {
     private final String pathDelimiter;
 
     ///
-    @Autowired
-    public ResourceWalker(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public ResourceWalker() {
 
-        if(propertyProvider != null) {
-
-            pathDelimiter = propertyProvider.getProperty("spring.profiles.active", String.class).equals("prod") ? "/" : File.separator;
-        }
-
-        else {
-
-            pathDelimiter = "/";
-        }
+        pathDelimiter = File.separator;
     }
 
     ///
-    public List<String> listSiteResourcePaths(final String start, final PathMatchingResourcePatternResolver resolver)
-    throws IOException {
+    public List<String> listSiteResourcePaths(final String start, final PathMatchingResourcePatternResolver resolver) throws IOException {
 
         final List<String> siteResourceNames = this.getResourcesNamesIn(start, resolver);
 
@@ -65,8 +48,7 @@ public final class ResourceWalker {
     }
 
     ///..
-    private List<String> getResourcesNamesIn(final String path, final PathMatchingResourcePatternResolver resolver)
-    throws IOException {
+    private List<String> getResourcesNamesIn(final String path, final PathMatchingResourcePatternResolver resolver) throws IOException {
 
         final String rawRootUri = this.getResource(path, resolver).getURI().toString();
         final String rootUri = URLDecoder.decode(rawRootUri.endsWith(pathDelimiter) ? rawRootUri : rawRootUri + pathDelimiter, "UTF-8");

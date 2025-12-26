@@ -1,25 +1,25 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 
 ///.
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
 ///
-@AllArgsConstructor
 @Getter
+@Setter
 
 ///
-public final class RequestMetric {
+public final class MetricsEntry {
 
     ///
-    private final long timestamp;
-    private final String path;
-    private final int latency;
-    private final short httpStatus;
+    private long timestamp;
+    private String path;
+    private int latency;
+    private short httpStatus;
 
     ///
     public Document toDocument() {

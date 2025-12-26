@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.web;
 
 ///
 import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
+import io.github.clamentos.gattoslab.observability.logging.log_squash.SquashLogEventType;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -56,7 +57,7 @@ public final class WebsiteController {
 
         @PathVariable("spring") final String path,
         @RequestHeader(value = "If-Modified-Since", required = false) final String ifModifiedSince,
-        @RequestAttribute("REQUEST_METHOD") final String requestMethod
+        @RequestAttribute("REQUEST_METHOD_ATTRIBUTE") final String requestMethod
     ) {
 
         final WebsiteResource content = website.getContent(path);
@@ -75,7 +76,7 @@ public final class WebsiteController {
                 catch(final DateTimeParseException _) {
 
                     // Continue without caching.
-                    squashedLogContainer.squashIfModifiedSinceParseLog();
+                    squashedLogContainer.squash(SquashLogEventType.IF_MODIFIED_SINCE_HEADER_MALFORMED, null);
                 }
             }
 

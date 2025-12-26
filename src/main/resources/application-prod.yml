@@ -1,13 +1,14 @@
 # apiKey: injected from CI/CD pipe
 # database.connectionString: injected from CI/CD pipe
+# server.ssl.key-store-password: injected from CI/CD pipe
 
 app:
-  admin:
-    cookieAttributes: "=$; Secure; HttpOnly; Domain=gattoslab.dev; SameSite=Strict; Max-Age=86400; Path=/admin;"
-  cors:
-    configuration: "https://gattoslab.dev,https://www.gattoslab.dev"
-  security:
+  session:
+    admin:
+      cookieAttributes: "=$; Secure; HttpOnly; Domain=gattoslab.dev; SameSite=Strict; Max-Age=86400; Path=/admin;"
     enabled: true
+    cors:
+      origins: "https://gattoslab.dev,https://www.gattoslab.dev"
 security:
   require-ssl: true
 server:

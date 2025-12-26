@@ -10,13 +10,13 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.7</version>
+		<version>4.0.1</version>
 		<relativePath/>
 	</parent>
 
 	<groupId>io.github.clamentos</groupId>
 	<artifactId>gattoslab</artifactId>
-	<version>1.1.0</version>
+	<version>2.0.0</version>
 	<name>Gatto&apos;s lab</name>
 	<description>Project showcase site</description>
 
@@ -99,7 +99,8 @@
 						<profile>dev</profile>
 					</profiles>
 					<jvmArguments>
-						-Xverify:none -XX:+UseG1GC -XX:+UseStringDeduplication -XX:-FlightRecorder -XX:+AlwaysPreTouch -XX:+UseTransparentHugePages -XX:+UnlockExperimentalVMOptions -XX:+UseCompactObjectHeaders -XX:-StackTraceInThrowable
+						-Xverify:none -XX:+UseG1GC -XX:+UseStringDeduplication -XX:-FlightRecorder -XX:+AlwaysPreTouch -XX:+UseTransparentHugePages -XX:+UnlockExperimentalVMOptions -XX:+UseCompactObjectHeaders
+						<!-- -XX:-StackTraceInThrowable -->
 					</jvmArguments>
 				</configuration>
 			</plugin>

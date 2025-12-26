@@ -7,18 +7,18 @@
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
         <meta name = "description" content = "Personal GitHub projects showcase website. Admin login page."/>
 
-        <link rel = "stylesheet" href = "../css/base.css">
-        <link rel = "stylesheet" href = "../css/card.css">
-        <link rel = "stylesheet" href = "../css/form.css">
-        <link rel = "stylesheet" href = "../css/loader.css">
+        <link rel = "stylesheet" href = "./css/base.css">
+        <link rel = "stylesheet" href = "./css/card.css">
+        <link rel = "stylesheet" href = "./css/form.css">
+        <link rel = "stylesheet" href = "./css/loader.css">
 
-        <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
+        <link rel = "icon" type = "image/x-icon" href = "./images/favicon.ico"/>
 
         <title>Gatto's Lab</title>
 
     </head>
 
-    <script src = "../js/login.js"></script>
+    <script src = "./js/login.js"></script>
 
     <body class = "background">
 
@@ -27,14 +27,14 @@
             <div class = "nav-container">
 
                 <div class = "nav-item">
-                    <img src = "../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <img src = "./images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
                     <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
                 </div>
 
             </div>
 
             <div class = "nav-crumb">
-                <a href = "../index.html">Home</a> > Admin-login
+                <a href = "./index.html">Home</a> > Admin-login
             </div>
 
         </nav>
@@ -46,20 +46,23 @@
                 <div class = "no-hover-card">
 
                     <div class = "card-header" style = "background-color: #080808">
-                        <img src = "../images/LOGIN.svg" alt = "FabRISC ISA project logo"/>
+                        <img src = "./images/LOGIN.svg" alt = "FabRISC ISA project logo"/>
                     </div>
 
-                    <div class = "card-content-container">
+                    <div class = "card-content-container" style = "padding-top: 10px">
 
                         <h1 class = "card-title">Login</h1>
 
                         <form onsubmit = "onSubmitEvent(event)">
 
+                            <select class = "login-input" name = "loginArea" required style = "margin-top: 0px">
+                                <option value = "ADMIN">Admin</option>
+                            </select>
+
                             <input
                                 class = "login-input"
                                 type = "password"
-                                id = "apiKey"
-                                name = "apiKey"
+                                name = "password"
                                 placeholder = "Password..."
                                 required
                             >

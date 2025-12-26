@@ -64,7 +64,7 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
     }
 
     ///..
-    @ExceptionHandler(value = RedirectException.class)
+    @ExceptionHandler(RedirectException.class)
     public ResponseEntity<Void> handleRedirectException(final RedirectException exc, final WebRequest request) {
 
         return ResponseEntity.status(HttpStatus.PERMANENT_REDIRECT).header("Location", exc.getMessage()).build();
@@ -112,6 +112,7 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
         final HttpServletRequest httpServletRequest = ((ServletWebRequest) request).getRequest();
         final ProblemDetail problemDetail = ProblemDetail.forStatus(httpStatus);
 
+        problemDetail.setType(URI.create("about:custom_error"));
         problemDetail.setTitle(title);
         problemDetail.setDetail(message);
         problemDetail.setInstance(URI.create(httpServletRequest.getRequestURI()));

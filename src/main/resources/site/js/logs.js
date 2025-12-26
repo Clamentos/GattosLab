@@ -139,5 +139,10 @@ function formatException(exception) {
 
 function showError(error) {
 
-    document.getElementById("API-error").innerHTML = `Error: ${error}`;
+    let text;
+
+    if(error.title === "about:custom_error") text = error.title;
+    else text = `Error: ${error}`;
+
+    document.getElementById("API-error").innerText = text;
 }

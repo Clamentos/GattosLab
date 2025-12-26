@@ -1,32 +1,37 @@
 app:
-  admin:
-    apiKey: "test"
-    cookieAttributes: "=$; Max-Age=86400; Path=/admin;"
+  session:
+    admin:
+      apiKey: "test"
+      cookieAttributes: "=$; Max-Age=86400; Path=/admin;"
+      maxSessions: 20
+      sessionDuration: 14400 # Seconds
     cookieName: "GattosLabSessionId"
+    enabled: true
     loginDelay: 500 # Milliseconds
-    maxSessions: 20
     cleanSchedule: "0 * * * * *" # Every minute
-    sessionDuration: 14400 # Seconds
+    cors:
+      origins: "http://localhost:8443"
   batch:
     poolSize: 4
     terminationWaitPeriod: 10 # Seconds
-  cors:
-    configuration: "http://localhost:8080"
   database:
     connectionString: "mongodb://localhost:27017/GattosLabTestMongoDB"
   metrics:
     dumpToDbSchedule: "0 * * * * *" # Every minute
+    enabled: true # Only affects performance metrics, system (JVM) metrics will be collected regardless
+    siphonCapacity: 100000
   ratelimit:
+    enabled: true
     maxTokensPerIp: 200
     replenishRate: 10000 # Milliseconds
     retryAfter: 60000 # Milliseconds
-  security:
-    enabled: true
   site:
     cacheDuration: 1440 # Minutes
-    supportedMimeTypes: "html|text/html,css|text/css,png|image/png,jpg|image/jpg,jpeg|image/jpeg,svg|image/svg+xml,webp|image/webp,xml|application/xml,txt|text/plain,ico|image/x-icon,gif|image/gif,js|application/javascript"
+    root: site
   squash:
     logSchedule: "0 * * * * *" # Every minute
+security:
+  require-ssl: true
 server:
   compression:
     enabled: false
@@ -35,8 +40,13 @@ server:
   http2:
     enabled: true
   max-http-request-header-size: 2048 # Bytes
-  port: 8080
+  port: 8443
   shutdown: "graceful"
+  ssl:
+    key-store: classpath:keystore.p12
+    key-store-password: password
+    key-store-type: PKCS12
+    key-alias: http2-alias
   tomcat:
     accept-count: 256 # Maximum pending connection queue depth
     max-connections: 8192

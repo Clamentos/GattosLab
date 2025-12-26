@@ -4,16 +4,16 @@ package io.github.clamentos.gattoslab.observability;
 import com.mongodb.MongoException;
 
 ///.
-import io.github.clamentos.gattoslab.admin.AdminSessionMetadata;
-import io.github.clamentos.gattoslab.admin.AdminSessionService;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
+import io.github.clamentos.gattoslab.session.SessionMetadata;
+import io.github.clamentos.gattoslab.session.SessionService;
 import io.github.clamentos.gattoslab.utils.MutableLong;
 
 ///.
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 ///.
@@ -38,7 +38,7 @@ public final class ObservabilityController {
 
     ///
     private final ObservabilityService observabilityService;
-    private final AdminSessionService adminSessionService;
+    private final SessionService sessionService;
     private final LogsService logsService;
 
     ///
@@ -72,9 +72,9 @@ public final class ObservabilityController {
 
     ///..
     @GetMapping(path = "/sessions-metadata", produces = "application/json")
-    public ResponseEntity<Collection<AdminSessionMetadata>> getSessionsMetadata() {
+    public ResponseEntity<List<SessionMetadata>> getSessionsMetadata() {
 
-        return ResponseEntity.ok(adminSessionService.getSessionsMetadata());
+        return ResponseEntity.ok(sessionService.getSessionsMetadata());
     }
 
     ///..

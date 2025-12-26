@@ -1,12 +1,19 @@
 app:
-  admin:
-    apiKey: "test"
-    cookieAttributes: "=$; Max-Age=86400; Path=/admin;"
-  cors:
-    configuration: "http://localhost:8080"
+  session:
+    admin:
+      apiKey: "test"
+      cookieAttributes: "=$; Max-Age=86400; Path=/admin;"
+    enabled: true
+    cors:
+      origins: "http://localhost:8443"
   database:
     connectionString: "mongodb://localhost:27017/GattosLabMongoDB"
-  security:
-    enabled: false
+security:
+  require-ssl: true
 server:
-  port: 8080
+  port: 8443
+  ssl:
+    key-store: classpath:keystore.p12
+    key-store-password: password
+    key-store-type: PKCS12
+    key-alias: http2-alias

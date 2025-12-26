@@ -12,6 +12,7 @@
         <link rel = "stylesheet" href = "../../css/form.css"/>
         <link rel = "stylesheet" href = "../../css/chart.css"/>
         <link rel = "stylesheet" href = "../../css/loader.css"/>
+        <link rel = "stylesheet" href = "../../css/logout.css"/>
 
         <link rel = "icon" type = "image/x-icon" href = "../../images/favicon.ico"/>
 
@@ -28,6 +29,10 @@
                 <div class = "nav-item">
                     <img src = "../../images/GITHUB-LOGO.svg" class = "nav-icon" alt = "GitHub logo"/>
                     <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
+                <div class = "nav-item">
+                    <button class = "logout-button" onclick = "logout('ADMIN', '../../login.html')">Logout</button>
                 </div>
 
             </div>
@@ -113,6 +118,7 @@
 
     </body>
 
+    <script src = "../../js/logout.js"></script>
     <script src = "../../js/chartjsMin.js"></script>
     <script src = "../../js/metrics.js"></script>
 

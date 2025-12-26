@@ -14,10 +14,8 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 ///.
 import lombok.Getter;
@@ -57,13 +55,20 @@ public final class Website {
 
         final Map<String, String> supportedMimeTypes = new HashMap<>();
 
-        for(final String split : propertyProvider.getProperty("app.site.supportedMimeTypes", String.class).split(",")) {
+        supportedMimeTypes.put("html", "text/html");
+        supportedMimeTypes.put("css", "text/css");
+        supportedMimeTypes.put("png", "image/png");
+        supportedMimeTypes.put("jpg", "image/jpg");
+        supportedMimeTypes.put("jpeg", "image/jpeg");
+        supportedMimeTypes.put("svg", "image/svg+xml");
+        supportedMimeTypes.put("webp", "image/webp");
+        supportedMimeTypes.put("xml", "application/xml");
+        supportedMimeTypes.put("txt", "text/plain");
+        supportedMimeTypes.put("ico", "image/x-icon");
+        supportedMimeTypes.put("gif", "image/gif");
+        supportedMimeTypes.put("js", "application/javascript");
 
-            final String[] subSplits = split.split("\\|");
-            supportedMimeTypes.put(subSplits[0], subSplits[1]);
-        }
-
-        final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        final String siteRoot = propertyProvider.getProperty("app.site.root", String.class);
         final Set<HttpMethod> supportedGetMethod = Set.of(HttpMethod.GET);
         final Set<HttpMethod> supportedPostMethod = Set.of(HttpMethod.POST);
 
@@ -73,12 +78,12 @@ public final class Website {
         long uncompressedSize = 0;
         long compressedSize = 0;
 
-        for(final String path : resourceWalker.listSiteResourcePaths("site", resolver)) {
+        for(final String path : resourceWalker.listSiteResourcePaths(siteRoot, new PathMatchingResourcePatternResolver())) {
 
             if(path.contains(".")) {
 
-                final String adjustedPath = path.contains("site") ? path.substring(4) : resourceWalker.getPathDelimiter() + path;
-                final byte[] content = new ClassPathResource("site" + adjustedPath).getInputStream().readAllBytes();
+                final String adjustedPath = path.contains(siteRoot) ? path.substring(4) : resourceWalker.getPathDelimiter() + path;
+                final byte[] content = new ClassPathResource(siteRoot + adjustedPath).getInputStream().readAllBytes();
                 final byte[] compressedContent = this.compress(content);
 
                 uncompressedSize += content.length;
@@ -117,18 +122,9 @@ public final class Website {
     }
 
     ///..
-    public Set<String> getPaths(final String basePath) {
+    public Set<String> getPaths() {
 
-        return websiteStructure.keySet()
-
-            .stream()
-            .filter(p -> {
-
-                if(basePath != null) return p.startsWith(basePath);
-                else return true;
-            })
-            .collect(Collectors.toCollection(HashSet::new))
-        ;
+        return websiteStructure.keySet();
     }
 
     ///..

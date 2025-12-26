@@ -17,6 +17,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
+// TODO: finish
 public class SiteCollapser {
 
     // html-minifier-next --input-dir ./src/main/resources/site --output-dir ./src/main/resources/minified --file-ext=html,css,js --collapse-whitespace --remove-comments --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-tag-whitespace --minify-css=true --minify-js=true
@@ -26,7 +27,7 @@ public class SiteCollapser {
 
     public static void main(String[] args) throws IOException {
 
-        final ResourceWalker resourceWalker = new ResourceWalker(null);
+        final ResourceWalker resourceWalker = new ResourceWalker();
         final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
 
         final Set<String> paths = resourceWalker.listSiteResourcePaths(SOURCE_ROOT, resolver)

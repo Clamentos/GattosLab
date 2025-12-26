@@ -1,14 +1,19 @@
 package io.github.clamentos.gattoslab.observability.logging;
 
 ///
+import io.github.clamentos.gattoslab.observability.logging.log_squash.SquashLogEvent;
+import io.github.clamentos.gattoslab.observability.logging.log_squash.SquashLogEventType;
+
+///.
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
 
 ///.
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,41 +25,31 @@ import org.springframework.stereotype.Component;
 public final class SquashedLogContainer {
 
     ///
-    private final Map<String, AtomicInteger> rateLimitSquashMap;
-    private final AtomicInteger ifModifiedSinceMalformationsCounter;
+    private final Map<SquashLogEventType, SquashLogEvent> squashEvents;
 
     ///
-    public SquashedLogContainer() {
+    @Autowired
+    public SquashedLogContainer(final List<SquashLogEvent> squashEvents) {
 
-        rateLimitSquashMap = new ConcurrentHashMap<>();
-        ifModifiedSinceMalformationsCounter = new AtomicInteger();
+        this.squashEvents = new EnumMap<>(SquashLogEventType.class);
+        for(final SquashLogEvent squashEvent : squashEvents) this.squashEvents.put(squashEvent.getType(), squashEvent);
     }
 
     ///
-    public void squashRateLimitLog(final String key) {
+    public void squash(final SquashLogEventType eventType, final Object value) {
 
-        rateLimitSquashMap.computeIfAbsent(key, _ -> new AtomicInteger()).incrementAndGet();
-    }
-
-    ///..
-    public void squashIfModifiedSinceParseLog() {
-
-        ifModifiedSinceMalformationsCounter.incrementAndGet();
+        squashEvents.get(eventType).update(value);
     }
 
     ///.
     @Scheduled(cron = "${app.squash.logSchedule}", scheduler = "batchScheduler")
     protected void log() {
 
-        final int counterValue = ifModifiedSinceMalformationsCounter.getAndSet(0);
-        if(counterValue > 0) log.warn("Date-time parse exception for header If-Modified-Since: {} times", counterValue);
+        for(final SquashLogEvent event : squashEvents.values()) {
 
-        for(final Map.Entry<String, AtomicInteger> rateLimitSquashEntry : rateLimitSquashMap.entrySet()) {
-
-            log.warn("Rate limit reached {} times for ip: {}", rateLimitSquashEntry.getValue(), rateLimitSquashEntry.getKey());
+            event.log();
+            event.reset();
         }
-
-        rateLimitSquashMap.clear();
     }
 
     ///

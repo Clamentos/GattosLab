@@ -2,115 +2,123 @@ package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
-import io.github.clamentos.gattoslab.utils.Pair;
+import io.github.clamentos.gattoslab.utils.FastAtomicCounter;
 
 ///.
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 ///.
-import lombok.extern.slf4j.Slf4j;
+import lombok.Getter;
 
 ///.
 import org.bson.Document;
+import org.bson.types.ObjectId;
 
-///.
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-///
-@Component
-@Slf4j
+///..
+import org.springframework.context.ApplicationEventPublisher;
 
 ///
 public final class ObservabilityContext {
 
     ///
-    private final AtomicReference<MetricsContainer> container;
-    private final SystemMetrics systemMetrics;
+    private final Siphon siphon;
+
+    @Getter
+    private final Map<String, AtomicInteger> pathInvocationsTracker;
+
+    @Getter
+    private final Map<String, AtomicInteger> userAgentTracker;
 
     ///..
-    private final AtomicLong visitorCounter;
+    private final FastAtomicCounter visitorCounter;
 
     ///
-    @Autowired
-    public ObservabilityContext(final SystemMetrics systemMetrics) {
+    public ObservabilityContext(final ApplicationEventPublisher applicationEventPublisher, final int siphonCapacity) {
 
-        container = new AtomicReference<>(new MetricsContainer());
-        this.systemMetrics = systemMetrics;
-
-        visitorCounter = new AtomicLong();
+        siphon = new Siphon(applicationEventPublisher, siphonCapacity);
+        pathInvocationsTracker = new ConcurrentHashMap<>();
+        userAgentTracker = new ConcurrentHashMap<>();
+        visitorCounter = new FastAtomicCounter();
     }
 
     ///
-    public void updateMetrics(final int latency, final short status, final String path, final String truePath, final String userAgent) {
+    public boolean updateMetrics(final int processingTime, final int httpStatus, final String path, final String rawPath, final String userAgent) {
 
-        this.updateMetrics(_ -> {
+        visitorCounter.increment();
+        final MetricsEntry metricsEntry = siphon.getNext();
 
-            final MetricsContainer metricsContainer = this.waitForAvailable();
+        if(metricsEntry != null) {
 
-            metricsContainer.updateRequests(latency, status, path);
-            metricsContainer.updatePathInvocations(truePath);
-            metricsContainer.updateUserAgentCounts(userAgent);
-        });
-    }
+            metricsEntry.setTimestamp(System.currentTimeMillis());
+            metricsEntry.setPath(path);
+            metricsEntry.setLatency(processingTime);
+            metricsEntry.setHttpStatus((short)httpStatus);
 
-    ///..
-    public Pair<MetricsContainer, Map<DatabaseCollection, List<Document>>> dumpToDb() {
+            pathInvocationsTracker.computeIfAbsent(rawPath, _ -> new AtomicInteger()).incrementAndGet();
+            userAgentTracker.computeIfAbsent(userAgent, _ -> new AtomicInteger()).incrementAndGet();
 
-        final long currentVisitors = visitorCounter.getAndSet(-1);
-
-        while(visitorCounter.get() + currentVisitors != -1) {
-
-            try {
-
-                Thread.sleep(25);
-            }
-
-            catch(final InterruptedException _) {
-
-                Thread.currentThread().interrupt();
-                log.warn("Interrupted while sleeping, force quitting");
-            }
+            visitorCounter.decrement();
+            return true;
         }
 
-        final MetricsContainer oldContainer = container.getAndSet(new MetricsContainer());
-        visitorCounter.set(0);
-
-        final Map<DatabaseCollection, List<Document>> metricsToSave = oldContainer.toDocuments();
-        metricsToSave.put(DatabaseCollection.SYSTEM_METRICS, List.of(systemMetrics.toDocument()));
-
-        return new Pair<>(oldContainer, metricsToSave);
-    }
-
-    ///..
-    public void merge(final MetricsContainer oldMetricsContainer) {
-
-        container.get().merge(oldMetricsContainer);
+        visitorCounter.decrement();
+        return false;
     }
 
     ///.
-    private void updateMetrics(Consumer<Void> action) {
+    public Map<DatabaseCollection, List<Document>> toDocuments() {
 
-        try { action.accept(null); }
-        catch(final Exception exc) { log.error("Could not update metrics", exc); }
+        final long now = System.currentTimeMillis();
+        final Map<DatabaseCollection, List<Document>> documents = new EnumMap<>(DatabaseCollection.class);
 
-        visitorCounter.decrementAndGet();
+        documents.put(DatabaseCollection.REQUEST_METRICS, siphon.drain());
+        documents.put(DatabaseCollection.PATHS_INVOCATIONS, this.toDocuments(pathInvocationsTracker, now));
+        documents.put(DatabaseCollection.USER_AGENTS, this.toDocuments(userAgentTracker, now));
+
+        return documents;
     }
 
     ///..
-    private MetricsContainer waitForAvailable() {
+    public boolean isNoOneThere() {
 
-        visitorCounter.getAndUpdate(val -> {
+        return visitorCounter.get() == 0;
+    }
 
-            if(val >= 0) return val + 1;
-            return val;
-        });
+    ///..
+    public void reset() {
 
-        return container.get();
+        siphon.reset();
+        pathInvocationsTracker.clear();
+        userAgentTracker.clear();
+    }
+
+    ///.
+    private List<Document> toDocuments(final Map<String, AtomicInteger> tracker, final long timestamp) {
+
+        if(tracker.isEmpty()) return List.of();
+
+        final List<Map<String, Object>> elements = new ArrayList<>();
+        final Document document = new Document();
+
+        document.append("_id", new ObjectId());
+        document.append("timestamp", timestamp);
+        document.append("elements", elements);
+
+        for(final Map.Entry<String, AtomicInteger> count : tracker.entrySet()) {
+
+            final Document innerDocument = new Document();
+            innerDocument.append("name", count.getKey());
+            innerDocument.append("count", count.getValue().get());
+
+            elements.add(innerDocument);
+        }
+
+        return List.of(document);
     }
 
     ///

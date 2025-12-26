@@ -4,6 +4,7 @@ package io.github.clamentos.gattoslab.ingress;
 import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
 import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
+import io.github.clamentos.gattoslab.observability.logging.log_squash.SquashLogEventType;
 import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
@@ -64,10 +65,6 @@ public final class RateLimiter implements HandlerInterceptor {
 
         final String ip = request.getRemoteAddr();
 
-        request.setAttribute("IP_ATTRIBUTE", ip);
-        request.setAttribute("REQUEST_METHOD", request.getMethod());
-        request.setAttribute("START_TIME", System.currentTimeMillis());
-
         final Pair<AtomicInteger, AtomicInteger> entry = tokensByIp.computeIfAbsent(ip, _ -> new Pair<>(
 
             new AtomicInteger(maxTokensPerIp),
@@ -102,7 +99,7 @@ public final class RateLimiter implements HandlerInterceptor {
     ///.
     private void tooManyRequests(final String key, final String message) throws TooManyRequestsException {
 
-        squashedLogContainer.squashRateLimitLog(key);
+        squashedLogContainer.squash(SquashLogEventType.RATE_LIMIT, key);
         throw new TooManyRequestsException(message);
     }
 

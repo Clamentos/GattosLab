@@ -13,7 +13,6 @@ import java.util.Map;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.context.TestPropertySource;
@@ -27,7 +26,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 ///
 @SpringBootTest
-@AutoConfigureMockMvc
 @TestPropertySource(locations = "classpath:application.yml")
 
 ///

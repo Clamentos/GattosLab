@@ -1,11 +1,6 @@
 package io.github.clamentos.gattoslab.observability.logging;
 
 ///
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-///..
 import com.mongodb.MongoException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -32,6 +27,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+///.
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.json.JsonMapper;
+
 ///
 @Service
 @Slf4j
@@ -41,14 +40,14 @@ public final class LogsService {
 
     ///
     private final MongoClientWrapper mongoClientWrapper;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     ///
     @Autowired
-    public LogsService(final MongoClientWrapper mongoClientWrapper, final ObjectMapper objectMapper) {
+    public LogsService(final MongoClientWrapper mongoClientWrapper, final JsonMapper jsonMapper) {
 
         this.mongoClientWrapper = mongoClientWrapper;
-        this.objectMapper = objectMapper;
+        this.jsonMapper = jsonMapper;
     }
 
     ///
@@ -59,10 +58,10 @@ public final class LogsService {
 
         return outputStream -> {
 
-            try(final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(new CompressingOutputStream(outputStream))) {
+            try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
 
                 generator.writeStartArray();
-                while(cursor.hasNext()) generator.writeObject(cursor.next());
+                while(cursor.hasNext()) generator.writePOJO(cursor.next()); //
                 generator.writeEndArray();
             }
         };
@@ -74,7 +73,7 @@ public final class LogsService {
         return outputStream -> {
 
             try(
-                final JsonGenerator generator = new JsonFactory(objectMapper).createGenerator(new CompressingOutputStream(outputStream));
+                final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream));
                 final BufferedReader fileReader = new BufferedReader(new FileReader(MongoAppender.FALLBACK_FILE_PATH))
             ) {
 
