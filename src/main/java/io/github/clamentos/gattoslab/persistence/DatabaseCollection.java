@@ -13,7 +13,7 @@ public enum DatabaseCollection {
 
     ///
     LOGS("Logs"),
-    PATHS_INVOCATIONS("PathsInvocations"),
+    PATH_INVOCATIONS("PathInvocations"),
     REQUEST_METRICS("RequestMetrics"),
     SYSTEM_METRICS("SystemMetrics"),
     USER_AGENTS("UserAgents");

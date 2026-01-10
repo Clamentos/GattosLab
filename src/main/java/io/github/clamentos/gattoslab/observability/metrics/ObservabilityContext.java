@@ -49,10 +49,11 @@ public final class ObservabilityContext {
     ///
     public boolean updateMetrics(final int processingTime, final int httpStatus, final String path, final String rawPath, final String userAgent) {
 
-        visitorCounter.increment();
         final MetricsEntry metricsEntry = siphon.getNext();
 
         if(metricsEntry != null) {
+
+            visitorCounter.increment();
 
             metricsEntry.setTimestamp(System.currentTimeMillis());
             metricsEntry.setPath(path);
@@ -66,7 +67,6 @@ public final class ObservabilityContext {
             return true;
         }
 
-        visitorCounter.decrement();
         return false;
     }
 
@@ -77,7 +77,7 @@ public final class ObservabilityContext {
         final Map<DatabaseCollection, List<Document>> documents = new EnumMap<>(DatabaseCollection.class);
 
         documents.put(DatabaseCollection.REQUEST_METRICS, siphon.drain());
-        documents.put(DatabaseCollection.PATHS_INVOCATIONS, this.toDocuments(pathInvocationsTracker, now));
+        documents.put(DatabaseCollection.PATH_INVOCATIONS, this.toDocuments(pathInvocationsTracker, now));
         documents.put(DatabaseCollection.USER_AGENTS, this.toDocuments(userAgentTracker, now));
 
         return documents;

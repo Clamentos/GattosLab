@@ -56,7 +56,7 @@ public final class SecurityInterceptor implements HandlerInterceptor {
 
         for(final Cookie cookie : cookies) {
 
-            if(cookie != null && cookie.getName().equals(cookieName)) {
+            if(cookie != null && cookieName.equals(cookie.getName())) {
 
                 if(sessionService.check(roleToCheck, cookie.getValue(), fingerprint)) return true;
                 this.redirectOrFail(uri, "Invalid, expired or non existent session");
@@ -70,7 +70,7 @@ public final class SecurityInterceptor implements HandlerInterceptor {
     ///.
     public void redirectOrFail(final String uri, final String message) throws ApiSecurityException, RedirectException {
 
-        if("/admin/index.html".equals(uri) && roleToCheck == SessionRole.ADMIN) throw new RedirectException("/login.html");
+        if(uri != null && uri.endsWith(".html") && roleToCheck == SessionRole.ADMIN) throw new RedirectException("/login.html");
         else throw new ApiSecurityException(message);
     }
 

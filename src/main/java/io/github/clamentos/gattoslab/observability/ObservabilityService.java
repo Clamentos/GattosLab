@@ -49,6 +49,7 @@ import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -63,7 +64,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Slf4j
 
 ///
-public final class ObservabilityService implements HandlerInterceptor {
+public class ObservabilityService implements HandlerInterceptor {
 
     ///
     private final int siphonCapacity;
@@ -120,14 +121,14 @@ public final class ObservabilityService implements HandlerInterceptor {
         while(true) {
 
             if(primaryContext.get().updateMetrics(processingTime, response.getStatus(), path, trueUrl, userAgent)) break;
-            else GenericUtils.sleep(5L);
+            else GenericUtils.sleep(1L);
         }
 	}
 
     ///..
     public Map<String, MutableLong> getPathInvocations(final TemporalSearchFilter searchFilter) throws MongoException {
 
-        return this.getAbsoluteCounts(searchFilter.getStartTimestamp(), searchFilter.getEndTimestamp(), DatabaseCollection.PATHS_INVOCATIONS);
+        return this.getAbsoluteCounts(searchFilter.getStartTimestamp(), searchFilter.getEndTimestamp(), DatabaseCollection.PATH_INVOCATIONS);
     }
 
     ///..
@@ -157,6 +158,7 @@ public final class ObservabilityService implements HandlerInterceptor {
 
     ///..
     @EventListener
+    @Async("batchScheduler")
     protected void handleDrainEvent(final DrainMetricsEvent event) {
 
         if(isHandlingEvent.compareAndSet(false, true)) {
@@ -253,7 +255,7 @@ public final class ObservabilityService implements HandlerInterceptor {
     ///..
     private void insertMetrics(final ObservabilityContext context, final Document systemMetricsSample) throws MongoException {
 
-        while(!context.isNoOneThere()) GenericUtils.sleep(5L);
+        while(!context.isNoOneThere()) GenericUtils.sleep(1L);
         mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(systemMetricsSample);
 
         for(final Map.Entry<DatabaseCollection, List<Document>> entity : context.toDocuments().entrySet()) {

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang = "en">
+
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
+        <meta name = "description" content = "Personal GitHub projects showcase website. Admin section landing page."/>
+
+        <link rel = "stylesheet" href = "../css/base.css"/>
+        <link rel = "stylesheet" href = "../css/header.css"/>
+        <link rel = "stylesheet" href = "../css/card.css"/>
+        <link rel = "stylesheet" href = "../css/logout.css"/>
+
+        <link rel = "icon" type = "image/x-icon" href = "../images/favicon.ico"/>
+
+        <title>Gatto's Lab</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-container">
+
+                <div class = "nav-item">
+                    <img src = "../images/github-logo.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
+                </div>
+
+                <div class = "nav-item">
+                    <button class = "logout-button" onclick = "logout('ADMIN', '../login.html')">
+                        <img src = "../images/logout-img.svg" alt = ""/>
+                        Logout
+                    </button>
+                </div>
+
+            </div>
+
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Admin
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "header-container">
+                <h1 class = "header-title">Admin home</h1>
+                <p class = "header-text">
+                    Welcome. Here you can manage and view the metrics of the site.
+                </p>
+            </div>
+
+            <div class = "default-container">
+
+                <div class = "card">
+
+                    <div class = "card-header" style = "background-color: #080808; padding: 20px 0px;">
+                        <img src = "./images/metrics-img.svg" alt = ""/>
+                    </div>
+
+                    <div class = "card-content-container">
+
+                        <h1 class = "card-title">Metrics</h1>
+
+                        <p class = "card-description">
+                            View the site performance metrics, such as requests per second, latency distributions and machine resource usage.
+                        </p>
+
+                        <div class = "card-footer-container">
+                            <div class = "card-footer">
+                                <a href = "./observability/metrics.html" target = "_blank">Goto metrics</a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class = "card">
+
+                    <div class = "card-header" style = "background-color: #080808; padding: 35px 0px;">
+                        <img src = "./images/logs-img.svg" alt = ""/>
+                    </div>
+
+                    <div class = "card-content-container">
+
+                        <h1 class = "card-title">Logs</h1>
+
+                        <p class = "card-description">
+                            View the site requests logs.
+                        </p>
+
+                        <div class = "card-footer-container">
+                            <div class = "card-footer">
+                                <a href = "./observability/logs.html" target = "_blank">Goto logs</a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class = "card">
+
+                    <div class = "card-header" style = "background-color: #080808; padding: 35px 0px;">
+                        <img src = "./images/invocations-img.svg" alt = ""/>
+                    </div>
+
+                    <div class = "card-content-container">
+
+                        <h1 class = "card-title">Invocations</h1>
+
+                        <p class = "card-description">
+                            View the site requested paths, including non existing ones, and user agents.
+                        </p>
+
+                        <div class = "card-footer-container">
+                            <div class = "card-footer">
+                                <a href = "./observability/invocations.html" target = "_blank">Goto invocations</a>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </main>
+
+    </body>
+
+    <script src = "../js/logout.js" module></script>
+
+</html>

@@ -8,10 +8,12 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
+
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>4.0.1</version>
 		<relativePath/>
+
 	</parent>
 
 	<groupId>io.github.clamentos</groupId>
@@ -27,14 +29,19 @@
 	<dependencies>
 
 		<dependency>
+
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+
 			<exclusions>
+
 				<exclusion>
 					<groupId>org.apache.tomcat.embed</groupId>
 					<artifactId>tomcat-embed-websocket</artifactId>
 				</exclusion>
+
 			</exclusions>
+
 		</dependency>
 
 		<dependency>
@@ -70,11 +77,30 @@
 	</dependencies>
 
 	<build>
+
+	    <resources>
+
+			<resource>
+
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+
+				<excludes>
+					<exclude>*.json</exclude>
+					<exclude>/site-src/**</exclude>
+				</excludes>
+
+			</resource>
+
+		</resources>
+
 		<plugins>
 
 			<plugin>
+
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
+
 				<configuration>
 					<annotationProcessorPaths>
 						<path>
@@ -83,29 +109,38 @@
 						</path>
 					</annotationProcessorPaths>
 				</configuration>
+
 			</plugin>
 
 			<plugin>
+
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+
 				<configuration>
+
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
 						</exclude>
 					</excludes>
+
 					<profiles>
 						<profile>dev</profile>
 					</profiles>
+
 					<jvmArguments>
 						-Xverify:none -XX:+UseG1GC -XX:+UseStringDeduplication -XX:-FlightRecorder -XX:+AlwaysPreTouch -XX:+UseTransparentHugePages -XX:+UnlockExperimentalVMOptions -XX:+UseCompactObjectHeaders
 						<!-- -XX:-StackTraceInThrowable -->
 					</jvmArguments>
+
 				</configuration>
+
 			</plugin>
 
 		</plugins>
+
 	</build>
 
 </project>

@@ -19,7 +19,8 @@ import org.jsoup.nodes.Element;
 
 public class SiteCollapser {
 
-    // html-minifier-next --input-dir ./src/main/resources/site-src --output-dir ./src/main/resources/minified --config-file=./src/main/resources/minifier-config.json
+    // FIXME: single line comments in js files with // are ignored by the minifier FOR SOME FUCKING REASON and they break everything (2h debugging)
+    // html-minifier-next --input-dir ./src/main/html --output-dir ./src/main/resources/minified --config-file=./src/main/resources/minifier-config.json
 
     private static final String SOURCE_ROOT = "minified";
     private static final String DESTINATION_ROOT = "site";

@@ -5,15 +5,15 @@ app:
       cookieAttributes: "=$; Max-Age=86400; Path=/admin;"
     enabled: true
     cors:
-      origins: "http://localhost:8443"
+      origins: "http://localhost:8080"
   database:
     connectionString: "mongodb://localhost:27017/GattosLabMongoDB"
 security:
-  require-ssl: true
+  require-ssl: false
 server:
-  port: 8443
-  ssl:
-    key-store: classpath:keystore.p12
-    key-store-password: password
-    key-store-type: PKCS12
-    key-alias: http2-alias
+  port: 8080
+#  ssl:
+#    key-store: classpath:keystore.p12
+#    key-store-password: password
+#    key-store-type: PKCS12
+#    key-alias: http2-alias

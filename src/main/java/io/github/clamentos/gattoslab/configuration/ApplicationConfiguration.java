@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
@@ -25,6 +27,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 ///
 @Configuration
 @EnableWebMvc
+@EnableScheduling
+@EnableAsync
 
 ///
 public class ApplicationConfiguration implements WebMvcConfigurer {
@@ -88,7 +92,7 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
 
             .addMapping("/**")
             .allowedOrigins(propertyProvider.getProperty("app.session.cors.origins", String.class).split(","))
-            .allowedMethods("GET", "POST", "PUT", "DELETE")
+            .allowedMethods("GET", "POST", "DELETE")
         ;
     }
 

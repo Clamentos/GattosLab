@@ -51,6 +51,8 @@ public final class Siphon {
     ///..
     public List<Document> drain() {
 
+        isDraining.set(true);
+
         final int length = elements.length();
         final List<Document> elementList = new ArrayList<>(length);
 
