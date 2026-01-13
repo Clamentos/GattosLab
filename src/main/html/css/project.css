@@ -16,7 +16,7 @@
 .project-subtitle {
 
     margin: 40px 0px 15px 0px;
-    font-size: 25px;
+    font-size: 40px;
 }
 
 /* Mobile screens */
@@ -37,10 +37,5 @@
     .project-subtitle {
 
         margin-top: 30px;
-    }
-
-    .project-text {
-
-        font-size: 14px;
     }
 }

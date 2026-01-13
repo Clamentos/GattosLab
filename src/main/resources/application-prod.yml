@@ -5,7 +5,7 @@
 app:
   session:
     admin:
-      cookieAttributes: "=$; Secure; HttpOnly; Domain=gattoslab.dev; SameSite=Strict; Max-Age=86400; Path=/admin;"
+      cookieAttributes: "=$; Secure; HttpOnly; Domain=gattoslab.dev; SameSite=Strict; Path=/;"
     enabled: true
     cors:
       origins: "https://gattoslab.dev,https://www.gattoslab.dev"

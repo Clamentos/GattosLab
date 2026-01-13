@@ -91,7 +91,34 @@ button {
     flex-wrap: wrap;
     gap: 100px;
     justify-content: center;
-    padding: 200px 150px;
+    padding: 200px 50px;
+}
+
+.error-toast {
+
+    width: 500px;
+    background-color: #00000c;
+    border: 2px solid #0079a2;
+    border-radius: 15px;
+    padding: 16px;
+    z-index: 1;
+    bottom: 30px;
+    color: #ff4040;
+    margin: 15px auto;
+    -webkit-animation: fadein 1s, fadeout 1s 2.5s;
+    animation: fadein 1s, fadeout 1s 2.5s;
+}
+
+#error-container {
+
+    width: 600px;
+    display: block;
+    margin-left: -300px;
+    padding: 16px;
+    position: fixed;
+    z-index: 1;
+    left: 50%;
+    bottom: 30px;
 }
 
 /* Mobile screens */

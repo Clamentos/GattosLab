@@ -21,7 +21,6 @@ import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.MutableLong;
-import io.github.clamentos.gattoslab.utils.Pair;
 import io.github.clamentos.gattoslab.web.Website;
 
 ///.
@@ -79,7 +78,10 @@ public class ObservabilityService implements HandlerInterceptor {
     ///..
     private final AtomicReference<ObservabilityContext> primaryContext;
     private final AtomicReference<ObservabilityContext> secondaryContext;
-    private final Queue<Pair<ObservabilityContext, Document>> dumpFailures;
+
+    private final Queue<ObservabilityContext> requestMetricsDumpFailures;
+    private final Queue<Document> systemMetricsDumpFailures;
+
     private final AtomicBoolean isHandlingEvent;
 
     ///
@@ -105,7 +107,10 @@ public class ObservabilityService implements HandlerInterceptor {
 
         primaryContext = new AtomicReference<>(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
         secondaryContext = new AtomicReference<>(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
-        dumpFailures = new ConcurrentLinkedQueue<>();
+
+        requestMetricsDumpFailures = new ConcurrentLinkedQueue<>();
+        systemMetricsDumpFailures = new ConcurrentLinkedQueue<>();
+
         isHandlingEvent = new AtomicBoolean();
     }
 
@@ -157,23 +162,51 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
+    @Scheduled(cron = "${app.metrics.systemMetricsSampling}", scheduler = "batchScheduler")
+    protected void sampleSystemMetrics() {
+
+        final ClientSession session = mongoClientWrapper.getClient().startSession();
+        Document toSave = systemMetrics.toDocument();
+
+        try {
+
+            session.startTransaction();
+            mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
+
+            toSave = systemMetricsDumpFailures.poll();
+            if(toSave != null) mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
+
+            session.commitTransaction();
+        }
+
+        catch(final Exception exc) {
+
+            log.error("Could not write metrics to DB", exc);
+
+            session.abortTransaction();
+            systemMetricsDumpFailures.add(toSave);
+        }
+
+        session.close();
+    }
+
+    ///..
     @EventListener
     @Async("batchScheduler")
     protected void handleDrainEvent(final DrainMetricsEvent event) {
 
         if(isHandlingEvent.compareAndSet(false, true)) {
 
-            final ObservabilityContext oldPrimary = this.swapContexts();
-            final Document systemMetricsSample = systemMetrics.toDocument();
             final ClientSession session = mongoClientWrapper.getClient().startSession();
+            ObservabilityContext oldPrimary = this.swapContexts();
 
             try {
 
                 session.startTransaction();
-                this.insertMetrics(oldPrimary, systemMetricsSample);
+                this.insertMetrics(oldPrimary);
 
-                final Pair<ObservabilityContext, Document> failureEntry = dumpFailures.peek();
-                if(failureEntry != null) this.insertMetrics(failureEntry.getA(), failureEntry.getB());
+                oldPrimary = requestMetricsDumpFailures.poll();
+                if(oldPrimary != null) this.insertMetrics(oldPrimary);
 
                 session.commitTransaction();
             }
@@ -183,12 +216,11 @@ public class ObservabilityService implements HandlerInterceptor {
                 log.error("Could not write metrics to DB", exc);
 
                 session.abortTransaction();
-                dumpFailures.add(new Pair<>(oldPrimary, systemMetricsSample));
+                requestMetricsDumpFailures.add(oldPrimary);
                 secondaryContext.set(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
             }
 
             session.close();
-            dumpFailures.poll();
             isHandlingEvent.set(false);
         }
     }
@@ -253,10 +285,9 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    private void insertMetrics(final ObservabilityContext context, final Document systemMetricsSample) throws MongoException {
+    private void insertMetrics(final ObservabilityContext context) throws MongoException {
 
         while(!context.isNoOneThere()) GenericUtils.sleep(1L);
-        mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(systemMetricsSample);
 
         for(final Map.Entry<DatabaseCollection, List<Document>> entity : context.toDocuments().entrySet()) {
 

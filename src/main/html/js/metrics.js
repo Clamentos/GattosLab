@@ -23,10 +23,12 @@ const latencyBuckets = [
 ];
 
 const today = new Date();
+let inFlightCounter = 0;
 
 today.setUTCHours(0, 0, 0, 0);
+
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
-document.getElementById("API-error").innerHTML = "";
+document.getElementById("submit-loader").style = "display: inline-block";
 
 fetchAndRenderPerformanceMetrics(today.getTime(), timestampMax, null, null, defaultTimeResolution);
 fetchAndRenderSystemMetrics(today.getTime(), timestampMax, defaultTimeResolution);
@@ -34,8 +36,8 @@ fetchAndRenderSystemMetrics(today.getTime(), timestampMax, defaultTimeResolution
 function onSubmitEvent(event) {
 
     event.preventDefault();
+    document.getElementById("submit-loader").style = "display: inline-block";
 
-    document.getElementById("API-error").innerHTML = "";
     clearOldCharts();
 
     const formStartTimestamp = event.target.startTimestamp.value;
@@ -68,6 +70,8 @@ function clearOldCharts() {
 
 function fetchAndRenderPerformanceMetrics(startTimestamp, endTimestamp, paths, httpStatuses, resolution) {
 
+    inFlightCounter++;
+
     fetch("/admin/api/observability/request-metrics",
 
         {
@@ -98,13 +102,20 @@ function fetchAndRenderPerformanceMetrics(startTimestamp, endTimestamp, paths, h
 
         else {
 
-            showError(response);
+            response.json().then(errorBody => pushError(errorBody));
         }
     })
-    .catch(error_ => showError(error_));
+    .catch(error_ => pushError(error_))
+    .finally(() => {
+
+        inFlightCounter--;
+        if(inFlightCounter === 0) document.getElementById("submit-loader").style = "";
+    });
 }
 
 function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
+
+    inFlightCounter++;
 
     fetch("/admin/api/observability/system-metrics",
 
@@ -200,7 +211,7 @@ function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
 
                         data: {
 
-                            labels: xAxis.map(e => new Date(e).toLocaleString()),
+                            labels: xAxis.map(e => formatDate(new Date(e))),
                             datasets: memoryDatasets
                         },
 
@@ -213,7 +224,7 @@ function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
 
                         data: {
 
-                            labels: xAxis.map(e => new Date(e).toLocaleString()),
+                            labels: xAxis.map(e => formatDate(new Date(e))),
                             datasets: cpuDatasets
                         },
 
@@ -226,7 +237,7 @@ function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
 
                         data: {
 
-                            labels: xAxis.map(e => new Date(e).toLocaleString()),
+                            labels: xAxis.map(e => formatDate(new Date(e))),
                             datasets: threadDatasets
                         },
 
@@ -238,10 +249,15 @@ function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
 
         else {
 
-            showError(response);
+            response.json().then(errorBody => pushError(errorBody));
         }
     })
-    .catch(error_ => showError(error_));
+    .catch(error_ => pushError(error_))
+    .finally(() => {
+
+        inFlightCounter--;
+        if(inFlightCounter === 0) document.getElementById("submit-loader").style = "";
+    });
 }
 
 function prepareTimeline(startTimestamp, endTimestamp, json, resolution) {
@@ -334,7 +350,7 @@ function renderCharts(preparedData, datasets) {
 
             data: {
 
-                labels: preparedData.rpsXAxis.map(e => new Date(e).toLocaleString()),
+                labels: preparedData.rpsXAxis.map(e => formatDate(new Date(e))),
                 datasets: datasets.rpsDatasets
             },
 
@@ -353,9 +369,9 @@ function renderCharts(preparedData, datasets) {
             options: getChartOptions(
 
                 "Request latencies",
-                (value, index, ticks) => new Date(value).toLocaleString(),
+                (value, _, __) => formatDate(new Date(value)),
 
-                (value, index, ticks) => {
+                (value, _, __) => {
 
                     const val = Number.parseInt(value);
 
@@ -437,14 +453,4 @@ function mapComputeIfAbsent(map, key, func) {
     }
 
     return current;
-}
-
-function showError(error) {
-
-    let text;
-
-    if(error.title === "about:custom_error") text = error.title;
-    else text = `Error: ${error}`;
-
-    document.getElementById("API-error").innerText = text;
 }

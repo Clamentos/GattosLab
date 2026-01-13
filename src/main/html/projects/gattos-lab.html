@@ -41,26 +41,42 @@
 
                 <h1 class = "project-title">Gatto's Lab</h1>
 
-                <p class = "project-text">
-                    As you might have figured out by now, it's this website! I always wanted to have my own slice of the internet all for myself and so i decided to develop a simple website, with my GitHub projects as the subject.
+                <p>
+                    As you might have figured out by now, it's this website! I always wanted to have my own slice of the internet all for myself and so i decided to develop a simple website with my GitHub projects as the subject.
+                </p>
 
-                    <br/><br/>
+                <h1 class = "project-subtitle">Backend</h1>
 
-                    The site is quite simple and minimal. The backend is written in Java 25 with Spring Boot framework and serves the static content directly from memory, while frontend uses raw HTML and CSS without any JS frameworks. In fact, you can browse this site without having JavaScript enabled at all!
+                <p>
+                    I used Java 25 with Spring Boot as it's a language and framework combo that i'm comfortable with and know very well. The system serves the whole site directly from memory, thus completely eliminating disk usage (totally overkill of the sub 1 RPS i receive on average, but it was fun to implement). The backend also communicates with a simple MongoDB instance to store logs, usage and request metrics. This observability system is fully custom and took me a while to get right as i mostly played around with different techniques and implementations.
+                </p>
 
-                    <br/><br/>
+                <h1 class = "project-subtitle">Frontend</h1>
 
+                <p>
+                    I decided to use vanilla HTML, CSS and a bit JS in specific places (non public pages, where i can view the metrics and logs). The public site can be browsed without JS enabled at all, which is nice as the web of today overly relies on it for functionality that can be achieved with traditional methods without too much effort.
+                </p>
+
+                <h1 class = "project-subtitle">Infrastructure</h1>
+
+                <p>
                     On the infrastructure side i went with Hetzner as the server provider, since their offers were quite affordable for a single individual like myself: a bit over 4€ per month for a VPS with 2 vCPUs, 4GB of RAM, 40GB of storage and 20TB of outgoing network traffic. The site is currently proxied via Cloudflare (which also works as the DNS servers), as it can cache the content on different geographical regions (not that i need it in reality, but i though it would be cool to have), as well as provide protections and usage statistics.
 
                     <br/><br/>
-                    
-                    Lastly, to deploy the site, i made use of GitHub actions to design a fully automated build and deploy pipeline that is triggered on commits to the main branch.
+
+                    Lastly, to deploy the site, i made use of <a href = "https://www.jenkins.io/" target = "_blank">Jenkins</a> on the VPS (not the best practice, but the project is quite small) for fully automated build and deploy pipeline that is triggered on commits to the main git branch.
                 </p>
 
                 <figure>
                     <img src = "./images/gattos-lab-arch.svg" alt = "Gatto's Lab architecture" style = "width: 100%; padding-top: 100px"/>
                     <figcaption>The extremely basic architecture of this website.</figcaption>
                 </figure>
+
+                <br/><br/>
+
+                <p>
+                    You can view the source code at this <a href = "https://github.com/Clamentos/GattosLab" target = "_blank">Git repo.</a>
+                </p>
 
             </div>
 

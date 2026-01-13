@@ -3,8 +3,12 @@ const userAgentMeta = {id: "user-agents-count", text: "Distinct user agents:", h
 const timestampMax = 999999999999999;
 const today = new Date();
 
+let inFlightCounter = 0;
+
 today.setUTCHours(0, 0, 0, 0);
+
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
+document.getElementById("submit-loader").style = "display: inline-block";
 
 fetchAndRenderInvocations(today.getTime(), timestampMax, "paths-invocations", pathMeta);
 fetchAndRenderInvocations(today.getTime(), timestampMax, "user-agents-count", userAgentMeta);
@@ -19,13 +23,15 @@ function onSubmitEvent(event) {
     const filterStartTimestamp = formStartTimestamp === "" ? 0 : Date.parse(formStartTimestamp);
     const filterEndTimestamp = formEndTimestamp === "" ? timestampMax : Date.parse(formEndTimestamp);
 
-    document.getElementById("API-error").innerHTML = "";
+    document.getElementById("submit-loader").style = "display: inline-block";
+
     fetchAndRenderInvocations(filterStartTimestamp, filterEndTimestamp, "paths-invocations", pathMeta);
     fetchAndRenderInvocations(filterStartTimestamp, filterEndTimestamp, "user-agents-count", userAgentMeta);
 }
 
 function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
 
+    inFlightCounter++;
     document.getElementById(meta.id).innerText = `${meta.text} -`;
 
     const tableBody = document.getElementById(meta.hook);
@@ -71,10 +77,15 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
 
         else {
 
-            showError(response);
+            response.json().then(errorBody => pushError(errorBody));
         }
     })
-    .catch(error_ => showError(error_));
+    .catch(error_ => pushError(error_))
+    .finally(() => {
+
+        inFlightCounter--;
+        if(inFlightCounter === 0) document.getElementById("submit-loader").style = "";
+    });
 }
 
 function appendRow(entry, table) {
@@ -97,14 +108,4 @@ function appendRow(entry, table) {
     tr.appendChild(count);
 
     table.appendChild(tr);
-}
-
-function showError(error) {
-
-    let text;
-
-    if(error.title === "about:custom_error") text = error.title;
-    else text = `Error: ${error}`;
-
-    document.getElementById("API-error").innerText = text;
 }

@@ -35,8 +35,8 @@ public class ArgumentsProvider {
 
         return Stream.of(
 
-            Arguments.of(Map.of("method", HttpMethod.POST, "path", "/admin/api/session", "apiKey", "test", "status", 200)),
-            Arguments.of(Map.of("method", HttpMethod.POST, "path", "/admin/api/session", "apiKey", "wrongKey123", "status", 401))
+            Arguments.of(Map.of("method", HttpMethod.POST, "path", "/api/session", "apiKey", "test", "status", 200)),
+            Arguments.of(Map.of("method", HttpMethod.POST, "path", "/api/session", "apiKey", "wrongKey123", "status", 401))
         );
     }
 

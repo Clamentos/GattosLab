@@ -2,9 +2,9 @@ app:
   session:
     admin:
       apiKey: "test"
-      cookieAttributes: "=$; Max-Age=86400; Path=/admin;"
-      maxSessions: 20
-      sessionDuration: 14400 # Seconds
+      cookieAttributes: "=$; Path=/;"
+      maxSessions: 10
+      sessionDuration: 28800 # Seconds
     cookieName: "GattosLabSessionId"
     enabled: true
     loginDelay: 500 # Milliseconds
@@ -12,21 +12,22 @@ app:
     cors:
       origins: "http://localhost:8443"
   batch:
-    poolSize: 4
+    poolSize: 5
     terminationWaitPeriod: 10 # Seconds
   database:
     connectionString: "mongodb://localhost:27017/GattosLabTestMongoDB"
   metrics:
     dumpToDbSchedule: "0 * * * * *" # Every minute
-    enabled: true # Only affects performance metrics, system (JVM) metrics will be collected regardless
-    siphonCapacity: 100000
+    systemMetricsSampling: "*/10 * * * * *" # Every 10 seconds
+    enabled: true # Affects all types
+    siphonCapacity: 5000
   ratelimit:
     enabled: true
     maxTokensPerIp: 200
     replenishRate: 10000 # Milliseconds
     retryAfter: 60000 # Milliseconds
   site:
-    cacheDuration: 1440 # Minutes
+    cacheDuration: 10080 # Minutes
     root: site
   squash:
     logSchedule: "0 * * * * *" # Every minute

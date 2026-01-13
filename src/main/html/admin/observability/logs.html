@@ -5,7 +5,7 @@
 
         <meta charset = "utf-8"/>
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
-        <meta name = "description" content = "Personal GitHub projects showcase website. Admin site logs page."/>
+        <meta name = "description" content = "Admin site logs page."/>
 
         <link rel = "stylesheet" href = "../../css/base.css"/>
         <link rel = "stylesheet" href = "../../css/header.css"/>
@@ -137,7 +137,6 @@
 
                     <button class = "form-button" type = "submit">Filter</button>
                     <div id = "submit-loader" class = "loader" style = "display: none"></div>
-                    <p id = "API-error" class = "form-error"></p>
 
                 </form>
 
@@ -149,8 +148,8 @@
 
                         <div class = "table-header-row">
 
-                            <div style = "width: 5%; border-left: none">Timestamp</div>
-                            <div style = "width: 5%">Severity</div>
+                            <div style = "width: 6%; border-left: none">Timestamp</div>
+                            <div style = "width: 4%">Severity</div>
                             <div style = "width: 45%">Message</div>
                             <div style = "width: 15%">Logger</div>
                             <div style = "width: 15%">Thread</div>
@@ -166,10 +165,14 @@
 
             </div>
 
+            <div id = "error-container"></div>
+
         </main>
 
     </body>
 
+    <script src = "../../js/utils.js" module></script>
+    <script src = "../../js/error.js" module></script>
     <script src = "../../js/logout.js" module></script>
     <script src = "../../js/logs.js" module></script>
 

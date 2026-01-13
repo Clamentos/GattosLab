@@ -94,7 +94,7 @@ public final class AdminSessionContainer implements SessionContainer {
     @Override
     public void deleteSession(final String sessionId) {
 
-        if(sessions.remove(sessionId) != null) this.removeSession(sessionId, "Admin session logout for fingerprint");
+        this.removeSession(sessionId, "Admin session logout for fingerprint");
     }
 
     ///..

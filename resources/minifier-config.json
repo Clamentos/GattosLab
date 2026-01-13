@@ -10,5 +10,7 @@
     "removeScriptTypeAttributes": true,
     "removeTagWhitespace": true,
     "minifyCss": true,
-    "minifyJs": true
+    "minifyJs": true,
+    "sortAttributes": true,
+    "sortClassName": true
 }

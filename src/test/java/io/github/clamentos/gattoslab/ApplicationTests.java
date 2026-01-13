@@ -18,6 +18,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 ///.
 import org.junit.jupiter.api.Assertions;
@@ -37,10 +39,10 @@ public class ApplicationTests extends ArgumentsProvider {
 
 	///
 	@Autowired
-	public ApplicationTests(final MockMvc mockMvc, final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+	public ApplicationTests(final WebApplicationContext webApplicationContext, final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
 		baseUrl = "http://localhost:" + propertyProvider.getProperty("server.port", String.class);
-		this.mockMvc = mockMvc;
+		mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
 	}
 
 	///
@@ -67,7 +69,7 @@ public class ApplicationTests extends ArgumentsProvider {
 
 			.perform(MockMvcRequestBuilders
 
-				.request((HttpMethod)context.get("method"), baseUrl + (String)context.get("path"))
+				.request((HttpMethod)context.get("method"), baseUrl + (String)context.get("path") + "?role=ADMIN")
 				.header("Authorization", (String)context.get("apiKey"))
 			)
 			.andReturn()

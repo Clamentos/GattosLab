@@ -41,8 +41,8 @@
 
                 <h1 class = "project-title">FabRISC</h1>
 
-                <p class = "project-text">
-                    This is the longes running project i have (almost four years) and is very dear to my heart. When i got into computer science i used to spend a good potion of my free time playing around and studying instruction sets, while also trying to design basic toy-like CPUs. As my knowledge grew, so did the desire to create a more feature-rich ISA akin to the likes of RISC-V and ARM, simply for pure fun, but also to design a high-performance CPU based on such an architecture in the future.
+                <p>
+                    This is the longes running project i have (almost four years) and is very dear to my heart. When i got into computer science i used to spend a good potion of my free time playing around and studying instruction sets, while also trying to design basic toy-like CPUs. As my knowledge grew, so did the desire to create a more feature-rich ISA akin to the likes of RISC-V and ARM, simply for pure fun, but also to design a high-performance CPU around such an architecture in a far future.
 
                     <br/><br/>
 
@@ -51,50 +51,60 @@
 
                 <h1 class = "project-subtitle">Instruction encodings</h1>
 
-                <p class = "project-text">
-                    Instructions can be 2, 4 and 6 bytes in length. Variable length encoding schemes complicate the underlying hardware implementation for the fetch and decode phases, however, they provide higher code density, increasing the efficiency of instruction caches.
+                <p>
+                    Instructions can be 2, 4 and 6 bytes in length. Variable length encoding schemes complicate the underlying hardware implementation for the fetch, decode and even branch prediction phases. On the upside, they provide higher code density which can increase the efficiency of instruction caches, especially when they are on the smaller side with less associativity. I settled on these three lengths as it seemed to be the sweet spot between density, complexity and expressivity.
+
+                    <br/><br/>
+
+                    In addition, the opcode can vary in length between formats, which requires additional logic that "normalizes" it during decoding. The smaller length is dedicated for "compressed" instructions, which are simply shortcuts for the most common patterns. The four byte length is the standard length in the ISA and it contains the most important instructions. The 6 byte length is dedicated to more unusual and complex instructions, such as vector operations.
                 </p>
 
                 <h1 class = "project-subtitle">Floating point</h1>
 
-                <p class = "project-text">
-                    FabRISC provides simple floating point instructions, such as addition, subtraction, multiplication, division and type conversion. Implementations can also choose more advanced operations such as fused-multiply-accumulate (along with some of its variants) and square root. FabRISC utilizes a simplified custom IEEE-754 model that also introduces 8-bit floats.
+                <p>
+                    FabRISC provides simple floating point instructions, such as addition, subtraction, multiplication, division and type conversion. Implementations can also choose more advanced operations such as fused-multiply-accumulate (along with some of its variants) and square root. FabRISC utilizes a simplified custom IEEE-754 model that also introduces 8-bit floats, creating a one to one mapping with the standard integer lengths. One difference between other architectures, is that the floating point instructions share the register file with the integer ones. This increases the "pressure" (resulting in more read ports), but it reduces bookkeeping overhead and allows for easier bit manipulation via the standard bitwise operations.
                 </p>
 
                 <h1 class = "project-subtitle">Vector</h1>
 
-                <p class = "project-text">
-                    FabRISC provides many vector instructions for both integer and floating-point operations, which can perform "one-to-one", "one-to-many" or "reduction" operations. The lane size can also be dynamically specified. Vector modules also include special instructions to transfer data to and from the vector register file by sourcing from the scalar file or memory with dedicated instructions. The memory addressing modes defined are simple stride, gather and scatter. Conditional vector execution is also possible via dedicated masking instructions.
+                <p>
+                    FabRISC provides many vector instructions for both integer and floating-point operations, which can perform "one-to-one", "one-to-many" or "reduction" operations. The lane size and other configuration parameters can also be dynamically specified. Vector modules also include special instructions to transfer data to and from the vector register file by sourcing from the scalar file or memory with dedicated instructions. The memory addressing modes defined are simple stride, gather and scatter. Conditional vector execution is also possible via dedicated masking instructions that mirror the standard control flow options.
                 </p>
 
                 <h1 class = "project-subtitle">Advanced integer instructions</h1>
 
-                <p class = "project-text">
-                    Among the standard integer operations, FabRISC also defines more advanced ones such as bit counts (leading / trailing ones / zeros), bit packing, bit unpacking, bit shuffling and rotations, useful for cryptographic operations.
+                <p>
+                    Among the standard integer operations, FabRISC also defines more advanced ones such as bit counts (leading / trailing ones / zeros), bit packing, bit unpacking, bit shuffling and rotations, useful for cryptographic operations. It also optionally provides the possibility of aiding arbitrary-length integer arithmetic.
                 </p>
 
                 <h1 class = "project-subtitle">Atomic memory</h1>
 
-                <p class = "project-text">
-                    FabRISC supports multicore microarchitectures thanks to atomic memory instructions like CAS (compare and swap), simple atomic arithmetic and hardware memory transactions. For systems that opt for out-of-order execution, memory fences are also provided following the <i>release consistency</i> model. FabRISC also requires implementations to be able to switch to <i>sequential consistency</i> on the fly too.
+                <p>
+                    FabRISC supports multicore microarchitectures thanks to atomic memory instructions like CAS (compare and swap), simple atomic arithmetic and hardware memory transactions. For systems that opt for out-of-order execution, memory fences are also provided following the <i>release consistency</i> model. FabRISC also requires implementations to be able to switch to <i>sequential consistency</i> on the fly too to ease debugging.
                 </p>
 
                 <h1 class = "project-subtitle">Register files</h1>
 
-                <p class = "project-text">
-                    FabRISC defines up to four register files: scalar, vector, helper and performance counters. The scalar file holds data for both integer and floating point, allowing direct manipulation of floating point data with bit manipulation instructions. The helper file houses a series of special registers that can generate exceptions when certain conditions are met, allowing to improve efficiency on memory boundary checks, as well as debugging.
+                <p>
+                    FabRISC defines up to four register files: scalar, vector, helper and performance counters. The scalar file, as mentioned earlier, holds data for both integer and floating point, allowing direct manipulation of floating point data with bit manipulation instructions. The helper file houses a series of special registers that can generate user-level exceptions when certain conditions are met, improving the efficiency on memory boundary checks, as well as debugging. The helper registers can also be used for low-level event-driven programming as they are quite flexible and general.
                 </p>
 
                 <h1 class = "project-subtitle">Privilege modes</h1>
 
-                <p class = "project-text">
+                <p>
                     FabRISC is a privileged ISA and it specifies two operating modes: user and machine mode, with the latter being the higher privilege. With this it becomes possible to support modern MMU-based operating systems. Special instructions are provided to efficiently and safely invoke and return to and from machine mode.
                 </p>
 
                 <h1 class = "project-subtitle">Eventing system</h1>
 
-                <p class = "project-text">
-                    FabRISC defines an extensive eventing system composed of exceptions, faults and interrupts. These events can be used for event-driven computation, but also as a vehicle for the privileged aspect of the specification.
+                <p>
+                    FabRISC defines an extensive eventing system composed of exceptions, faults and interrupts. These events can be used for event-driven computation (in conjunction with the helper registers), but also as a tool for the privileged aspect of the specification, allowing to start and stop hardware threads.
+                </p>
+
+                <br/><br/>
+
+                <p>
+                    You can view the source code (written in <a href = "https://github.com/typst/typst" target = "_blank">Typst</a>) at this <a href = "https://github.com/Clamentos/FabRISC" target = "_blank">Git repo</a>, which also contains the PDF in the releases section.
                 </p>
 
             </div>

@@ -47,11 +47,10 @@ public final class SessionController {
 
         for(final SessionRole role : SessionRole.values()) {
 
-            cookieAttributes.put(
+            final String attributes = propertyProvider.getProperty("app.session." + role.getPropertySection() + ".cookieAttributes", String.class);
+            final int sessionDuration = propertyProvider.getProperty("app.session." + role.getPropertySection() + ".sessionDuration", Integer.class);
 
-                role,
-                propertyProvider.getProperty("app.session." + role.getPropertySection() + ".cookieAttributes", String.class)
-            );
+            cookieAttributes.put(role, attributes + " Max-Age=" + sessionDuration + ";");
         }
 
         this.sessionService = sessionService;
@@ -88,9 +87,9 @@ public final class SessionController {
 
             for(final Cookie cookie : cookies) {
 
-                if(cookie != null && cookie.getName().equals(cookieName + role)) {
+                if(cookie != null && cookie.getName().equals(cookieName + role.getCookiePostfix())) {
 
-                    this.sessionService.deleteSession(cookie.getValue());
+                    sessionService.deleteSession(cookie.getValue());
                     break;
                 }
             }

@@ -32,7 +32,7 @@ function onSubmitEvent(event) {
 
 function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threadPattern, loggerPattern, messagePattern, exceptionClassPattern) {
 
-    document.getElementById("API-error").innerHTML = "";
+    document.getElementById("submit-loader").style = "display: inline-block";
     document.getElementById("logs-count").innerText = "Logs count: -";
 
     const tableBody = document.getElementById("table-data-hook");
@@ -69,10 +69,11 @@ function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threadPatt
 
         else {
 
-            showError(response);
+            response.json().then(errorBody => pushError(errorBody));
         }
     })
-    .catch(error_ => showError(error_));
+    .catch(error_ => pushError(error_))
+    .finally(() => document.getElementById("submit-loader").style = "");
 }
 
 function appendRow(log, table) {
@@ -91,11 +92,11 @@ function appendRow(log, table) {
     const exception = document.createElement("div");
 
     timestamp.className = "table-data-elem";
-    timestamp.style = "width: 5%";
-    timestamp.innerText = new Date(log.timestamp).toLocaleString();
+    timestamp.style = "width: 6%";
+    timestamp.innerText = formatDate(new Date(log.timestamp));
 
     severity.className = "table-data-elem";
-    severity.style = "text-align: center; width: 5%";
+    severity.style = "text-align: center; width: 4%";
     severity.innerText = log.severity;
 
     message.className = "table-data-elem";
@@ -136,14 +137,4 @@ function formatException(exception) {
     }
 
     return `${exception.className}: ${message} trace: ${trace}`;
-}
-
-function showError(error) {
-
-    let text;
-
-    if(error.title === "about:custom_error") text = error.title;
-    else text = `Error: ${error}`;
-
-    document.getElementById("API-error").innerText = text;
 }
