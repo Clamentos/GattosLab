@@ -2,7 +2,7 @@ app:
   session:
     admin:
       maxSessions: 10
-      sessionDuration: 28800 # Seconds
+      sessionDuration: 3600 # Seconds
     cookieName: "GattosLabSessionId"
     loginDelay: 500 # Milliseconds
     cleanSchedule: "0 * * * * *" # Every minute

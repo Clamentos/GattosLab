@@ -13,10 +13,9 @@ import lombok.Getter;
 public enum SessionRole {
 
     ///
-    ADMIN("Admin", "admin");
+    ADMIN("admin");
 
     ///
-    private final String cookiePostfix;
     private final String propertySection;
 
     ///

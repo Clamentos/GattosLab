@@ -23,9 +23,9 @@ app:
     siphonCapacity: 5000
   ratelimit:
     enabled: true
-    maxTokensPerIp: 200
-    replenishRate: 10000 # Milliseconds
-    retryAfter: 60000 # Milliseconds
+    maxTokensPerIp: 100 #200
+    replenishRate: 1000 #10000 # Milliseconds
+    retryAfter: 2000 #60000 # Milliseconds
   site:
     cacheDuration: 10080 # Minutes
     root: site

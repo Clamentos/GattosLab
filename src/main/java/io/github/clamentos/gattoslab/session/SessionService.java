@@ -6,6 +6,7 @@ import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.session.containers.AdminSessionContainer;
 import io.github.clamentos.gattoslab.session.containers.SessionContainer;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
+import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -56,27 +57,47 @@ public final class SessionService {
 
     ///
     // Designed to be slow when wrong on purpose.
-    public boolean check(final SessionRole role, final String sessionId, final String fingerprint) {
+    public Pair<String, SessionMetadata> check(final SessionRole role, final String sessionId, final String fingerprint) {
 
-        final SessionMetadata session = sessionContainers.get(role).getSession(sessionId);
+        final Pair<String, SessionMetadata> session = sessionContainers.get(role).getSession(sessionId);
 
-        if(session == null || !session.isValid(System.currentTimeMillis(), fingerprint)) {
+        if(session == null || !session.getB().isValid(System.currentTimeMillis(), fingerprint)) {
 
             lock.lock();
             GenericUtils.sleep(loginDelay);
             lock.unlock();
 
-            return false;
+            return null;
         }
 
-        return true;
+        return session;
     }
 
     ///..
-    public String createSession(final String authorization, final SessionRole role, final String ip, final String userAgent)
+    public Pair<String, Long> createSession(final String authorization, final SessionRole role, final String ip, final String userAgent)
     throws ApiSecurityException {
 
-        return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent));
+        return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent), false);
+    }
+
+    ///..
+    public Pair<String, Long> refreshSession(final String sessionId, final SessionRole role, final String ip, final String userAgent) throws ApiSecurityException {
+
+        final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
+        final Pair<String, SessionMetadata> session = this.check(role, sessionId, fingerprint);
+
+        if(session != null) {
+
+            final SessionContainer container = sessionContainers.get(role);
+            container.deleteSession(sessionId);
+
+            return container.createSession(null, fingerprint, true);
+        }
+
+        else {
+
+            throw new ApiSecurityException("Invalid, expired or non existent session");
+        }
     }
 
     ///..

@@ -38,7 +38,7 @@ public final class SecurityInterceptor implements HandlerInterceptor {
     throws PropertyNotFoundException {
 
         this.roleToCheck = roleToCheck;
-        cookieName = propertyProvider.getProperty("app.session.cookieName", String.class) + roleToCheck.getCookiePostfix();
+        cookieName = propertyProvider.getProperty("app.session.cookieName", String.class) + roleToCheck.name();
 
         this.sessionService = sessionService;
     }
@@ -58,7 +58,7 @@ public final class SecurityInterceptor implements HandlerInterceptor {
 
             if(cookie != null && cookieName.equals(cookie.getName())) {
 
-                if(sessionService.check(roleToCheck, cookie.getValue(), fingerprint)) return true;
+                if(sessionService.check(roleToCheck, cookie.getValue(), fingerprint) != null) return true;
                 this.redirectOrFail(uri, "Invalid, expired or non existent session");
             }
         }

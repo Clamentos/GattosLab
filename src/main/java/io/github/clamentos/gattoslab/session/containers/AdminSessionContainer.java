@@ -5,6 +5,7 @@ import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.session.SessionMetadata;
 import io.github.clamentos.gattoslab.session.SessionRole;
+import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -55,9 +56,9 @@ public final class AdminSessionContainer implements SessionContainer {
 
     ///
     @Override
-    public String createSession(final String authorization, final String fingerprint) throws ApiSecurityException {
+    public Pair<String, Long> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException {
 
-        if(!this.apiKey.equals(authorization)) throw new ApiSecurityException("Invalid api key for fingerprint: " + fingerprint);
+        if(!forceCreate && !this.apiKey.equals(authorization)) throw new ApiSecurityException("Invalid api key for fingerprint: " + fingerprint);
 
         if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) {
 
@@ -69,18 +70,23 @@ public final class AdminSessionContainer implements SessionContainer {
 
         final long now = System.currentTimeMillis();
         final String sessionIdString = new String(Base64.getEncoder().encode(sessionId));
+        final SessionMetadata session = new SessionMetadata(SessionRole.ADMIN, fingerprint, now, now + sessionDuration);
 
-        sessions.put(sessionIdString, new SessionMetadata(SessionRole.ADMIN, fingerprint, now, now + sessionDuration));
+        sessions.put(sessionIdString, session);
         log.info("Admin session created for fingerprint: {}", fingerprint);
 
-        return sessionIdString;
+        return new Pair<>(sessionIdString, session.getExpiresAt());
     }
 
     ///..
     @Override
-    public SessionMetadata getSession(final String sessionId) {
+    public Pair<String, SessionMetadata> getSession(final String sessionId) {
 
-        return sessions.get(sessionId);
+        if(sessionId == null) return null;
+        final SessionMetadata metadata = sessions.get(sessionId);
+
+        if(metadata != null) return new Pair<>(sessionId, metadata);
+        else return null;
     }
 
     ///..

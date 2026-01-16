@@ -92,7 +92,7 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
 
             .addMapping("/**")
             .allowedOrigins(propertyProvider.getProperty("app.session.cors.origins", String.class).split(","))
-            .allowedMethods("GET", "POST", "DELETE")
+            .allowedMethods("GET", "POST", "PUT", "DELETE")
         ;
     }
 

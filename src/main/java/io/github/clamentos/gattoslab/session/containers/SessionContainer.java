@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.session.containers;
 ///
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.session.SessionMetadata;
+import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import java.util.Collection;
@@ -11,10 +12,10 @@ import java.util.Collection;
 public interface SessionContainer {
 
     ///
-    String createSession(final String authorization, final String fingerprint) throws ApiSecurityException;
+    Pair<String, Long> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException;
 
     ///..
-    SessionMetadata getSession(final String sessionId);
+    Pair<String, SessionMetadata> getSession(final String sessionId);
     Collection<SessionMetadata> getSessions();
 
     ///..
