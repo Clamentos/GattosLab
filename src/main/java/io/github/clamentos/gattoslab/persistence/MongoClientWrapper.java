@@ -40,25 +40,16 @@ public final class MongoClientWrapper {
     @Autowired
     public MongoClientWrapper(final PropertyProvider propertyProvider) {
 
-        try {
+        final ConnectionString connectionString = new ConnectionString(propertyProvider.getProperty("app.database.connectionString", String.class));
 
-            final ConnectionString connectionString = new ConnectionString(propertyProvider.getProperty("app.database.connectionString", String.class));
+        client = MongoClients.create(connectionString);
+        collections = new EnumMap<>(DatabaseCollection.class);
 
-            client = MongoClients.create(connectionString);
-            collections = new EnumMap<>(DatabaseCollection.class);
+        final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
 
-            final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
+        for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
 
-            for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
-
-                collections.put(databaseCollection, database.getCollection(databaseCollection.getValue()));
-            }
-        }
-
-        catch(final Exception exc) {
-
-            System.out.println("DEBUG " + exc);
-            throw exc;
+            collections.put(databaseCollection, database.getCollection(databaseCollection.getValue()));
         }
     }
 
