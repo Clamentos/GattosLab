@@ -16,7 +16,6 @@ import java.util.Map;
 
 ///.
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.bson.Document;
@@ -27,7 +26,6 @@ import org.springframework.stereotype.Component;
 
 ///
 @Component
-@Slf4j
 
 ///
 public final class MongoClientWrapper {
@@ -59,7 +57,7 @@ public final class MongoClientWrapper {
 
         catch(final Exception exc) {
 
-            log.error("Could not connect to the database because", exc);
+            System.out.println("DEBUG " + exc);
             throw exc;
         }
     }
