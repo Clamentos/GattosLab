@@ -16,6 +16,7 @@ import java.util.Map;
 
 ///.
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.bson.Document;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Component;
 
 ///
 @Component
+@Slf4j
 
 ///
 public final class MongoClientWrapper {
@@ -40,16 +42,25 @@ public final class MongoClientWrapper {
     @Autowired
     public MongoClientWrapper(final PropertyProvider propertyProvider) {
 
-        final ConnectionString connectionString = new ConnectionString(propertyProvider.getProperty("app.database.connectionString", String.class));
+        try {
 
-        client = MongoClients.create(connectionString);
-        collections = new EnumMap<>(DatabaseCollection.class);
+            final ConnectionString connectionString = new ConnectionString(propertyProvider.getProperty("app.database.connectionString", String.class));
 
-        final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
+            client = MongoClients.create(connectionString);
+            collections = new EnumMap<>(DatabaseCollection.class);
 
-        for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
+            final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
 
-            collections.put(databaseCollection, database.getCollection(databaseCollection.getValue()));
+            for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
+
+                collections.put(databaseCollection, database.getCollection(databaseCollection.getValue()));
+            }
+        }
+
+        catch(final Exception exc) {
+
+            log.error("Could not connect to the database because", exc);
+            throw exc;
         }
     }
 
