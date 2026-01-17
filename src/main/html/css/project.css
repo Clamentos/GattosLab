@@ -19,6 +19,24 @@
     font-size: 40px;
 }
 
+@media screen and (max-width: 2000px) {
+
+    .project-container {
+
+        margin: 100px 200px;
+        padding: 100px;
+    }
+}
+
+@media screen and (max-width: 1500px) {
+
+    .project-container {
+
+        margin: 50px 100px;
+        padding: 100px;
+    }
+}
+
 /* Mobile screens */
 @media screen and (max-width: 1000px) {
 

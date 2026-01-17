@@ -50,6 +50,8 @@ spring:
     enabled: false
   lifecycle:
     timeout-per-shutdown-phase: "15s" # Seconds
+  main:
+    banner-mode: "off"
   mvc:
     publish-request-handled-events: false
   threads:
