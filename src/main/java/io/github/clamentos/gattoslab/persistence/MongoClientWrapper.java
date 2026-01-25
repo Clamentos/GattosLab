@@ -12,6 +12,7 @@ import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 
 ///.
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 ///.
@@ -21,8 +22,12 @@ import lombok.Getter;
 import org.bson.Document;
 
 ///..
+import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+///..
+import org.jspecify.annotations.NonNull;
 
 ///
 @Component
@@ -38,25 +43,39 @@ public final class MongoClientWrapper {
 
     ///
     @Autowired
-    public MongoClientWrapper(final PropertyProvider propertyProvider) {
+    public MongoClientWrapper(@NonNull final PropertyProvider propertyProvider) throws BeanCreationException {
 
-        final ConnectionString connectionString = new ConnectionString(propertyProvider.getProperty("app.database.connectionString", String.class));
+        try {
 
-        client = MongoClients.create(connectionString);
-        collections = new EnumMap<>(DatabaseCollection.class);
+            final ConnectionString connectionString = new ConnectionString(propertyProvider.getProperty("app.database.connectionString", String.class));
 
-        final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
+            client = MongoClients.create(connectionString);
+            collections = new EnumMap<>(DatabaseCollection.class);
 
-        for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
+            final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
 
-            collections.put(databaseCollection, database.getCollection(databaseCollection.getValue()));
+            for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
+
+                collections.put(databaseCollection, database.getCollection(databaseCollection.getValue()));
+            }
+        }
+
+        catch(final RuntimeException exc) {
+
+            throw new BeanCreationException("Could not create MongoClientWrapper bean due to database issue", exc);
         }
     }
 
     ///
-    public MongoCollection<Document> getCollection(final DatabaseCollection collection) {
+    public @NonNull MongoCollection<Document> getCollection(@NonNull final DatabaseCollection collection) {
 
         return collections.get(collection);
+    }
+
+    ///..
+    public void insertAll(@NonNull final List<Document> documents, @NonNull final DatabaseCollection collection) {
+
+        if(!documents.isEmpty()) this.getCollection(collection).insertMany(documents);
     }
 
     ///

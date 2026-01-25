@@ -5,7 +5,6 @@ import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.session.SessionMetadata;
 import io.github.clamentos.gattoslab.session.SessionRole;
-import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -22,6 +21,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
+
+///.
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 ///
 @Slf4j
@@ -42,7 +45,7 @@ public final class AdminSessionContainer implements SessionContainer {
     private final Random random;
 
     ///
-    public AdminSessionContainer(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public AdminSessionContainer(@NonNull final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
         apiKey = propertyProvider.getProperty("app.session.admin.apiKey", String.class);
         sessionDuration = propertyProvider.getProperty("app.session.admin.sessionDuration", Long.class) * 1000L;
@@ -56,7 +59,13 @@ public final class AdminSessionContainer implements SessionContainer {
 
     ///
     @Override
-    public Pair<String, Long> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException {
+    public @NonNull SessionMetadata createSession(
+
+        @Nullable final String authorization,
+        @NonNull final String fingerprint,
+        @NonNull final boolean forceCreate
+
+    ) throws ApiSecurityException {
 
         if(!forceCreate && !this.apiKey.equals(authorization)) throw new ApiSecurityException("Invalid api key for fingerprint: " + fingerprint);
 
@@ -70,35 +79,32 @@ public final class AdminSessionContainer implements SessionContainer {
 
         final long now = System.currentTimeMillis();
         final String sessionIdString = new String(Base64.getEncoder().encode(sessionId));
-        final SessionMetadata session = new SessionMetadata(SessionRole.ADMIN, fingerprint, now, now + sessionDuration);
+        final SessionMetadata session = new SessionMetadata(sessionIdString, SessionRole.ADMIN, fingerprint, now, now + sessionDuration);
 
         sessions.put(sessionIdString, session);
         log.info("Admin session created for fingerprint: {}", fingerprint);
 
-        return new Pair<>(sessionIdString, session.getExpiresAt());
+        return session;
     }
 
     ///..
     @Override
-    public Pair<String, SessionMetadata> getSession(final String sessionId) {
+    public @Nullable SessionMetadata getSession(@Nullable final String sessionId) {
 
         if(sessionId == null) return null;
-        final SessionMetadata metadata = sessions.get(sessionId);
-
-        if(metadata != null) return new Pair<>(sessionId, metadata);
-        else return null;
+        return sessions.get(sessionId);
     }
 
     ///..
     @Override
-    public Collection<SessionMetadata> getSessions() {
+    public @NonNull Collection<SessionMetadata> getSessions() {
 
         return sessions.values();
     }
 
     ///..
     @Override
-    public void deleteSession(final String sessionId) {
+    public void deleteSession(@Nullable final String sessionId) {
 
         this.removeSession(sessionId, "Admin session logout for fingerprint");
     }
@@ -117,14 +123,17 @@ public final class AdminSessionContainer implements SessionContainer {
     }
 
     ///.
-    private void removeSession(final String sessionId, final String message) {
+    private void removeSession(@Nullable final String sessionId, @NonNull final String message) {
 
-        final SessionMetadata removed = sessions.remove(sessionId);
+        if(sessionId != null) {
 
-        if(removed != null) {
+            final SessionMetadata removed = sessions.remove(sessionId);
 
-            sizeCounter.decrementAndGet();
-            log.info("{}: {}", message, removed.getFingerprint());
+            if(removed != null) {
+
+                sizeCounter.decrementAndGet();
+                log.info("{}: {}", message, removed.getFingerprint());
+            }
         }
     }
 

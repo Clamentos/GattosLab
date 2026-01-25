@@ -15,6 +15,9 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
+///..
+import org.jspecify.annotations.NonNull;
+
 ///
 @Component
 @Getter
@@ -32,7 +35,8 @@ public final class ResourceWalker {
     }
 
     ///
-    public List<String> listSiteResourcePaths(final String start, final PathMatchingResourcePatternResolver resolver) throws IOException {
+    public @NonNull List<String> listSiteResourcePaths(@NonNull final String start, @NonNull final PathMatchingResourcePatternResolver resolver)
+    throws IOException {
 
         final List<String> siteResourceNames = this.getResourcesNamesIn(start, resolver);
 
@@ -48,7 +52,7 @@ public final class ResourceWalker {
     }
 
     ///..
-    private List<String> getResourcesNamesIn(final String path, final PathMatchingResourcePatternResolver resolver) throws IOException {
+    private @NonNull List<String> getResourcesNamesIn(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) throws IOException {
 
         final String rawRootUri = this.getResource(path, resolver).getURI().toString();
         final String rootUri = URLDecoder.decode(rawRootUri.endsWith(pathDelimiter) ? rawRootUri : rawRootUri + pathDelimiter, "UTF-8");
@@ -70,7 +74,7 @@ public final class ResourceWalker {
     }
 
     ///..
-    private List<Resource> getResourcesIn(final String path, final PathMatchingResourcePatternResolver resolver) throws IOException {
+    private @NonNull List<Resource> getResourcesIn(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) throws IOException {
 
         final Resource root = this.getResource(path, resolver);
         final String rootUri =  root.getURI().toString();
@@ -99,13 +103,13 @@ public final class ResourceWalker {
     }
 
     ///..
-    private Resource getResource(final String path, final PathMatchingResourcePatternResolver resolver) {
+    private @NonNull Resource getResource(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) {
 
         return resolver.getResource(path.replace("\\", pathDelimiter));
     }
 
     ///..
-    private Resource[] getResources(String path, final PathMatchingResourcePatternResolver resolver) throws IOException {
+    private @NonNull Resource[] getResources(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) throws IOException {
 
         return resolver.getResources(path.replace("\\", pathDelimiter));
     }

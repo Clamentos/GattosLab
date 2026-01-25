@@ -29,7 +29,12 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 ///
 @ControllerAdvice
@@ -42,37 +47,53 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 
     ///
     @Autowired
-    public GlobalExceptionHandler(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public GlobalExceptionHandler(@NonNull final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
         retryAfter = Integer.toString(propertyProvider.getProperty("app.ratelimit.retryAfter", Integer.class) / 1000);
     }
 
     ///
     @ExceptionHandler(value = ApiSecurityException.class, produces = "application/json")
-    public ResponseEntity<ProblemDetail> handleApiSecurityException(final ApiSecurityException exc, final WebRequest request) {
+    public @NonNull ResponseEntity<ProblemDetail> handleApiSecurityException(@NonNull final ApiSecurityException exc, @NonNull final WebRequest request) {
 
         final ProblemDetail problemDetail = this.createDetail(HttpStatus.UNAUTHORIZED, "Unauthorized", exc.getMessage(), request);
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
     }
 
     ///..
+    @ExceptionHandler(value = Exception.class, produces = "application/json")
+    public @NonNull ResponseEntity<ProblemDetail> handleAllOtherExceptions(@NonNull final Exception exc, @NonNull final WebRequest request) {
+
+        final ProblemDetail problemDetail = this.createDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", exc.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
+    }
+
+    ///..
     @ExceptionHandler(value = MongoException.class, produces = "application/json")
-    public ResponseEntity<ProblemDetail> handleMongoException(final MongoException exc, final WebRequest request) {
+    public @NonNull ResponseEntity<ProblemDetail> handleMongoException(@NonNull final MongoException exc, @NonNull final WebRequest request) {
 
         final ProblemDetail problemDetail = this.createDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Database error", exc.getMessage(), request);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problemDetail);
     }
 
     ///..
+    @ExceptionHandler(value = MultipartException.class, produces = "application/json")
+    public @NonNull ResponseEntity<ProblemDetail> handleMultipartException(@NonNull final MultipartException exc, @NonNull final WebRequest request) {
+
+        final ProblemDetail problemDetail = this.createDetail(HttpStatus.BAD_REQUEST, "Uploads not supported", exc.getMessage(), request);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
+    }
+
+    ///..
     @ExceptionHandler(RedirectException.class)
-    public ResponseEntity<Void> handleRedirectException(final RedirectException exc, final WebRequest request) {
+    public @NonNull ResponseEntity<Void> handleRedirectException(@NonNull final RedirectException exc, @Nullable final WebRequest request) {
 
         return ResponseEntity.status(HttpStatus.PERMANENT_REDIRECT).header("Location", exc.getMessage()).build();
     }
 
     ///..
     @ExceptionHandler(value = TooManyRequestsException.class, produces = "application/json")
-    public ResponseEntity<ProblemDetail> handleTooManyRequestsException(final TooManyRequestsException exc, final WebRequest request) {
+    public @NonNull ResponseEntity<ProblemDetail> handleTooManyRequestsException(@NonNull final TooManyRequestsException exc, @NonNull final WebRequest request) {
 
         final ProblemDetail problemDetail = this.createDetail(HttpStatus.TOO_MANY_REQUESTS, "Rate limit triggered", exc.getMessage(), request);
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", retryAfter).body(problemDetail);
@@ -80,12 +101,12 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 
     ///.
     @Override
-	protected ResponseEntity<Object> handleHttpMediaTypeNotSupported(
+	protected @NonNull ResponseEntity<Object> handleHttpMediaTypeNotSupported(
 
-        final HttpMediaTypeNotSupportedException exc,
-        final HttpHeaders headers,
-        final HttpStatusCode status,
-        final WebRequest request
+        @NonNull final HttpMediaTypeNotSupportedException exc,
+        @Nullable final HttpHeaders headers,
+        @Nullable final HttpStatusCode status,
+        @NonNull final WebRequest request
     ) {
 
         final ProblemDetail problemDetail = this.createDetail(HttpStatus.BAD_REQUEST, "Media type not supported", exc.getMessage(), request);
@@ -94,12 +115,12 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 
     ///..
     @Override
-	protected ResponseEntity<Object> handleHttpMessageNotReadable(
+	protected @NonNull ResponseEntity<Object> handleHttpMessageNotReadable(
 
-        final HttpMessageNotReadableException exc,
-        final HttpHeaders headers,
-        final HttpStatusCode status,
-        final WebRequest request
+        @NonNull final HttpMessageNotReadableException exc,
+        @Nullable final HttpHeaders headers,
+        @Nullable final HttpStatusCode status,
+        @NonNull final WebRequest request
     ) {
 
 		final ProblemDetail problemDetail = this.createDetail(HttpStatus.BAD_REQUEST, "Malformed request", exc.getMessage(), request);
@@ -107,7 +128,13 @@ public final class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 	}
 
     ///.
-    private ProblemDetail createDetail(final HttpStatus httpStatus, final String title, final String message, final WebRequest request) {
+    private @NonNull ProblemDetail createDetail(
+
+        @NonNull final HttpStatus httpStatus,
+        @NonNull final String title,
+        @NonNull final String message,
+        @NonNull final WebRequest request
+    ) {
 
         final HttpServletRequest httpServletRequest = ((ServletWebRequest) request).getRequest();
         final ProblemDetail problemDetail = ProblemDetail.forStatus(httpStatus);

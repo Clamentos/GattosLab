@@ -27,6 +27,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+///..
+import org.jspecify.annotations.NonNull;
+
 ///.
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.databind.json.JsonMapper;
@@ -44,14 +47,14 @@ public final class LogsService {
 
     ///
     @Autowired
-    public LogsService(final MongoClientWrapper mongoClientWrapper, final JsonMapper jsonMapper) {
+    public LogsService(@NonNull final MongoClientWrapper mongoClientWrapper, @NonNull final JsonMapper jsonMapper) {
 
         this.mongoClientWrapper = mongoClientWrapper;
         this.jsonMapper = jsonMapper;
     }
 
     ///
-    public StreamingResponseBody getLogs(final LogSearchFilter logSearchFilter) throws MongoException {
+    public @NonNull StreamingResponseBody getLogs(@NonNull final LogSearchFilter logSearchFilter) throws MongoException {
 
         final MongoCollection<Document> logsCollection = mongoClientWrapper.getCollection(DatabaseCollection.LOGS);
         final MongoCursor<Document> cursor = logsCollection.find(logSearchFilter.toBsonFilter()).sort(Sorts.ascending("timestamp")).iterator();
@@ -61,14 +64,14 @@ public final class LogsService {
             try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
 
                 generator.writeStartArray();
-                while(cursor.hasNext()) generator.writePOJO(cursor.next()); //
+                while(cursor.hasNext()) generator.writePOJO(cursor.next());
                 generator.writeEndArray();
             }
         };
     }
 
     ///..
-    public StreamingResponseBody getFallbackLogs() {
+    public @NonNull StreamingResponseBody getFallbackLogs() {
 
         return outputStream -> {
 

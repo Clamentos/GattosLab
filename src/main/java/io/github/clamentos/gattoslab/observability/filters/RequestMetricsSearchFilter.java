@@ -18,6 +18,10 @@ import lombok.Getter;
 ///.
 import org.bson.conversions.Bson;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @Getter
 
@@ -25,8 +29,8 @@ import org.bson.conversions.Bson;
 public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
     ///
-    private final Set<String> paths;
-    private final Set<Integer> httpStatuses;
+    @Nullable private final Set<String> paths;
+    @Nullable private final Set<Integer> httpStatuses;
 
     ///
     @JsonCreator
@@ -34,8 +38,8 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
         @JsonProperty("startTimestamp") final long startTimestamp,
         @JsonProperty("endTimestamp") final long endTimestamp,
-        @JsonProperty("paths") final Set<String> paths,
-        @JsonProperty("httpStatuses") final Set<Integer> httpStatuses
+        @JsonProperty("paths") @Nullable final Set<String> paths,
+        @JsonProperty("httpStatuses") @Nullable final Set<Integer> httpStatuses
     ) {
 
         super(startTimestamp, endTimestamp);
@@ -46,7 +50,7 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
     ///
     @Override
-    public Bson toBsonFilter() {
+    public @NonNull Bson toBsonFilter() {
 
         final List<Bson> filters = new ArrayList<>();
 

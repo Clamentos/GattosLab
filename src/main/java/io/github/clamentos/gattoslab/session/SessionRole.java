@@ -5,6 +5,9 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+///.
+import org.jspecify.annotations.NonNull;
+
 ///
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
@@ -16,7 +19,7 @@ public enum SessionRole {
     ADMIN("admin");
 
     ///
-    private final String propertySection;
+    @NonNull private final String propertySection;
 
     ///
 }

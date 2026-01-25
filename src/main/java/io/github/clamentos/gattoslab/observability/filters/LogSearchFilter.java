@@ -18,6 +18,10 @@ import lombok.Getter;
 ///.
 import org.bson.conversions.Bson;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @Getter
 
@@ -25,11 +29,11 @@ import org.bson.conversions.Bson;
 public final class LogSearchFilter extends TemporalSearchFilter {
 
     ///
-    private final Set<String> severities;
-    private final String threadPattern;
-    private final String loggerPattern;
-    private final String messagePattern;
-    private final String exceptionClassPattern;
+    @Nullable private final Set<String> severities;
+    @Nullable private final String threadPattern;
+    @Nullable private final String loggerPattern;
+    @Nullable private final String messagePattern;
+    @Nullable private final String exceptionClassPattern;
 
     ///
     @JsonCreator
@@ -37,11 +41,11 @@ public final class LogSearchFilter extends TemporalSearchFilter {
 
         @JsonProperty("startTimestamp") final long startTimestamp,
         @JsonProperty("endTimestamp") final long endTimestamp,
-        @JsonProperty("severities") final Set<String> severities,
-        @JsonProperty("threadPattern") final String threadPattern,
-        @JsonProperty("loggerPattern") final String loggerPattern,
-        @JsonProperty("messagePattern") final String messagePattern,
-        @JsonProperty("exceptionClassPattern") final String exceptionClassPattern
+        @JsonProperty("severities") @Nullable final Set<String> severities,
+        @JsonProperty("threadPattern") @Nullable final String threadPattern,
+        @JsonProperty("loggerPattern") @Nullable final String loggerPattern,
+        @JsonProperty("messagePattern") @Nullable final String messagePattern,
+        @JsonProperty("exceptionClassPattern") @Nullable final String exceptionClassPattern
     ) {
 
         super(startTimestamp, endTimestamp);
@@ -55,7 +59,7 @@ public final class LogSearchFilter extends TemporalSearchFilter {
 
     ///
     @Override
-    public Bson toBsonFilter() {
+    public @NonNull Bson toBsonFilter() {
 
         final List<Bson> filters = new ArrayList<>();
 

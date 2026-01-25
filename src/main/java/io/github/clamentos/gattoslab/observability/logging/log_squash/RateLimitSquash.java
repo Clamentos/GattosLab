@@ -11,6 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 ///.
 import org.springframework.stereotype.Component;
 
+///..
+import org.jspecify.annotations.NonNull;
+
 ///
 @Component
 @Slf4j
@@ -29,14 +32,14 @@ public final class RateLimitSquash implements SquashLogEvent {
 
     ///
     @Override
-    public SquashLogEventType getType() {
+    public @NonNull SquashLogEventType getType() {
 
         return SquashLogEventType.RATE_LIMIT;
     }
 
     ///..
     @Override
-    public void update(Object value) {
+    public void update(@NonNull final Object value) {
 
         rateLimitSquashes.computeIfAbsent(value.toString(), _ -> new AtomicInteger()).incrementAndGet();
     }

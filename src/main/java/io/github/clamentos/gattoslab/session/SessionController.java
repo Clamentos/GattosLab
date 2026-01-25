@@ -3,7 +3,6 @@ package io.github.clamentos.gattoslab.session;
 ///
 import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
-import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -26,6 +25,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @RestController
 @RequestMapping("/api/session")
@@ -42,7 +45,7 @@ public final class SessionController {
 
     ///..
     @Autowired
-    public SessionController(final PropertyProvider propertyProvider, final SessionService sessionService) throws PropertyNotFoundException {
+    public SessionController(@NonNull final PropertyProvider propertyProvider, @NonNull final SessionService sessionService) throws PropertyNotFoundException {
 
         cookieName = propertyProvider.getProperty("app.session.cookieName", String.class);
         cookieAttributes = new EnumMap<>(SessionRole.class);
@@ -60,58 +63,56 @@ public final class SessionController {
 
     ///
     @PostMapping(produces = "application/json")
-    public ResponseEntity<Long> createSession(
+    public @NonNull ResponseEntity<Long> createSession(
 
-        @RequestAttribute("IP_ATTRIBUTE") final String ip,
-        @RequestHeader(value = "Authorization", required = false) final String key,
-        @RequestHeader(value = "User-Agent", required = false) final String userAgent,
-        @RequestParam("role") final SessionRole role
+        @RequestAttribute("IP_ATTRIBUTE") @NonNull final String ip,
+        @RequestHeader(value = "Authorization", required = false) @Nullable final String key,
+        @RequestHeader(value = "User-Agent", required = false) @Nullable final String userAgent,
+        @RequestParam("role") @NonNull final SessionRole role
 
     ) throws ApiSecurityException {
 
-        final Pair<String, Long> session = sessionService.createSession(key, role, ip, userAgent);
+        final SessionMetadata session = sessionService.createSession(key, role, ip, userAgent);
 
         return ResponseEntity
 
             .ok()
-            .header("Set-Cookie", cookieName + role.name() + cookieAttributes.get(role).replace("$", session.getA()))
-            .body(session.getB())
+            .header("Set-Cookie", cookieName + role.name() + cookieAttributes.get(role).replace("$", session.getSessionId()))
+            .body(session.getExpiresAt())
         ;
     }
 
     ///..
     @PutMapping(produces = "application/json")
-    public ResponseEntity<Long> refreshSession(
+    public @NonNull ResponseEntity<Long> refreshSession(
 
-        @RequestAttribute("IP_ATTRIBUTE") final String ip,
-        @RequestHeader(value = "User-Agent", required = false) final String userAgent,
-        @RequestParam("role") final SessionRole role,
-        final HttpServletRequest request
+        @RequestAttribute("IP_ATTRIBUTE") @NonNull final String ip,
+        @RequestHeader(value = "User-Agent", required = false) @Nullable final String userAgent,
+        @RequestParam("role") @NonNull final SessionRole role,
+        @NonNull final HttpServletRequest request
 
     ) throws ApiSecurityException {
 
-        final Pair<String, Long> session = sessionService.refreshSession(this.getCookie(role, request), role, ip, userAgent);
+        final SessionMetadata session = sessionService.refreshSession(this.getCookie(role, request), role, ip, userAgent);
 
         return ResponseEntity
 
             .ok()
-            .header("Set-Cookie", cookieName + role.name() + cookieAttributes.get(role).replace("$", session.getA()))
-            .body(session.getB())
+            .header("Set-Cookie", cookieName + role.name() + cookieAttributes.get(role).replace("$", session.getSessionId()))
+            .body(session.getExpiresAt())
         ;
     }
 
     ///..
     @DeleteMapping
-    public ResponseEntity<Void> deleteSession(@RequestParam("role") final SessionRole role, final HttpServletRequest request) {
+    public @NonNull ResponseEntity<Void> deleteSession(@RequestParam("role") @NonNull final SessionRole role, @NonNull final HttpServletRequest request) {
 
-        final String cookieValue = this.getCookie(role, request);
-        if(cookieValue != null) sessionService.deleteSession(cookieValue);
-
+        sessionService.deleteSession(this.getCookie(role, request));
         return ResponseEntity.ok().build();
     }
 
     ///..
-    private String getCookie(@RequestParam("role") final SessionRole role, final HttpServletRequest request) {
+    private @Nullable String getCookie(@NonNull final SessionRole role, @NonNull final HttpServletRequest request) {
 
         final Cookie[] cookies = request.getCookies();
 

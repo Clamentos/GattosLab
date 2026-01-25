@@ -3,6 +3,9 @@ package io.github.clamentos.gattoslab.observability.filters;
 ///
 import org.bson.conversions.Bson;
 
+///..
+import org.jspecify.annotations.NonNull;
+
 ///
 @FunctionalInterface
 
@@ -10,7 +13,7 @@ import org.bson.conversions.Bson;
 public interface SearchFilter {
 
     ///
-    Bson toBsonFilter();
+    @NonNull Bson toBsonFilter();
 
     ///
 }

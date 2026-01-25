@@ -4,6 +4,9 @@ package io.github.clamentos.gattoslab.persistence;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+///.
+import org.jspecify.annotations.NonNull;
+
 ///
 @AllArgsConstructor
 @Getter
@@ -19,7 +22,7 @@ public enum DatabaseCollection {
     USER_AGENTS("UserAgents");
 
     ///
-    private final String value;
+    @NonNull private final String value;
 
     ///
 }

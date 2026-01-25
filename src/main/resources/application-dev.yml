@@ -1,17 +1,17 @@
 app:
+  database:
+    connectionString: "mongodb://localhost:27017/GattosLabMongoDB"
   session:
     admin:
       apiKey: "test"
       cookieAttributes: "=$; Path=/;"
-    enabled: true
     cors:
       origins: "http://localhost:8081" #https://localhost:8443
-  database:
-    connectionString: "mongodb://localhost:27017/GattosLabMongoDB"
+    enabled: true
 security:
   require-ssl: false
 server:
-  port: 8081 #8443
+  port: 8080 #8443
 #  ssl:
 #    key-store: classpath:keystore.p12
 #    key-store-password: password

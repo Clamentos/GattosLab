@@ -142,9 +142,14 @@
 
                 <div class = "table-container">
 
+                    <button class = "icon-button" onclick = "toggleVisibility('logs-table')">
+                        <img id = "logs-table-icon-down" src = "../../images/caret-down.svg" alt = ""/>
+                        <img id = "logs-table-icon-up" src = "../../images/caret-up.svg" alt = "" class = "hidden-element"/>
+                    </button>
+
                     <strong id = "logs-count"></strong>
 
-                    <div class = "table">
+                    <div class = "table" id = "logs-table">
 
                         <div class = "table-header-row">
 
@@ -175,6 +180,7 @@
     <script src = "../../js/error.js" module></script>
     <script src = "../../js/refresh.js" module></script>
     <script src = "../../js/logout.js" module></script>
+    <script src = "../../js/utils.js" module></script>
     <script src = "../../js/logs.js" module></script>
 
 </html>

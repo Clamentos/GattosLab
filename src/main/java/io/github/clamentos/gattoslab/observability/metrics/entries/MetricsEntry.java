@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.observability.metrics;
+package io.github.clamentos.gattoslab.observability.metrics.entries;
 
 ///
 import lombok.Getter;
@@ -7,6 +7,9 @@ import lombok.Setter;
 ///.
 import org.bson.Document;
 import org.bson.types.ObjectId;
+
+///..
+import org.jspecify.annotations.NonNull;
 
 ///
 @Getter
@@ -17,12 +20,12 @@ public final class MetricsEntry {
 
     ///
     private long timestamp;
-    private String path;
+    @NonNull private String path;
     private int latency;
     private short httpStatus;
 
     ///
-    public Document toDocument() {
+    public @NonNull Document toDocument() {
 
         final Document document = new Document();
 

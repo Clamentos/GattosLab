@@ -5,6 +5,10 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+///.
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @Slf4j
@@ -13,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 public final class GenericUtils {
 
     ///
-    public static String composeFingerprint(final String ip, final String userAgent) {
+    public static @NonNull String composeFingerprint(@Nullable final String ip, @Nullable final String userAgent) {
 
         return ip + " " + userAgent;
     }

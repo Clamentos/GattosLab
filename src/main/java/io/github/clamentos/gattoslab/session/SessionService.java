@@ -6,7 +6,6 @@ import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.session.containers.AdminSessionContainer;
 import io.github.clamentos.gattoslab.session.containers.SessionContainer;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -27,6 +26,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @Service
 @Slf4j
@@ -45,7 +48,7 @@ public final class SessionService {
 
     ///
     @Autowired
-    public SessionService(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public SessionService(@NonNull final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
         loginDelay = propertyProvider.getProperty("app.session.loginDelay", Long.class);
 
@@ -57,11 +60,11 @@ public final class SessionService {
 
     ///
     // Designed to be slow when wrong on purpose.
-    public Pair<String, SessionMetadata> check(final SessionRole role, final String sessionId, final String fingerprint) {
+    public @Nullable SessionMetadata check(@NonNull final SessionRole role, @Nullable final String sessionId, @Nullable final String fingerprint) {
 
-        final Pair<String, SessionMetadata> session = sessionContainers.get(role).getSession(sessionId);
+        final SessionMetadata session = sessionContainers.get(role).getSession(sessionId);
 
-        if(session == null || !session.getB().isValid(System.currentTimeMillis(), fingerprint)) {
+        if(session == null || !session.isValid(System.currentTimeMillis(), fingerprint)) {
 
             lock.lock();
             GenericUtils.sleep(loginDelay);
@@ -74,17 +77,30 @@ public final class SessionService {
     }
 
     ///..
-    public Pair<String, Long> createSession(final String authorization, final SessionRole role, final String ip, final String userAgent)
-    throws ApiSecurityException {
+    public @NonNull SessionMetadata createSession(
+
+        @Nullable final String authorization,
+        @NonNull final SessionRole role,
+        @Nullable final String ip,
+        @Nullable final String userAgent
+
+    ) throws ApiSecurityException {
 
         return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent), false);
     }
 
     ///..
-    public Pair<String, Long> refreshSession(final String sessionId, final SessionRole role, final String ip, final String userAgent) throws ApiSecurityException {
+    public @NonNull SessionMetadata refreshSession(
+
+        @Nullable final String sessionId,
+        @NonNull final SessionRole role,
+        @Nullable final String ip,
+        @Nullable final String userAgent
+
+    ) throws ApiSecurityException {
 
         final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
-        final Pair<String, SessionMetadata> session = this.check(role, sessionId, fingerprint);
+        final SessionMetadata session = this.check(role, sessionId, fingerprint);
 
         if(session != null) {
 
@@ -101,16 +117,16 @@ public final class SessionService {
     }
 
     ///..
-    public void deleteSession(final String sessionId) {
+    public void deleteSession(@Nullable final String sessionId) {
 
-        if(sessionId != null) {
+        for(final SessionContainer sessionContainer : sessionContainers.values()) {
 
-            for(final SessionContainer sessionContainer : sessionContainers.values()) sessionContainer.deleteSession(sessionId);
+            sessionContainer.deleteSession(sessionId);
         }
     }
 
     ///..
-    public List<SessionMetadata> getSessionsMetadata() {
+    public @NonNull List<SessionMetadata> getSessionsMetadata() {
 
         final List<SessionMetadata> sessions = new ArrayList<>();
         for(final SessionContainer sessionContainer : sessionContainers.values()) sessions.addAll(sessionContainer.getSessions());
@@ -123,7 +139,11 @@ public final class SessionService {
     protected void cleanExpired() {
 
         final long now = System.currentTimeMillis();
-        for(final SessionContainer sessionContainer : sessionContainers.values()) sessionContainer.cleanExpired(now);
+
+        for(final SessionContainer sessionContainer : sessionContainers.values()) {
+
+            sessionContainer.cleanExpired(now);
+        }
     }
 
     ///

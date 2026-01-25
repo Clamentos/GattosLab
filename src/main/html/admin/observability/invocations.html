@@ -81,14 +81,21 @@
 
                 <div class = "table-container">
 
-                    <strong id = "invocations-count"></strong>
+                    <button class = "icon-button" onclick = "toggleVisibility('invocations-table')">
+                        <img id = "invocations-table-icon-down" src = "../../images/caret-down.svg" alt = ""/>
+                        <img id = "invocations-table-icon-up" src = "../../images/caret-up.svg" alt = "" class = "hidden-element"/>
+                    </button>
 
-                    <div class = "narrow-table">
+                    <strong id = "invocations-count" style = "padding-left: 10px"></strong>
+
+                    <div class = "narrow-table" id = "invocations-table">
 
                         <div class = "table-header-row">
 
-                            <div style = "width: 80%; border-left: none">Key</div>
-                            <div style = "width: 20%">Count</div>
+                            <div style = "width: 55%; border-left: none">Path</div>
+                            <div style = "width: 10%">Count</div>
+                            <div style = "width: 15%">Last invocation</div>
+                            <div style = "width: 20%">Statuses</div>
 
                         </div>
 
@@ -100,14 +107,20 @@
 
                 <div class = "table-container">
 
+                    <button class = "icon-button" onclick = "toggleVisibility('user-agents-table')">
+                        <img id = "user-agents-table-icon-down" src = "../../images/caret-down.svg" alt = ""/>
+                        <img id = "user-agents-table-icon-up" src = "../../images/caret-up.svg" alt = "" class = "hidden-element"/>
+                    </button>
+
                     <strong id = "user-agents-count"></strong>
 
-                    <div class = "narrow-table">
+                    <div class = "narrow-table" id = "user-agents-table">
 
                         <div class = "table-header-row">
 
-                            <div style = "width: 80%; border-left: none">Key</div>
-                            <div style = "width: 20%">Count</div>
+                            <div style = "width: 75%; border-left: none">User agent</div>
+                            <div style = "width: 10%">Count</div>
+                            <div style = "width: 15%">Last updated at</div>
 
                         </div>
 
@@ -128,6 +141,7 @@
     <script src = "../../js/error.js" module></script>
     <script src = "../../js/refresh.js" module></script>
     <script src = "../../js/logout.js" module></script>
+    <script src = "../../js/utils.js" module></script>
     <script src = "../../js/invocations.js" module></script>
 
 </html>

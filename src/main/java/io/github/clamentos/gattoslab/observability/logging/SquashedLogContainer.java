@@ -17,6 +17,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+///..
+import org.jspecify.annotations.NonNull;
+
 ///
 @Component
 @Slf4j
@@ -29,14 +32,14 @@ public final class SquashedLogContainer {
 
     ///
     @Autowired
-    public SquashedLogContainer(final List<SquashLogEvent> squashEvents) {
+    public SquashedLogContainer(@NonNull final List<SquashLogEvent> squashEvents) {
 
         this.squashEvents = new EnumMap<>(SquashLogEventType.class);
         for(final SquashLogEvent squashEvent : squashEvents) this.squashEvents.put(squashEvent.getType(), squashEvent);
     }
 
     ///
-    public void squash(final SquashLogEventType eventType, final Object value) {
+    public <T> void squash(@NonNull final SquashLogEventType eventType, @NonNull final T value) {
 
         squashEvents.get(eventType).update(value);
     }

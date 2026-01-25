@@ -6,14 +6,14 @@ app:
   session:
     admin:
       cookieAttributes: "=$; Secure; HttpOnly; Domain=gattoslab.dev; SameSite=Strict; Path=/;"
-    enabled: true
     cors:
       origins: "https://gattoslab.dev,https://www.gattoslab.dev"
+    enabled: true
 security:
   require-ssl: true
 server:
   port: 443
   ssl:
     key-store: "/etc/letsencrypt/live/gattoslab.dev/keystore.p12"
-    keyStoreType: "PKCS12"
     keyAlias: "tomcat"
+    keyStoreType: "PKCS12"

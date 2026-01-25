@@ -11,7 +11,7 @@ function pushError(error) {
     errorDiv.id = id;
 
     errorContainer.insertBefore(errorDiv, errorContainer.firstChild);
-    setTimeout(function() { errorDiv.remove(); }, 5000);
+    setTimeout(function() { errorDiv.remove(); }, 5100);
 }
 
 function formatError(error) {

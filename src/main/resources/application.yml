@@ -1,11 +1,4 @@
 app:
-  session:
-    admin:
-      maxSessions: 10
-      sessionDuration: 3600 # Seconds
-    cookieName: "GattosLabSessionId"
-    loginDelay: 500 # Milliseconds
-    cleanSchedule: "0 * * * * *" # Every minute
   batch:
     poolSize: 5
     terminationWaitPeriod: 10 # Seconds
@@ -19,11 +12,25 @@ app:
     maxTokensPerIp: 200
     replenishRate: 10000 # Milliseconds
     retryAfter: 60000 # Milliseconds
+  session:
+    admin:
+      maxSessions: 10
+      sessionDuration: 3600 # Seconds
+    cookieName: "GattosLabSessionId"
+    loginDelay: 500 # Milliseconds
+    cleanSchedule: "0 * * * * *" # Every minute
   site:
     cacheDuration: 10080 # Minutes
     root: site
   squash:
     logSchedule: "0 * * * * *" # Every minute
+logging:
+  level:
+    org:
+      apache:
+      coyote:
+        http11:
+          Http11Processor: "ERROR"
 server:
   compression:
     enabled: false

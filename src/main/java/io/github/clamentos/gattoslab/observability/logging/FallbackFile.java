@@ -26,6 +26,10 @@ import java.util.stream.Stream;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @SuppressWarnings("squid:S106")
 
@@ -42,7 +46,7 @@ public final class FallbackFile implements Runnable {
     private final Lock fileLock;
 
     ///
-    public FallbackFile(final AtomicReference<MongoClientWrapper> mongoClientReference, final long scheduleDelay, final String filePath)
+    public FallbackFile(@NonNull final AtomicReference<MongoClientWrapper> mongoClientReference, final long scheduleDelay, @NonNull final String filePath)
     throws IOException {
 
         this.scheduleDelay = scheduleDelay;
@@ -94,7 +98,7 @@ public final class FallbackFile implements Runnable {
     }
 
     ///..
-    public void write(final String log) throws IOException {
+    public void write(@NonNull final String log) throws IOException {
 
         fileLock.lock();
         Files.write(fallbackFilePath, log.getBytes(), StandardOpenOption.APPEND);
@@ -137,7 +141,7 @@ public final class FallbackFile implements Runnable {
     }
 
     ///.
-    private Document parseLog(final String log) {
+    private @NonNull Document parseLog(@NonNull final String log) {
 
         final String[] splits = log.split("\u0001");
         final Document document = new Document();
@@ -171,7 +175,7 @@ public final class FallbackFile implements Runnable {
     }
 
     ///..
-    private String undoNormalization(final String input) {
+    private @Nullable String undoNormalization(@NonNull final String input) {
 
         if("\u0000".equals(input)) return null;
         else return input;

@@ -20,6 +20,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @SuppressWarnings("squid:S106")
 
@@ -50,7 +54,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
     ///
     @Override
-    public void append(final ILoggingEvent logEvent) {
+    public void append(@NonNull final ILoggingEvent logEvent) {
 
         try {
 
@@ -90,7 +94,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     }
 
     ///.
-    private void writeToFallbackFile(final ILoggingEvent logEvent) {
+    private void writeToFallbackFile(@NonNull final ILoggingEvent logEvent) {
 
         /*
             1) timestamp|severity|thread|logger|message
@@ -134,7 +138,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     }
 
     ///..
-    private Document createLogDocument(final ILoggingEvent logEvent) {
+    private @NonNull Document createLogDocument(@NonNull final ILoggingEvent logEvent) {
 
         final Document document = new Document();
 
@@ -162,14 +166,14 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     }
 
     ///..
-    private String normalize(final Object input) {
+    private @NonNull String normalize(@Nullable final Object input) {
 
         if(input == null) return "\u0000";
         else return input.toString();
     }
 
     ///..
-    private List<String> formatStacktraceForDb(final StackTraceElementProxy[] stacktrace) {
+    private @NonNull List<String> formatStacktraceForDb(@NonNull final StackTraceElementProxy[] stacktrace) {
 
         final List<String> formattedStacktrace = new ArrayList<>(stacktrace.length);
 
@@ -183,7 +187,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     }
 
     ///..
-    private String formatStacktraceForFile(final StackTraceElementProxy[] stacktrace) {
+    private @NonNull String formatStacktraceForFile(@NonNull final StackTraceElementProxy[] stacktrace) {
 
         final StringBuilder sb = new StringBuilder();
 

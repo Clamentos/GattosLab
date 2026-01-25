@@ -9,6 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 ///.
 import org.springframework.stereotype.Component;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @Component
 @Slf4j
@@ -27,14 +31,14 @@ public final class IfModifiedSinceMalformedSquash implements SquashLogEvent {
 
     ///
     @Override
-    public SquashLogEventType getType() {
+    public @NonNull SquashLogEventType getType() {
 
         return SquashLogEventType.IF_MODIFIED_SINCE_HEADER_MALFORMED;
     }
 
     ///..
     @Override
-    public void update(final Object value) {
+    public void update(@Nullable final Object value) {
 
         counter.incrementAndGet();
     }

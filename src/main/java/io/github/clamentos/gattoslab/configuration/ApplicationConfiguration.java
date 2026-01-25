@@ -1,10 +1,11 @@
 package io.github.clamentos.gattoslab.configuration;
 
 ///
-import io.github.clamentos.gattoslab.ingress.RateLimiter;
 import io.github.clamentos.gattoslab.ingress.RequestEnricher;
 import io.github.clamentos.gattoslab.ingress.SecurityInterceptor;
+import io.github.clamentos.gattoslab.ingress.ratelimit.RateLimiter;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
+import io.github.clamentos.gattoslab.observability.metrics.ClientAbortValve;
 import io.github.clamentos.gattoslab.session.SessionRole;
 import io.github.clamentos.gattoslab.session.SessionService;
 
@@ -13,6 +14,8 @@ import jakarta.el.PropertyNotFoundException;
 
 ///.
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory;
+import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.TaskScheduler;
@@ -23,6 +26,9 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+///..
+import org.jspecify.annotations.NonNull;
 
 ///
 @Configuration
@@ -46,13 +52,13 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
     @Autowired
     public ApplicationConfiguration(
 
-        final PropertyProvider propertyProvider,
-        final RequestEnricher requestEnricher,
-        final RateLimiter rateLimiter,
-        final ObservabilityService observabilityService,
-        final SessionService sessionService
+        @NonNull final PropertyProvider propertyProvider,
+        @NonNull final RequestEnricher requestEnricher,
+        @NonNull final RateLimiter rateLimiter,
+        @NonNull final ObservabilityService observabilityService,
+        @NonNull final SessionService sessionService
 
-    ) throws PropertyNotFoundException {
+    ) {
 
         this.propertyProvider = propertyProvider;
 
@@ -64,7 +70,7 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
 
     ///
     @Override
-    public void addInterceptors(final InterceptorRegistry registry) {
+    public void addInterceptors(@NonNull final InterceptorRegistry registry) {
 
         final boolean ratelimitingEnabled = propertyProvider.getProperty("app.ratelimit.enabled", Boolean.class);
         final boolean securityEnabled = propertyProvider.getProperty("app.session.enabled", Boolean.class);
@@ -86,7 +92,7 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
 
     ///..
     @Override
-    public void addCorsMappings(final CorsRegistry registry) {
+    public void addCorsMappings(@NonNull final CorsRegistry registry) {
 
         registry
 
@@ -98,7 +104,7 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
 
     ///..
     @Bean
-    public TaskScheduler batchScheduler(final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public @NonNull TaskScheduler batchScheduler(@NonNull final PropertyProvider propertyProvider) throws PropertyNotFoundException {
 
         final ThreadPoolTaskScheduler threadPoolTaskScheduler = new ThreadPoolTaskScheduler();
 
@@ -108,6 +114,13 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
         threadPoolTaskScheduler.setVirtualThreads(true);
 
         return threadPoolTaskScheduler;
+    }
+
+    ///..
+    @Bean
+    public @NonNull WebServerFactoryCustomizer<TomcatServletWebServerFactory> tomcatCustomizer(@NonNull final ClientAbortValve clientAbortValve) {
+
+        return factory -> factory.addContextValves(clientAbortValve);
     }
 
     ///

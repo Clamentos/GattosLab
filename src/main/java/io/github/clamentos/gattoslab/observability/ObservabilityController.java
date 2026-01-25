@@ -4,17 +4,16 @@ package io.github.clamentos.gattoslab.observability;
 import com.mongodb.MongoException;
 
 ///.
-import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
+import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
+import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
+import io.github.clamentos.gattoslab.observability.metrics.entries.TrackerEntry;
 import io.github.clamentos.gattoslab.session.SessionMetadata;
 import io.github.clamentos.gattoslab.session.SessionService;
-import io.github.clamentos.gattoslab.utils.MutableLong;
 
 ///.
 import java.util.List;
-import java.util.Map;
 
 ///.
 import lombok.RequiredArgsConstructor;
@@ -27,6 +26,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+///..
+import org.jspecify.annotations.NonNull;
 
 ///
 @RequiredArgsConstructor
@@ -42,53 +44,78 @@ public final class ObservabilityController {
     private final LogsService logsService;
 
     ///
-    @PostMapping(path = "/paths-invocations", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Map<String, MutableLong>> getPathInvocations(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
+    @PostMapping(path = "/path-invocations", consumes = "application/json", produces = "application/json")
+    public @NonNull ResponseEntity<List<TrackerEntry>> getPathInvocations(@RequestBody(required = true) @NonNull final TemporalSearchFilter searchFilter)
+    throws MongoException {
 
-        return ResponseEntity.ok(observabilityService.getPathInvocations(searchFilter));
+        return ResponseEntity.ok().header("Cache-Control", "no-cache").body(observabilityService.getPathInvocations(searchFilter));
     }
 
     ///..
     @PostMapping(path = "/user-agents-count", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<Map<String, MutableLong>> getUserAgentsCount(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
+    public @NonNull ResponseEntity<List<TrackerEntry>> getUserAgentsCount(@RequestBody(required = true) @NonNull final TemporalSearchFilter searchFilter)
+    throws MongoException {
 
-        return ResponseEntity.ok(observabilityService.getUserAgentsCount(searchFilter));
+        return ResponseEntity.ok().header("Cache-Control", "no-cache").body(observabilityService.getUserAgentsCount(searchFilter));
     }
 
     ///..
     @PostMapping(path = "/request-metrics", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<StreamingResponseBody> getRequestMetrics(@RequestBody final RequestMetricsSearchFilter chartSearchFilter)
-    throws MongoException {
+    public @NonNull ResponseEntity<StreamingResponseBody> getRequestMetrics(
 
-        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(observabilityService.getRequestMetrics(chartSearchFilter));
+        @RequestBody(required = true) @NonNull final RequestMetricsSearchFilter chartSearchFilter
+
+    ) throws MongoException {
+
+        return ResponseEntity
+
+            .ok()
+            .header("Content-Encoding", "gzip")
+            .header("Cache-Control", "no-cache")
+            .body(observabilityService.getRequestMetrics(chartSearchFilter))
+        ;
     }
 
     ///..
     @PostMapping(path = "/system-metrics", produces = "application/json")
-    public ResponseEntity<StreamingResponseBody> getSystemMetrics(@RequestBody final TemporalSearchFilter searchFilter) throws MongoException {
+    public @NonNull ResponseEntity<StreamingResponseBody> getSystemMetrics(@RequestBody(required = true) @NonNull final TemporalSearchFilter searchFilter)
+    throws MongoException {
 
-        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(observabilityService.getSystemMetrics(searchFilter));
+        return ResponseEntity
+
+            .ok()
+            .header("Content-Encoding", "gzip")
+            .header("Cache-Control", "no-cache")
+            .body(observabilityService.getSystemMetrics(searchFilter))
+        ;
     }
 
     ///..
     @GetMapping(path = "/sessions-metadata", produces = "application/json")
-    public ResponseEntity<List<SessionMetadata>> getSessionsMetadata() {
+    public @NonNull ResponseEntity<List<SessionMetadata>> getSessionsMetadata() {
 
-        return ResponseEntity.ok(sessionService.getSessionsMetadata());
+        return ResponseEntity.ok().header("Cache-Control", "no-cache").body(sessionService.getSessionsMetadata());
     }
 
     ///..
     @PostMapping(path = "/logs", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<StreamingResponseBody> getLogs(@RequestBody final LogSearchFilter logSearchFilter) throws MongoException {
+    public @NonNull ResponseEntity<StreamingResponseBody> getLogs(@RequestBody(required = true) @NonNull final LogSearchFilter logSearchFilter)
+    throws MongoException {
 
         return ResponseEntity.ok().header("Content-Encoding", "gzip").body(logsService.getLogs(logSearchFilter));
     }
 
     ///..
     @GetMapping(path = "/fallback-logs", produces = "application/json")
-    public ResponseEntity<StreamingResponseBody> getFallbackLogs() {
+    public @NonNull ResponseEntity<StreamingResponseBody> getFallbackLogs() {
 
-        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(logsService.getFallbackLogs());
+        return ResponseEntity
+
+            .ok()
+            .header("Content-Encoding", "gzip")
+            .header("Cache-Control", "no-cache")
+            .body(logsService.getFallbackLogs())
+        ;
     }
 
     ///

@@ -30,6 +30,10 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @Service
 @Slf4j
@@ -48,7 +52,7 @@ public final class Website {
 
     ///
     @Autowired
-    public Website(final PropertyProvider propertyProvider, final ResourceWalker resourceWalker) throws IOException, PropertyNotFoundException {
+    public Website(@NonNull final PropertyProvider propertyProvider, @NonNull final ResourceWalker resourceWalker) throws IOException, PropertyNotFoundException {
 
         cacheDuration = propertyProvider.getProperty("app.site.cacheDuration", Integer.class) * 60;
         timeAtStartup = OffsetDateTime.now();
@@ -102,8 +106,8 @@ public final class Website {
 
         websiteStructure.put("/", new WebsiteResource("/", websiteStructure.get("/index.html")));
 
-        this.addPath(websiteStructure, "/admin/api/session", Set.of(HttpMethod.POST, HttpMethod.DELETE));
-        this.addPath(websiteStructure, "/admin/api/observability/paths-invocation", supportedPostMethod);
+        this.addPath(websiteStructure, "/api/session", Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
+        this.addPath(websiteStructure, "/admin/api/observability/path-invocations", supportedPostMethod);
         this.addPath(websiteStructure, "/admin/api/observability/user-agents-count", supportedPostMethod);
         this.addPath(websiteStructure, "/admin/api/observability/request-metrics", supportedPostMethod);
         this.addPath(websiteStructure, "/admin/api/observability/system-metrics", supportedPostMethod);
@@ -116,19 +120,19 @@ public final class Website {
     }
 
     ///
-    public WebsiteResource getContent(final String path) {
+    public @Nullable WebsiteResource getContent(@NonNull final String path) {
 
         return websiteStructure.get(path);
     }
 
     ///..
-    public Set<String> getPaths() {
+    public @NonNull Set<String> getPaths() {
 
         return websiteStructure.keySet();
     }
 
     ///..
-    public ResponseEntity<Object> buildResponseForStaticContent(final HttpStatusCode status, final WebsiteResource resource) {
+    public @NonNull ResponseEntity<Object> buildResponseForStaticContent(@NonNull final HttpStatusCode status, @NonNull final WebsiteResource resource) {
 
         return ResponseEntity
 
@@ -142,7 +146,7 @@ public final class Website {
     }
 
     ///.
-    private String getMediaType(final String path, final Map<String, String> supportedMimeTypes) {
+    private @NonNull String getMediaType(@NonNull final String path, @NonNull final Map<String, String> supportedMimeTypes) {
 
         for(final Map.Entry<String, String> entry : supportedMimeTypes.entrySet()) {
 
@@ -154,7 +158,7 @@ public final class Website {
     }
 
     ///..
-    private byte[] compress(final byte[] content) throws IOException {
+    private @NonNull byte[] compress(@NonNull final byte[] content) throws IOException {
 
         final ByteArrayOutputStream compressedContent = new ByteArrayOutputStream();
         final CompressingOutputStream outputStream = new CompressingOutputStream(compressedContent, 9);
@@ -166,7 +170,12 @@ public final class Website {
     }
 
     ///..
-    private void addPath(final Map<String, WebsiteResource> websiteStructure, final String path, final Set<HttpMethod> supportedMethods) {
+    private void addPath(
+
+        @NonNull final Map<String, WebsiteResource> websiteStructure,
+        @NonNull final String path,
+        @NonNull final Set<HttpMethod> supportedMethods
+    ) {
 
         websiteStructure.put(path, new WebsiteResource(path, "application/json", null, true, supportedMethods));
     }

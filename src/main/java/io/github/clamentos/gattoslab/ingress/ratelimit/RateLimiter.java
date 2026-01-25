@@ -1,11 +1,10 @@
-package io.github.clamentos.gattoslab.ingress;
+package io.github.clamentos.gattoslab.ingress.ratelimit;
 
 ///
 import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
 import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
 import io.github.clamentos.gattoslab.observability.logging.log_squash.SquashLogEventType;
-import io.github.clamentos.gattoslab.utils.Pair;
 
 ///.
 import jakarta.el.PropertyNotFoundException;
@@ -16,7 +15,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 ///.
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +24,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 ///
 @Component
@@ -42,11 +44,12 @@ public final class RateLimiter implements HandlerInterceptor {
     private final SquashedLogContainer squashedLogContainer;
 
     ///..
-    private final Map<String, Pair<AtomicInteger, AtomicInteger>> tokensByIp;
+    private final Map<String, RateLimitEntry> tokensByIp;
 
     ///
     @Autowired
-    public RateLimiter(final PropertyProvider propertyProvider, final SquashedLogContainer squashedLogContainer) throws PropertyNotFoundException {
+    public RateLimiter(@NonNull final PropertyProvider propertyProvider, @NonNull final SquashedLogContainer squashedLogContainer)
+    throws PropertyNotFoundException {
 
         maxTokensPerIp = propertyProvider.getProperty("app.ratelimit.maxTokensPerIp", Integer.class);
 
@@ -60,18 +63,18 @@ public final class RateLimiter implements HandlerInterceptor {
 
     ///
     @Override
-    public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler)
+    public boolean preHandle(@NonNull final HttpServletRequest request, @Nullable final HttpServletResponse response, @Nullable final Object handler)
     throws TooManyRequestsException {
 
         final String ip = request.getRemoteAddr();
+        final RateLimitEntry entry = tokensByIp.computeIfAbsent(ip, _ -> new RateLimitEntry(maxTokensPerIp, blockCounterStart));
 
-        final Pair<AtomicInteger, AtomicInteger> entry = tokensByIp.computeIfAbsent(ip, _ -> new Pair<>(
+        if(entry.isRateLimited()) {
 
-            new AtomicInteger(maxTokensPerIp),
-            new AtomicInteger(blockCounterStart)
-        ));
+            squashedLogContainer.squash(SquashLogEventType.RATE_LIMIT, ip);
+            throw new TooManyRequestsException("Rate limit reached for ip: " + ip);
+        }
 
-        if(entry.getA().getAndDecrement() <= 0) this.tooManyRequests(ip, "Rate limit reached for ip: " + ip);
 		return true;
 	}
 
@@ -79,28 +82,13 @@ public final class RateLimiter implements HandlerInterceptor {
     @Scheduled(fixedRateString = "${app.ratelimit.replenishRate}", scheduler = "batchScheduler")
     protected void replenish() {
 
-        final Iterator<Map.Entry<String, Pair<AtomicInteger, AtomicInteger>>> entries = tokensByIp.entrySet().iterator();
+        final Iterator<Map.Entry<String, RateLimitEntry>> entries = tokensByIp.entrySet().iterator();
 
         while(entries.hasNext()) {
 
-            final Map.Entry<String, Pair<AtomicInteger, AtomicInteger>> entry = entries.next();
-
-            final AtomicInteger tokenCounter = entry.getValue().getA();
-            final AtomicInteger blockCounter = entry.getValue().getB();
-            final int tokenCounterValue = tokenCounter.get();
-            final int blockCounterValue = blockCounter.get();
-
-            if(tokenCounterValue == maxTokensPerIp || (tokenCounterValue <= 0 && blockCounterValue == 0)) tokensByIp.remove(entry.getKey());
-            else if(tokenCounterValue <= 0 && blockCounterValue > 0) blockCounter.decrementAndGet();
-            else tokenCounter.set(maxTokensPerIp);
+            final Map.Entry<String, RateLimitEntry> entry = entries.next();
+            if(entry.getValue().doReplenish(maxTokensPerIp)) tokensByIp.remove(entry.getKey());
         }
-    }
-
-    ///.
-    private void tooManyRequests(final String key, final String message) throws TooManyRequestsException {
-
-        squashedLogContainer.squash(SquashLogEventType.RATE_LIMIT, key);
-        throw new TooManyRequestsException(message);
     }
 
     ///

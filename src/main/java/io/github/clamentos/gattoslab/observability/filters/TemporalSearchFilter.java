@@ -13,6 +13,9 @@ import lombok.Getter;
 ///.
 import org.bson.conversions.Bson;
 
+///..
+import org.jspecify.annotations.NonNull;
+
 ///
 @Getter
 
@@ -37,7 +40,7 @@ public class TemporalSearchFilter implements SearchFilter {
 
     ///
     @Override
-    public Bson toBsonFilter() {
+    public @NonNull Bson toBsonFilter() {
 
         return Filters.and(Filters.gte("timestamp", startTimestamp), Filters.lte("timestamp", endTimestamp));
     }

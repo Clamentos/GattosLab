@@ -13,6 +13,9 @@ import org.bson.types.ObjectId;
 ///..
 import org.springframework.stereotype.Component;
 
+///..
+import org.jspecify.annotations.NonNull;
+
 ///
 @Component
 
@@ -33,7 +36,7 @@ public final class SystemMetrics {
     }
 
     ///
-    public Document toDocument() {
+    public @NonNull Document toDocument() {
 
         final int daemons = threadMXBean.getDaemonThreadCount();
         final Document document = new Document();

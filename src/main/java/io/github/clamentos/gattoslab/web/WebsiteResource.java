@@ -11,6 +11,10 @@ import lombok.ToString;
 ///.
 import org.springframework.http.HttpMethod;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @AllArgsConstructor
 @Getter
@@ -20,14 +24,14 @@ import org.springframework.http.HttpMethod;
 public final class WebsiteResource {
 
     ///
-    private final String path;
-    private final String mimeType;
-    private final byte[] content;
-    private final boolean isApi;
-    private final Set<HttpMethod> supportedMethods;
+    @NonNull private final String path;
+    @NonNull private final String mimeType;
+    @Nullable private final byte[] content;
+    @NonNull private final boolean isApi;
+    @NonNull private final Set<HttpMethod> supportedMethods;
 
     ///
-    public WebsiteResource(final String path, final WebsiteResource from) {
+    public WebsiteResource(@NonNull final String path, @NonNull final WebsiteResource from) {
 
         this.path = path;
 

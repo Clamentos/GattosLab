@@ -1,15 +1,15 @@
 package io.github.clamentos.gattoslab.exceptions;
 
 ///
-import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 ///
-public final class ApiSecurityException extends IOException {
+public final class ApiSecurityException extends Exception {
 
     ///
-    public ApiSecurityException(final String message) {
+    public ApiSecurityException(@Nullable final String message) {
 
-        super(message);
+        super(message, null, false, false);
     }
 
     ///

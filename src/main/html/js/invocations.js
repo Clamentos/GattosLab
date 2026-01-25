@@ -10,7 +10,7 @@ today.setUTCHours(0, 0, 0, 0);
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 document.getElementById("submit-loader").style = "display: inline-block";
 
-fetchAndRenderInvocations(today.getTime(), timestampMax, "paths-invocations", pathMeta);
+fetchAndRenderInvocations(today.getTime(), timestampMax, "path-invocations", pathMeta);
 fetchAndRenderInvocations(today.getTime(), timestampMax, "user-agents-count", userAgentMeta);
 
 function onSubmitEvent(event) {
@@ -25,7 +25,7 @@ function onSubmitEvent(event) {
 
     document.getElementById("submit-loader").style = "display: inline-block";
 
-    fetchAndRenderInvocations(filterStartTimestamp, filterEndTimestamp, "paths-invocations", pathMeta);
+    fetchAndRenderInvocations(filterStartTimestamp, filterEndTimestamp, "path-invocations", pathMeta);
     fetchAndRenderInvocations(filterStartTimestamp, filterEndTimestamp, "user-agents-count", userAgentMeta);
 }
 
@@ -56,22 +56,10 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
 
             response.json().then(json => {
 
-                const keys = Object.keys(json);
-                document.getElementById(meta.id).innerText = `${meta.text} ${keys.length}`;
+                document.getElementById(meta.id).innerText = `${meta.text} ${json.length}`;
 
-                const processedData = [];
-
-                for(const key of keys) {
-
-                    processedData.push({
-
-                        key: key,
-                        count: json[key]
-                    });
-                }
-
-                processedData.sort((a, b) => a.count < b.count);
-                for(const entry of processedData) appendRow(entry, tableBody);
+                const processedData = json.sort((a, b) => a.count < b.count);
+                for(const entry of processedData) appendRow(entry, tableBody, meta.hook);
             });
         }
 
@@ -88,24 +76,51 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
     });
 }
 
-function appendRow(entry, table) {
+function appendRow(entry, table, hook) {
 
     const tr = document.createElement("div");
     tr.className = "table-data-row";
 
     const key = document.createElement("div");
     const count = document.createElement("div");
-
-    key.className = "table-data-elem";
-    key.style = "width: 80%";
-    key.innerText = entry.key;
+    const timestamp = document.createElement("div");
 
     count.className = "table-data-elem";
-    count.style = "text-align: right; width: 20%";
+    count.style = "width: 10%";
     count.innerText = entry.count;
 
-    tr.appendChild(key);
-    tr.appendChild(count);
+    timestamp.className = "table-data-elem";
+    timestamp.style = "width: 15%";
+    timestamp.innerText = formatDate(new Date(entry.timestamp));
+
+    if(hook === "invocations-table-hook") {
+
+        const httpStatuses = document.createElement("div");
+
+        key.className = "table-data-elem";
+        key.style = "width: 55%";
+        key.innerText = entry.key;
+
+        httpStatuses.className = "table-data-elem";
+        httpStatuses.style = "width: 20%";
+        httpStatuses.innerText = entry.httpStatuses.join(", ");
+
+        tr.appendChild(key);
+        tr.appendChild(count);
+        tr.appendChild(timestamp);
+        tr.appendChild(httpStatuses);
+    }
+
+    else {
+
+        key.className = "table-data-elem";
+        key.style = "width: 75%";
+        key.innerText = entry.key;
+
+        tr.appendChild(key);
+        tr.appendChild(count);
+        tr.appendChild(timestamp);
+    }
 
     table.appendChild(tr);
 }

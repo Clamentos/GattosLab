@@ -27,6 +27,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @RestController
 @Slf4j
@@ -43,7 +47,7 @@ public final class WebsiteController {
 
     ///
     @Autowired
-    public WebsiteController(final Website staticSite, final SquashedLogContainer squashedLogContainer) throws PropertyNotFoundException {
+    public WebsiteController(@NonNull final Website staticSite, @NonNull final SquashedLogContainer squashedLogContainer) throws PropertyNotFoundException {
 
         this.website = staticSite;
         this.squashedLogContainer = squashedLogContainer;
@@ -53,11 +57,11 @@ public final class WebsiteController {
 
     ///
     @RequestMapping(path = "/{*spring}") // Match anything, except other defined controllers.
-    public ResponseEntity<Object> serveContent(
+    public @NonNull ResponseEntity<Object> serveContent(
 
-        @PathVariable("spring") final String path,
-        @RequestHeader(value = "If-Modified-Since", required = false) final String ifModifiedSince,
-        @RequestAttribute("REQUEST_METHOD_ATTRIBUTE") final String requestMethod
+        @PathVariable("spring") @NonNull final String path,
+        @RequestHeader(value = "If-Modified-Since", required = false) @Nullable final String ifModifiedSince,
+        @RequestAttribute("REQUEST_METHOD_ATTRIBUTE") @NonNull final String requestMethod
     ) {
 
         final WebsiteResource content = website.getContent(path);

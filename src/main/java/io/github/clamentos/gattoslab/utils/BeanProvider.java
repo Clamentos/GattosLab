@@ -9,6 +9,10 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 ///
 @Component
 
@@ -19,7 +23,7 @@ public class BeanProvider implements ApplicationContextAware {
     private static final AtomicReference<ApplicationContext> springContext = new AtomicReference<>();
 
     ///
-    public static <T> T getBean(final Class<T> beanClass, final String beanName) throws BeansException {
+    public static @Nullable <T> T getBean(@NonNull final Class<T> beanClass, @NonNull final String beanName) throws BeansException {
 
         final ApplicationContext context = springContext.get();
 
@@ -29,7 +33,7 @@ public class BeanProvider implements ApplicationContextAware {
 
     ///.
     @Override
-	public synchronized void setApplicationContext(final ApplicationContext context) {
+	public synchronized void setApplicationContext(@NonNull final ApplicationContext context) {
 
         springContext.set(context);
 	}

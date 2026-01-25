@@ -5,7 +5,6 @@ import com.mongodb.MongoException;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 
 ///.
@@ -16,19 +15,22 @@ import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.metrics.DrainMetricsEvent;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
+import io.github.clamentos.gattoslab.observability.metrics.entries.PathInvocationsEntry;
+import io.github.clamentos.gattoslab.observability.metrics.entries.TrackerEntry;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.utils.MutableLong;
 import io.github.clamentos.gattoslab.web.Website;
 
 ///.
+import jakarta.annotation.PreDestroy;
 import jakarta.el.PropertyNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 ///.
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+///..
+import org.apache.catalina.connector.ClientAbortException;
+
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 ///.
 import tools.jackson.core.JsonGenerator;
@@ -88,12 +97,12 @@ public class ObservabilityService implements HandlerInterceptor {
     @Autowired
     public ObservabilityService(
 
-        final PropertyProvider propertyProvider,
-        final Website website,
-        final SystemMetrics systemMetrics,
-        final MongoClientWrapper mongoClientWrapper,
-        final ApplicationEventPublisher applicationEventPublisher,
-        final JsonMapper jsonMapper
+        @NonNull final PropertyProvider propertyProvider,
+        @NonNull final Website website,
+        @NonNull final SystemMetrics systemMetrics,
+        @NonNull final MongoClientWrapper mongoClientWrapper,
+        @NonNull final ApplicationEventPublisher applicationEventPublisher,
+        @NonNull final JsonMapper jsonMapper
 
     ) throws PropertyNotFoundException {
 
@@ -115,44 +124,59 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///
-    @Override
-    public void afterCompletion(final HttpServletRequest request, final HttpServletResponse response, final Object handler, final Exception exc) {
+    public @NonNull List<TrackerEntry> getPathInvocations(@NonNull final TemporalSearchFilter searchFilter) throws MongoException {
 
-        final String trueUrl = request.getRequestURI();
-        final String path = monitoredPaths.contains(trueUrl) ? trueUrl : "<others>";
-        final String userAgent = GenericUtils.getOrDefault(request.getHeader("User-Agent"), "null");
-        final int processingTime = (int)(System.currentTimeMillis() - (long)request.getAttribute("START_TIME_ATTRIBUTE"));
-
-        while(true) {
-
-            if(primaryContext.get().updateMetrics(processingTime, response.getStatus(), path, trueUrl, userAgent)) break;
-            else GenericUtils.sleep(1L);
-        }
-	}
-
-    ///..
-    public Map<String, MutableLong> getPathInvocations(final TemporalSearchFilter searchFilter) throws MongoException {
-
-        return this.getAbsoluteCounts(searchFilter.getStartTimestamp(), searchFilter.getEndTimestamp(), DatabaseCollection.PATH_INVOCATIONS);
+        return this.getAbsoluteCounts(searchFilter, DatabaseCollection.PATH_INVOCATIONS);
     }
 
     ///..
-    public Map<String, MutableLong> getUserAgentsCount(final TemporalSearchFilter searchFilter) throws MongoException {
+    public @NonNull List<TrackerEntry> getUserAgentsCount(@NonNull final TemporalSearchFilter searchFilter) throws MongoException {
 
-        return this.getAbsoluteCounts(searchFilter.getStartTimestamp(), searchFilter.getEndTimestamp(), DatabaseCollection.USER_AGENTS);
+        return this.getAbsoluteCounts(searchFilter, DatabaseCollection.USER_AGENTS);
     }
 
     ///..
-    public StreamingResponseBody getRequestMetrics(final RequestMetricsSearchFilter searchFilter) throws MongoException {
+    public @NonNull StreamingResponseBody getRequestMetrics(@NonNull final RequestMetricsSearchFilter searchFilter) throws MongoException {
 
         return this.fetchMetrics(DatabaseCollection.REQUEST_METRICS, searchFilter);
     }
 
     ///..
-    public StreamingResponseBody getSystemMetrics(final TemporalSearchFilter searchFilter) {
+    public @NonNull StreamingResponseBody getSystemMetrics(@NonNull final TemporalSearchFilter searchFilter) {
 
         return this.fetchMetrics(DatabaseCollection.SYSTEM_METRICS, searchFilter);
     }
+
+    ///..
+    @Override
+    public void afterCompletion(
+
+        @NonNull final HttpServletRequest request,
+        @NonNull final HttpServletResponse response,
+        @Nullable final Object handler,
+        @Nullable final Exception exc
+    ) {
+
+        if(exc != null && (exc instanceof ClientAbortException || exc.getCause() instanceof ClientAbortException)) return;
+
+        final String trueUrl = request.getRequestURI();
+        final String path = monitoredPaths.contains(trueUrl) ? trueUrl : "<others>";
+        final String userAgent = GenericUtils.getOrDefault(request.getHeader("User-Agent"), "null");
+
+        while(true) {
+
+            final boolean success = primaryContext.get().updateMetrics(
+
+                (long)request.getAttribute("START_TIME_ATTRIBUTE"),
+                System.currentTimeMillis(),
+                response.getStatus(),
+                path, trueUrl, userAgent
+            );
+
+            if(success) break;
+            else GenericUtils.sleep(1L);
+        }
+	}
 
     ///.
     @Scheduled(cron = "${app.metrics.dumpToDbSchedule}", scheduler = "batchScheduler")
@@ -193,7 +217,75 @@ public class ObservabilityService implements HandlerInterceptor {
     ///..
     @EventListener
     @Async("batchScheduler")
-    protected void handleDrainEvent(final DrainMetricsEvent event) {
+    protected void handleDrainEvent(@Nullable final DrainMetricsEvent event) {
+
+        this.dumpMetrics();
+    }
+
+    ///..
+    @PreDestroy
+    protected void flushMetricsBeforeQuitting() {
+
+        this.dumpMetrics();
+    }
+
+    ///.
+    private @NonNull List<TrackerEntry> getAbsoluteCounts(@NonNull final TemporalSearchFilter searchFilter, @NonNull final DatabaseCollection mongoCollection)
+    throws MongoException {
+
+        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(mongoCollection);
+        final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).iterator();
+        final Map<String, List<TrackerEntry>> groupByKey = new HashMap<>();
+
+        while(results.hasNext()) {
+
+            final TrackerEntry tracker = mongoCollection == DatabaseCollection.PATH_INVOCATIONS ?
+
+                new PathInvocationsEntry(results.next()) :
+                new TrackerEntry(results.next())
+            ;
+
+            groupByKey.computeIfAbsent(tracker.getKey(), _ -> new ArrayList<>()).add(tracker);
+        }
+
+        final List<TrackerEntry> mergedTrackers = new ArrayList<>();
+
+        for(final Map.Entry<String, List<TrackerEntry>> entry : groupByKey.entrySet()) {
+
+            final List<TrackerEntry> entries = entry.getValue();
+            final TrackerEntry tracker = entries.get(0);
+
+            for(int i = 1; i < entries.size(); i++) {
+
+                tracker.merge(entries.get(i));
+            }
+
+            mergedTrackers.add(tracker);
+        }
+
+        return mergedTrackers;
+    }
+
+    ///..
+    private @NonNull StreamingResponseBody fetchMetrics(@NonNull final DatabaseCollection databaseCollection, @NonNull final SearchFilter searchFilter)
+    throws MongoException {
+
+        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(databaseCollection);
+        final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).sort(Sorts.ascending("timestamp")).iterator();
+
+        return outputStream -> {
+
+            try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
+
+                generator.writeStartArray();
+                while(results.hasNext()) generator.writePOJO(results.next());
+                generator.writeEndArray();
+            }
+        };
+    }
+
+    ///..
+    private void dumpMetrics() {
 
         if(isHandlingEvent.compareAndSet(false, true)) {
 
@@ -225,56 +317,8 @@ public class ObservabilityService implements HandlerInterceptor {
         }
     }
 
-    ///.
-    @SuppressWarnings("unchecked")
-    private Map<String, MutableLong> getAbsoluteCounts(final long startTimestamp, final long endTimestamp, final DatabaseCollection mongoCollection) 
-    throws MongoException {
-
-        final Map<String, MutableLong> result = new HashMap<>();
-        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(mongoCollection);
-
-        final MongoCursor<Document> results = collection
-
-            .find(Filters.and(
-                Filters.gte("timestamp", startTimestamp),
-                Filters.lte("timestamp", endTimestamp))
-            )
-            .iterator()
-        ;
-
-        while(results.hasNext()) {
-
-            final List<Object> elements = results.next().getList("elements", Object.class);
-
-            for(final Object element : elements) {
-
-                final Map<String, Object> elemMap = (Map<String, Object>)element;
-                result.computeIfAbsent((String)elemMap.get("name"), _ -> new MutableLong()).increment((Integer)elemMap.get("count"));
-            }
-        }
-
-        return result;
-    }
-
     ///..
-    private StreamingResponseBody fetchMetrics(final DatabaseCollection databaseCollection, final SearchFilter searchFilter) throws MongoException {
-
-        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(databaseCollection);
-        final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).sort(Sorts.ascending("timestamp")).iterator();
-
-        return outputStream -> {
-
-            try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
-
-                generator.writeStartArray();
-                while(results.hasNext()) generator.writePOJO(results.next());
-                generator.writeEndArray();
-            }
-        };
-    }
-
-    ///..
-    private ObservabilityContext swapContexts() {
+    private @NonNull ObservabilityContext swapContexts() {
 
         final ObservabilityContext primary = primaryContext.get();
 
@@ -285,14 +329,13 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    private void insertMetrics(final ObservabilityContext context) throws MongoException {
+    private void insertMetrics(@NonNull final ObservabilityContext context) throws MongoException {
 
         while(!context.isNoOneThere()) GenericUtils.sleep(1L);
 
         for(final Map.Entry<DatabaseCollection, List<Document>> entity : context.toDocuments().entrySet()) {
 
-            final List<Document> documents = entity.getValue();
-            if(!documents.isEmpty()) mongoClientWrapper.getCollection(entity.getKey()).insertMany(documents);
+            mongoClientWrapper.insertAll(entity.getValue(), entity.getKey());
         }
 
         context.reset();

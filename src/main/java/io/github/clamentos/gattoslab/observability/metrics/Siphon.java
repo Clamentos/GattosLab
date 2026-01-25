@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
+import io.github.clamentos.gattoslab.observability.metrics.entries.MetricsEntry;
+
+///.
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -12,6 +15,10 @@ import org.bson.Document;
 
 ///..
 import org.springframework.context.ApplicationEventPublisher;
+
+///..
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 ///
 public final class Siphon {
@@ -25,7 +32,7 @@ public final class Siphon {
     private final AtomicInteger index;
 
     ///
-    public Siphon(final ApplicationEventPublisher applicationEventPublisher, final int capacity) {
+    public Siphon(@NonNull final ApplicationEventPublisher applicationEventPublisher, final int capacity) {
 
         this.applicationEventPublisher = applicationEventPublisher;
         isDraining = new AtomicBoolean();
@@ -38,7 +45,7 @@ public final class Siphon {
     }
 
     ///
-    public MetricsEntry getNext() {
+    public @Nullable MetricsEntry getNext() {
 
         final int indexValue = index.getAndUpdate(val -> val < elements.length() ? val + 1 : val);
 
@@ -49,7 +56,7 @@ public final class Siphon {
     }
 
     ///..
-    public List<Document> drain() {
+    public @NonNull List<Document> drain() {
 
         isDraining.set(true);
 
