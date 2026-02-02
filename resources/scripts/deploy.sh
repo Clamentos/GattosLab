@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#/root
+#/
 #    /GattosLab
 #        /run
 #            gattoslab-x.y.z.jar
@@ -33,20 +33,23 @@ function delete_if_present_and_log () {
     else echo "$2"; fi
 }
 
-BASE_DIR="/root/GattosLab"
+BASE_DIR="/GattosLab"
 BUILD_DIR="$BASE_DIR/build"
 REPO_DIR="$BUILD_DIR/repository"
 RUN_DIR="$BASE_DIR/run"
 SECRETS_FILE="$BUILD_DIR/secrets.env"
 APP_USER="gattoslab"
+APP_USER_GROUP="gattoslab-group"
 BOLD_PRINT="\e[1;37m"
 RED_PRINT="\e[1;31m"
 YELLOW_PRINT="\e[1;33m"
 GREEN_PRINT="\e[1;32m"
 RESET_COLORS="\e[0m"
 
+echo ""
 echo -e "$BOLD_PRINT=> PROJECT BUILD$RESET_COLORS"
 echo "--> Cloning the repository"
+echo ""
 rm -fr "$REPO_DIR"
 git clone https://github.com/Clamentos/GattosLab.git "$REPO_DIR"
 
@@ -116,17 +119,18 @@ delete_if_present_and_log "$PID_FILE" "---> Old pid.txt was not present"
 
 echo "--> Copying $NEW_JAR_NAME into run directory"
 cp "$NEW_JAR_FILE" "$RUN_DIR"
-chown "$APP_USER:$APP_USER" "$RUN_DIR/$NEW_JAR_NAME"
+chown "$APP_USER:$APP_USER_GROUP" "$RUN_DIR/$NEW_JAR_NAME"
 
 # Launch the new application and wait for a successful start
 echo "--> Starting the new application"
 cd "$RUN_DIR"
 
-(
+runuser -u "$APP_USER" -- bash -c "
+
     set -a
     source "$SECRETS_FILE"
-    runuser "$APP_USER" -c 'java -jar "$RUN_DIR/$NEW_JAR_NAME" --spring.profiles.active=prod -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseHugeTLBFS -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError -XX:-FlightRecorder' &
-)
+    exec java -jar "$RUN_DIR/$NEW_JAR_NAME" --spring.profiles.active=prod -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseHugeTLBFS -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError -XX:-FlightRecorder
+" &
 
 echo "--> Waiting for the app to start"
 

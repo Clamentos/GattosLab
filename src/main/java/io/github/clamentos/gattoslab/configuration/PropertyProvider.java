@@ -25,6 +25,7 @@ public final class PropertyProvider {
     public PropertyProvider(@NonNull final Environment environment) {
 
         this.environment = environment;
+        System.out.println("DBG " + environment.getProperty("app.database.connectionString"));
     }
 
     ///
