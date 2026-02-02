@@ -11,9 +11,9 @@ app:
 security:
   require-ssl: true
 server:
-  port: 8080
+  port: 443
   ssl:
-    key-store: "/etc/letsencrypt/live/gattoslab.dev/keystore.p12"
+    key-store: "/GattosLab/run/keystore.p12"
     key-store-password: ${SSL_KEY_STORE_PASSWORD}
     keyAlias: "tomcat"
     keyStoreType: "PKCS12"
