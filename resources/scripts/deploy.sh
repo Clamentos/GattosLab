@@ -1,17 +1,25 @@
 #!/bin/bash
 
 #/
-#    /GattosLab
-#        /run
-#            gattoslab-x.y.z.jar
-#            console_out.log
-#            fallback_logs.log
-#            pid.txt
-#        /build
-#            secrets.env
-#            deploy.sh
-#            /repository
-#                [git repo: standard Spring structure...]
+#    /GattosLab                                                 [root]
+#        /run                                                   [gattoslab]
+#            gattoslab-x.y.z.jar                                [gattoslab]
+#            console_out.log                                    [gattoslab]
+#            fallback_logs.log                                  [gattoslab]
+#            pid.txt                                            [gattoslab]
+#            keystore.p12                                       [gattoslab]
+#        /build                                                 [root]
+#            secrets.env                                        [root]
+#            deploy.sh                                          [root]
+#            /repository                                        [root]
+#                [git repo: standard Spring structure...]       [root]
+
+# Other worthy notes:
+# 1) since the app runs with the gattoslab user, which is a minimal system user, some extra steps are needed:
+#     - port 443 is privileged and the java executable needs permissions: sudo setcap 'cap_net_bind_service=+ep' /path/to/java/executable
+#     - the keystore.p12:
+#         -- must be readable by gattoslab (ownership with read only)
+#         -- certbot renewal hook that regenerates and moves the keystore.p12 when certificate is renewed successfully
 
 function await_process_termination () {
 
@@ -46,19 +54,15 @@ YELLOW_PRINT="\e[1;33m"
 GREEN_PRINT="\e[1;32m"
 RESET_COLORS="\e[0m"
 
-echo ""
-echo -e "$BOLD_PRINT=> PROJECT BUILD$RESET_COLORS"
-echo "--> Cloning the repository"
-echo ""
+echo -e "$BOLD_PRINT\n=> PROJECT BUILD$RESET_COLORS"
+echo -e "--> Cloning the repository\n"
 rm -fr "$REPO_DIR"
 git clone https://github.com/Clamentos/GattosLab.git "$REPO_DIR"
 
-echo "--> Building the project with mvn"
-echo ""
+echo -e "\n--> Building the project with mvn\n"
 mvn -f "$REPO_DIR"/pom.xml clean package -DskipTests
 
-echo ""
-echo -e "$BOLD_PRINT=> PROJECT DEPLOY$RESET_COLORS"
+echo -e "$BOLD_PRINT\n=> PROJECT DEPLOY$RESET_COLORS"
 echo "--> Grabbing the generated JAR"
 NEW_JAR_FILE="$(find "$REPO_DIR"/target/ -name "gattoslab*.jar")"
 
