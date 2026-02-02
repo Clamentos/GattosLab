@@ -5,7 +5,7 @@ import com.mongodb.MongoException;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Sorts;
+import com.mongodb.client.model.Filters;
 
 ///.
 import io.github.clamentos.gattoslab.configuration.PropertyProvider;
@@ -15,8 +15,6 @@ import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.metrics.DrainMetricsEvent;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
-import io.github.clamentos.gattoslab.observability.metrics.entries.PathInvocationsEntry;
-import io.github.clamentos.gattoslab.observability.metrics.entries.TrackerEntry;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
@@ -30,8 +28,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 ///.
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -45,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 ///..
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,6 +73,8 @@ public class ObservabilityService implements HandlerInterceptor {
 
     ///
     private final int siphonCapacity;
+    private final int requestMetricsRetention;
+    private final int systemMetricsRetention;
     private final Set<String> monitoredPaths;
 
     ///..
@@ -107,6 +106,8 @@ public class ObservabilityService implements HandlerInterceptor {
     ) throws PropertyNotFoundException {
 
         siphonCapacity = propertyProvider.getProperty("app.metrics.siphonCapacity", Integer.class);
+        requestMetricsRetention = propertyProvider.getProperty("app.metrics.requestMetricsRetention", Integer.class);
+        systemMetricsRetention = propertyProvider.getProperty("app.metrics.systemMetricsRetention", Integer.class);
         monitoredPaths = website.getPaths();
 
         this.systemMetrics = systemMetrics;
@@ -124,18 +125,6 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///
-    public @NonNull List<TrackerEntry> getPathInvocations(@NonNull final TemporalSearchFilter searchFilter) throws MongoException {
-
-        return this.getAbsoluteCounts(searchFilter, DatabaseCollection.PATH_INVOCATIONS);
-    }
-
-    ///..
-    public @NonNull List<TrackerEntry> getUserAgentsCount(@NonNull final TemporalSearchFilter searchFilter) throws MongoException {
-
-        return this.getAbsoluteCounts(searchFilter, DatabaseCollection.USER_AGENTS);
-    }
-
-    ///..
     public @NonNull StreamingResponseBody getRequestMetrics(@NonNull final RequestMetricsSearchFilter searchFilter) throws MongoException {
 
         return this.fetchMetrics(DatabaseCollection.REQUEST_METRICS, searchFilter);
@@ -158,19 +147,18 @@ public class ObservabilityService implements HandlerInterceptor {
     ) {
 
         if(exc != null && (exc instanceof ClientAbortException || exc.getCause() instanceof ClientAbortException)) return;
-
-        final String trueUrl = request.getRequestURI();
-        final String path = monitoredPaths.contains(trueUrl) ? trueUrl : "<others>";
-        final String userAgent = GenericUtils.getOrDefault(request.getHeader("User-Agent"), "null");
+        final String path = request.getRequestURI();
 
         while(true) {
 
             final boolean success = primaryContext.get().updateMetrics(
 
+                path,
+                request.getHeader("User-Agent"),
+                !monitoredPaths.contains(path),
                 (long)request.getAttribute("START_TIME_ATTRIBUTE"),
                 System.currentTimeMillis(),
-                response.getStatus(),
-                path, trueUrl, userAgent
+                response.getStatus()
             );
 
             if(success) break;
@@ -215,6 +203,40 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
+    @Scheduled(cron = "${app.metrics.retentionSchedule}", scheduler = "batchScheduler")
+    protected void deleteOldMetrics() {
+
+        log.info("Begin delete metrics by retention");
+        final ClientSession session = mongoClientWrapper.getClient().startSession();
+
+        long requestsDeleted = 0;
+        long systemsDeleted = 0;
+
+        try {
+
+            final long now = System.currentTimeMillis();
+            final Bson requestDeleteFilter = Filters.lte("timestamp", now - (requestMetricsRetention * 24 * 3600 * 1000));
+            final Bson systemDeleteFilter = Filters.lte("timestamp", now - (systemMetricsRetention * 24 * 3600 * 1000));
+
+            session.startTransaction();
+
+            requestsDeleted = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS).deleteMany(requestDeleteFilter).getDeletedCount();
+            systemsDeleted = mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).deleteMany(systemDeleteFilter).getDeletedCount();
+
+            session.commitTransaction();
+        }
+
+        catch(final Exception exc) {
+
+            log.error("Could not delete old metrics from DB", exc);
+            session.abortTransaction();
+        }
+
+        log.info("End delete metrics by retention, deleted {} request metrics and {} system metrics", requestsDeleted, systemsDeleted);
+        session.close();
+    }
+
+    ///..
     @EventListener
     @Async("batchScheduler")
     protected void handleDrainEvent(@Nullable final DrainMetricsEvent event) {
@@ -230,48 +252,11 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///.
-    private @NonNull List<TrackerEntry> getAbsoluteCounts(@NonNull final TemporalSearchFilter searchFilter, @NonNull final DatabaseCollection mongoCollection)
-    throws MongoException {
-
-        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(mongoCollection);
-        final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).iterator();
-        final Map<String, List<TrackerEntry>> groupByKey = new HashMap<>();
-
-        while(results.hasNext()) {
-
-            final TrackerEntry tracker = mongoCollection == DatabaseCollection.PATH_INVOCATIONS ?
-
-                new PathInvocationsEntry(results.next()) :
-                new TrackerEntry(results.next())
-            ;
-
-            groupByKey.computeIfAbsent(tracker.getKey(), _ -> new ArrayList<>()).add(tracker);
-        }
-
-        final List<TrackerEntry> mergedTrackers = new ArrayList<>();
-
-        for(final Map.Entry<String, List<TrackerEntry>> entry : groupByKey.entrySet()) {
-
-            final List<TrackerEntry> entries = entry.getValue();
-            final TrackerEntry tracker = entries.get(0);
-
-            for(int i = 1; i < entries.size(); i++) {
-
-                tracker.merge(entries.get(i));
-            }
-
-            mergedTrackers.add(tracker);
-        }
-
-        return mergedTrackers;
-    }
-
-    ///..
     private @NonNull StreamingResponseBody fetchMetrics(@NonNull final DatabaseCollection databaseCollection, @NonNull final SearchFilter searchFilter)
     throws MongoException {
 
         final MongoCollection<Document> collection = mongoClientWrapper.getCollection(databaseCollection);
-        final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).sort(Sorts.ascending("timestamp")).iterator();
+        final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).sort(searchFilter.getSorting()).iterator();
 
         return outputStream -> {
 

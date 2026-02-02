@@ -5,7 +5,7 @@
 
         <meta charset = "utf-8"/>
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
-        <meta name = "description" content = "Admin site performance metrics page."/>
+        <meta name = "description" content = "Admin site request performance metrics page."/>
 
         <link rel = "stylesheet" href = "../../css/base.css"/>
         <link rel = "stylesheet" href = "../../css/header.css"/>
@@ -41,7 +41,7 @@
             </div>
 
             <div class = "nav-crumb">
-                <a href = "../../index.html">Home</a> > <a href = "../index.html">Admin</a> > Metrics
+                <a href = "../../index.html">Home</a> > <a href = "../index.html">Admin</a> > Request metrics
             </div>
 
         </nav>
@@ -58,7 +58,9 @@
 
                         <p class = "form-field-description">
 
-                            <strong>Start time:</strong> specify the start time of the window. On page load, it's automatically set to the current day. Clearing this field will cause the search to ignore this field and fetch arbitrarily far into the past.
+                            <strong>Start time:</strong>
+                            specify the start time of the window. On page load, it's automatically set to the current day. Clearing this field will cause the search to ignore this field and fetch arbitrarily far into the past.
+
                         </p>
 
                     </div>
@@ -68,17 +70,40 @@
                         <input class = "form-input" type = "datetime-local" name = "endTimestamp">
 
                         <p class = "form-field-description">
-                            <strong>End time:</strong> specify the end time of the window. Clearing this field will cause the search to ignore this filter and fetch arbitrarily far into the future.
+
+                            <strong>End time:</strong>
+                            specify the end time of the window. Clearing this field will cause the search to ignore this filter and fetch arbitrarily far into the future.
+
                         </p>
 
                     </div>
 
                     <div class = "form-input-group">
 
-                        <input class = "form-input" type = "text" name = "paths" placeholder = "index.html,...">
+                        <select class = "form-input" name = "onlyOthers">
+                            <option value = "">-</option>
+                            <option value = "true">Only unknown</option>
+                            <option value = "false">Only known</option>
+                        </select>
 
                         <p class = "form-field-description">
-                            <strong>Paths:</strong> specify the request paths to be included in the search. To specify multiple, simply separate the paths with a comma (no spaces). Clearing this field will cause the search to ignore this filter.
+
+                            <strong>Only others:</strong>
+                            specify if bogus paths (non existent / unknown) should be included or not in the search filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "pathPattern">
+
+                        <p class = "form-field-description">
+
+                            <strong>Path pattern:</strong>
+                            specify the path pattern. Clearing this field will cause the search to ignore this filter.
+
                         </p>
 
                     </div>
@@ -88,7 +113,10 @@
                         <input class = "form-input" type = "text" name = "httpStatuses" placeholder = "200,404,...">
 
                         <p class = "form-field-description">
-                            <strong>HTTP Statuses:</strong> specify the response statuses to be included in the search. To specify multiple, simply separate the values with a comma (no spaces). Clearing this field will cause the search to ignore this filter.
+
+                            <strong>HTTP Statuses:</strong>
+                            specify the response statuses to be included in the search. To specify multiple, simply separate the values with a comma (no spaces). Clearing this field will cause the search to ignore this filter.
+
                         </p>
 
                     </div>
@@ -98,7 +126,10 @@
                         <input class = "form-input" type = "number" name = "resolution" placeholder = "1,2,3,...">
 
                         <p class = "form-field-description">
-                            <strong>Resolution:</strong> specify the resolution of the charts in seconds. Clearing this field will cause the charts to default to 10 minutes.
+
+                            <strong>Resolution:</strong>
+                            specify the resolution of the charts in seconds. Clearing this field will cause the charts to default to 10 minutes (600 seconds).
+
                         </p>
 
                     </div>
@@ -108,11 +139,8 @@
 
                 </form>
 
-                <canvas class = "chartjs-canvas" id = "RequestsPerSecondChart"></canvas>
-                <canvas class = "chartjs-canvas" id = "LatencyChart"></canvas>
-                <canvas class = "chartjs-canvas" id = "SystemMemoryChart"></canvas>
-                <canvas class = "chartjs-canvas" id = "SystemCpuChart"></canvas>
-                <canvas class = "chartjs-canvas" id = "SystemThreadChart"></canvas>
+                <canvas class = "chartjs-canvas" id = "RequestsRateChart"></canvas>
+                <canvas class = "chartjs-canvas" id = "RequestLatencyChart"></canvas>
 
             </div>
 
@@ -127,6 +155,6 @@
     <script src = "../../js/refresh.js" module></script>
     <script src = "../../js/logout.js" module></script>
     <script src = "../../js/chartjsMin.js" module></script>
-    <script src = "../../js/metrics.js" module></script>
+    <script src = "../../js/request-metrics.js" module></script>
 
 </html>

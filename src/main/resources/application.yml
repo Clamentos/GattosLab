@@ -2,11 +2,18 @@ app:
   batch:
     poolSize: 5
     terminationWaitPeriod: 10 # Seconds
+  logs:
+    logsRetention: 7 # Days
+    retentionSchedule: "0 0 0 * * *" # Every day at 00:00:00
+    squashSchedule: "0 * * * * *" # Every minute
   metrics:
     dumpToDbSchedule: "0 * * * * *" # Every minute
-    systemMetricsSampling: "*/10 * * * * *" # Every 10 seconds
     enabled: true # Affects all types
+    requestMetricsRetention: 7 # Days
+    retentionSchedule: "0 0 0 * * *" # Every day at 00:00:00
     siphonCapacity: 100000
+    systemMetricsRetention: 7 # Days
+    systemMetricsSampling: "*/10 * * * * *" # Every 10 seconds
   ratelimit:
     enabled: true
     maxTokensPerIp: 200
@@ -16,14 +23,12 @@ app:
     admin:
       maxSessions: 10
       sessionDuration: 3600 # Seconds
+    cleanSchedule: "0 * * * * *" # Every minute
     cookieName: "GattosLabSessionId"
     loginDelay: 500 # Milliseconds
-    cleanSchedule: "0 * * * * *" # Every minute
   site:
     cacheDuration: 10080 # Minutes
     root: site
-  squash:
-    logSchedule: "0 * * * * *" # Every minute
 logging:
   level:
     org:

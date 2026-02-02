@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 
 ///..
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 ///
 @Component
@@ -39,13 +40,13 @@ public final class SquashedLogContainer {
     }
 
     ///
-    public <T> void squash(@NonNull final SquashLogEventType eventType, @NonNull final T value) {
+    public <T> void squash(@NonNull final SquashLogEventType eventType, @Nullable final T value) {
 
         squashEvents.get(eventType).update(value);
     }
 
     ///.
-    @Scheduled(cron = "${app.squash.logSchedule}", scheduler = "batchScheduler")
+    @Scheduled(cron = "${app.logs.squashSchedule}", scheduler = "batchScheduler")
     protected void log() {
 
         for(final SquashLogEvent event : squashEvents.values()) {

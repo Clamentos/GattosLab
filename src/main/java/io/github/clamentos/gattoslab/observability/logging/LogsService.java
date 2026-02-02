@@ -2,11 +2,14 @@ package io.github.clamentos.gattoslab.observability.logging;
 
 ///
 import com.mongodb.MongoException;
+import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 
 ///.
+import io.github.clamentos.gattoslab.configuration.PropertyProvider;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
@@ -21,9 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.bson.Document;
+import org.bson.conversions.Bson;
 
 ///..
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -42,12 +47,22 @@ import tools.jackson.databind.json.JsonMapper;
 public final class LogsService {
 
     ///
+    private final int logsRetention;
+
+    ///..
     private final MongoClientWrapper mongoClientWrapper;
     private final JsonMapper jsonMapper;
 
     ///
     @Autowired
-    public LogsService(@NonNull final MongoClientWrapper mongoClientWrapper, @NonNull final JsonMapper jsonMapper) {
+    public LogsService(
+
+        @NonNull final PropertyProvider propertyProvider,
+        @NonNull final MongoClientWrapper mongoClientWrapper,
+        @NonNull final JsonMapper jsonMapper
+    ) {
+
+        logsRetention = propertyProvider.getProperty("app.logs.logsRetention", Integer.class);
 
         this.mongoClientWrapper = mongoClientWrapper;
         this.jsonMapper = jsonMapper;
@@ -85,6 +100,35 @@ public final class LogsService {
                 generator.writeEndArray();
             }
         };
+    }
+
+    ///.
+    @Scheduled(cron = "${app.logs.retentionSchedule}", scheduler = "batchScheduler")
+    protected void deleteOldMetrics() {
+
+        log.info("Begin delete logs by retention");
+
+        final ClientSession session = mongoClientWrapper.getClient().startSession();
+        long deleted = 0;
+
+        try {
+
+            final long now = System.currentTimeMillis();
+            final Bson logsDeleteFilter = Filters.lte("timestamp", now - (logsRetention * 24 * 3600 * 1000));
+
+            session.startTransaction();
+            deleted = mongoClientWrapper.getCollection(DatabaseCollection.LOGS).deleteMany(logsDeleteFilter).getDeletedCount();
+            session.commitTransaction();
+        }
+
+        catch(final Exception exc) {
+
+            log.error("Could not delete old logs from DB", exc);
+            session.abortTransaction();
+        }
+
+        log.info("End delete metrics by retention, deleted {} logs", deleted);
+        session.close();
     }
 
     ///

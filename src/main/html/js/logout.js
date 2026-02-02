@@ -4,10 +4,8 @@ function logout(role, redirect) {
 
         if(response.status === 200) {
 
-            const role = localStorage.getItem("GattosLabRole");
-
             localStorage.clear("GattosLabRole");
-            localStorage.clear(`GattosLabSessionExpire${role}`);
+            localStorage.clear(`GattosLabSessionExpire${localStorage.getItem("GattosLabRole")}`);
 
             if(redirect !== undefined && redirect !== null && response.status === 200) {
 

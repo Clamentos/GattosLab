@@ -2,6 +2,9 @@ fetchAndRenderSessionMetadata();
 
 function fetchAndRenderSessionMetadata() {
 
+    document.getElementById("loader").style = "display: inline-block; width: 85%";
+    document.getElementById("session-count").innerText = `Sessions count: -`;
+
     const tableBody = document.getElementById("session-table-hook");
     tableBody.replaceChildren();
 
@@ -11,7 +14,7 @@ function fetchAndRenderSessionMetadata() {
 
             response.json().then(json => {
 
-                document.getElementById("session-count").innerText = `Sessions: ${json.length}`;
+                document.getElementById("session-count").innerText = `Sessions count: ${json.length}`;
                 for(const entry of json) appendRow(entry, tableBody);
             });
         }
@@ -21,7 +24,8 @@ function fetchAndRenderSessionMetadata() {
             response.json().then(errorBody => pushError(errorBody));
         }
     })
-    .catch(error_ => pushError(error_));
+    .catch(error_ => pushError(error_))
+    .finally(() => document.getElementById("loader").style = "");
 }
 
 function appendRow(entry, table) {

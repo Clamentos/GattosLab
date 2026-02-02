@@ -29,8 +29,10 @@ import org.jspecify.annotations.Nullable;
 public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
     ///
-    @Nullable private final Set<String> paths;
+    @Nullable private final Boolean onlyOthers;
+    @Nullable private final String pathPattern;
     @Nullable private final Set<Integer> httpStatuses;
+    @Nullable private final String userAgentPattern;
 
     ///
     @JsonCreator
@@ -38,14 +40,18 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
         @JsonProperty("startTimestamp") final long startTimestamp,
         @JsonProperty("endTimestamp") final long endTimestamp,
-        @JsonProperty("paths") @Nullable final Set<String> paths,
-        @JsonProperty("httpStatuses") @Nullable final Set<Integer> httpStatuses
+        @JsonProperty("onlyOthers") @Nullable final Boolean onlyOthers,
+        @JsonProperty("pathPattern") @Nullable final String pathPattern,
+        @JsonProperty("httpStatuses") @Nullable final Set<Integer> httpStatuses,
+        @JsonProperty("userAgentPattern") @Nullable final String userAgentPattern
     ) {
 
         super(startTimestamp, endTimestamp);
 
-        this.paths = paths;
+        this.onlyOthers = onlyOthers;
+        this.pathPattern = pathPattern;
         this.httpStatuses = httpStatuses;
+        this.userAgentPattern = userAgentPattern;
     }
 
     ///
@@ -57,8 +63,10 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
         filters.add(Filters.gte("timestamp", super.getStartTimestamp()));
         filters.add(Filters.lte("timestamp", super.getEndTimestamp()));
 
-        if(paths != null && !paths.isEmpty()) filters.add(Filters.in("path", paths));
+        if(onlyOthers != null) filters.add(Filters.eq("isOthers", onlyOthers));
+        if(pathPattern != null && !pathPattern.isEmpty()) filters.add(Filters.regex("path", pathPattern));
         if(httpStatuses != null && !httpStatuses.isEmpty()) filters.add(Filters.in("httpStatus", httpStatuses));
+        if(userAgentPattern != null && !userAgentPattern.isEmpty()) filters.add(Filters.regex("userAgent", userAgentPattern));
 
         return Filters.and(filters);
     }

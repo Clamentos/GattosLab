@@ -8,7 +8,6 @@ import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
-import io.github.clamentos.gattoslab.observability.metrics.entries.TrackerEntry;
 import io.github.clamentos.gattoslab.session.SessionMetadata;
 import io.github.clamentos.gattoslab.session.SessionService;
 
@@ -44,28 +43,9 @@ public final class ObservabilityController {
     private final LogsService logsService;
 
     ///
-    @PostMapping(path = "/path-invocations", consumes = "application/json", produces = "application/json")
-    public @NonNull ResponseEntity<List<TrackerEntry>> getPathInvocations(@RequestBody(required = true) @NonNull final TemporalSearchFilter searchFilter)
-    throws MongoException {
-
-        return ResponseEntity.ok().header("Cache-Control", "no-cache").body(observabilityService.getPathInvocations(searchFilter));
-    }
-
-    ///..
-    @PostMapping(path = "/user-agents-count", consumes = "application/json", produces = "application/json")
-    public @NonNull ResponseEntity<List<TrackerEntry>> getUserAgentsCount(@RequestBody(required = true) @NonNull final TemporalSearchFilter searchFilter)
-    throws MongoException {
-
-        return ResponseEntity.ok().header("Cache-Control", "no-cache").body(observabilityService.getUserAgentsCount(searchFilter));
-    }
-
-    ///..
     @PostMapping(path = "/request-metrics", consumes = "application/json", produces = "application/json")
-    public @NonNull ResponseEntity<StreamingResponseBody> getRequestMetrics(
-
-        @RequestBody(required = true) @NonNull final RequestMetricsSearchFilter chartSearchFilter
-
-    ) throws MongoException {
+    public @NonNull ResponseEntity<StreamingResponseBody> getRequestMetrics(@RequestBody @NonNull final RequestMetricsSearchFilter chartSearchFilter)
+    throws MongoException {
 
         return ResponseEntity
 

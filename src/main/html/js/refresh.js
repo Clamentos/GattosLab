@@ -6,11 +6,7 @@ function doRefresh() {
 
         const role = localStorage.getItem("GattosLabRole");
 
-        fetch(`/api/session?role=${role}`, {
-
-            method: "PUT"
-        })
-        .then(response => {
+        fetch(`/api/session?role=${role}`, { method: "PUT" }).then(response => {
 
             if(response.status === 200) {
 

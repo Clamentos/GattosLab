@@ -16,10 +16,8 @@ public enum DatabaseCollection {
 
     ///
     LOGS("Logs"),
-    PATH_INVOCATIONS("PathInvocations"),
     REQUEST_METRICS("RequestMetrics"),
-    SYSTEM_METRICS("SystemMetrics"),
-    USER_AGENTS("UserAgents");
+    SYSTEM_METRICS("SystemMetrics");
 
     ///
     @NonNull private final String value;

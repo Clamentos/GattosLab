@@ -1,25 +1,14 @@
-let counter = 0;
+let toastCounter = 0;
 
 function pushError(error) {
 
-    const id = `error-toast-${counter++}`;
     const errorContainer = document.getElementById("error-container");
-
     const errorDiv = document.createElement("div");
+
+    errorDiv.id = `error-toast-${toastCounter++}`;
     errorDiv.className = "error-toast";
-    errorDiv.innerText = formatError(error);
-    errorDiv.id = id;
+    errorDiv.innerText = error.type === "about:custom_error" ? `${error.status} ${error.title}` : `Error: ${error}`;
 
     errorContainer.insertBefore(errorDiv, errorContainer.firstChild);
-    setTimeout(function() { errorDiv.remove(); }, 5100);
-}
-
-function formatError(error) {
-
-    let text;
-
-    if(error.type === "about:custom_error") text = `${error.status} ${error.title}`;
-    else text = `Error: ${error}`;
-
-    return text;
+    setTimeout(function() { errorDiv.remove(); }, 5000);
 }

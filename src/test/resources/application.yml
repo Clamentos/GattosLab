@@ -1,4 +1,26 @@
 app:
+  batch:
+    poolSize: 5
+    terminationWaitPeriod: 10 # Seconds
+  database:
+    connectionString: "mongodb://localhost:27017/GattosLabTestMongoDB"
+  logs:
+    logsRetention: 7 # Days
+    retentionSchedule: "0 0 0 * * *" # Every day at 00:00:00
+    squashSchedule: "0 * * * * *" # Every minute
+  metrics:
+    dumpToDbSchedule: "0 * * * * *" # Every minute
+    enabled: true # Affects all types
+    siphonCapacity: 5000
+    systemMetricsRetention: 7 # Days
+    systemMetricsSampling: "*/10 * * * * *" # Every 10 seconds
+    requestMetricsRetention: 7 # Days
+    retentionSchedule: "0 0 0 * * *" # Every day at 00:00:00
+  ratelimit:
+    enabled: true
+    maxTokensPerIp: 100 #200
+    replenishRate: 1000 #10000 # Milliseconds
+    retryAfter: 2000 #60000 # Milliseconds
   session:
     admin:
       apiKey: "test"
@@ -6,31 +28,14 @@ app:
       maxSessions: 10
       sessionDuration: 28800 # Seconds
     cookieName: "GattosLabSessionId"
-    enabled: true
-    loginDelay: 500 # Milliseconds
     cleanSchedule: "0 * * * * *" # Every minute
     cors:
       origins: "http://localhost:8443"
-  batch:
-    poolSize: 5
-    terminationWaitPeriod: 10 # Seconds
-  database:
-    connectionString: "mongodb://localhost:27017/GattosLabTestMongoDB"
-  metrics:
-    dumpToDbSchedule: "0 * * * * *" # Every minute
-    systemMetricsSampling: "*/10 * * * * *" # Every 10 seconds
-    enabled: true # Affects all types
-    siphonCapacity: 5000
-  ratelimit:
     enabled: true
-    maxTokensPerIp: 100 #200
-    replenishRate: 1000 #10000 # Milliseconds
-    retryAfter: 2000 #60000 # Milliseconds
+    loginDelay: 500 # Milliseconds
   site:
     cacheDuration: 10080 # Minutes
     root: site
-  squash:
-    logSchedule: "0 * * * * *" # Every minute
 security:
   require-ssl: true
 server:
@@ -43,11 +48,11 @@ server:
   max-http-request-header-size: 2048 # Bytes
   port: 8443
   shutdown: "graceful"
-  ssl:
-    key-store: classpath:keystore.p12
-    key-store-password: password
-    key-store-type: PKCS12
-    key-alias: http2-alias
+  #ssl:
+  #  key-store: classpath:keystore.p12
+  #  key-store-password: password
+  #  key-store-type: PKCS12
+  #  key-alias: http2-alias
   tomcat:
     accept-count: 256 # Maximum pending connection queue depth
     max-connections: 8192

@@ -107,8 +107,6 @@ public final class Website {
         websiteStructure.put("/", new WebsiteResource("/", websiteStructure.get("/index.html")));
 
         this.addPath(websiteStructure, "/api/session", Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
-        this.addPath(websiteStructure, "/admin/api/observability/path-invocations", supportedPostMethod);
-        this.addPath(websiteStructure, "/admin/api/observability/user-agents-count", supportedPostMethod);
         this.addPath(websiteStructure, "/admin/api/observability/request-metrics", supportedPostMethod);
         this.addPath(websiteStructure, "/admin/api/observability/system-metrics", supportedPostMethod);
         this.addPath(websiteStructure, "/admin/api/observability/sessions-metadata", supportedGetMethod);

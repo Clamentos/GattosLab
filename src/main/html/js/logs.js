@@ -113,8 +113,7 @@ function appendRow(log, table) {
 
     exception.className = "table-data-elem";
     exception.style = "width: 15%";
-    if(log.exception !== null && log.exception !== undefined) exception.innerText = formatException(log.exception);
-    else exception.innerText = "";
+    exception.innerText = (log.exception !== null && log.exception !== undefined) ? formatException(log.exception) : "";
 
     tr.appendChild(timestamp);
     tr.appendChild(severity);

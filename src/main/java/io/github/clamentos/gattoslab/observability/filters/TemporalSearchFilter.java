@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 ///..
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 
 ///.
 import lombok.Getter;
@@ -28,11 +29,7 @@ public class TemporalSearchFilter implements SearchFilter {
 
     ///
     @JsonCreator
-    public TemporalSearchFilter(
-
-        @JsonProperty("startTimestamp") final long startTimestamp,
-        @JsonProperty("endTimestamp") final long endTimestamp
-    ) {
+    public TemporalSearchFilter(@JsonProperty("startTimestamp") final long startTimestamp, @JsonProperty("endTimestamp") final long endTimestamp) {
 
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
@@ -43,6 +40,13 @@ public class TemporalSearchFilter implements SearchFilter {
     public @NonNull Bson toBsonFilter() {
 
         return Filters.and(Filters.gte("timestamp", startTimestamp), Filters.lte("timestamp", endTimestamp));
+    }
+
+    ///..
+    @Override
+    public @NonNull Bson getSorting() {
+
+        return Sorts.ascending("timestamp");
     }
 
     ///

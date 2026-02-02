@@ -58,7 +58,9 @@
 
                         <p class = "form-field-description">
 
-                            <strong>Start time:</strong> specify the start time of the window. On page load, it's automatically set to the current day. Clearing this field will cause the search to ignore this field and fetch arbitrarily far into the past.
+                            <strong>Start time:</strong>
+                            specify the start time of the window. On page load, it's automatically set to the current day. Clearing this field will cause the search to ignore this field and fetch arbitrarily far into the past.
+
                         </p>
 
                     </div>
@@ -69,7 +71,65 @@
 
                         <p class = "form-field-description">
 
-                            <strong>End time:</strong> specify the end time of the window. Clearing this field will cause the search to ignore this filter and fetch arbitrarily far into the future.
+                            <strong>End time:</strong>
+                            specify the end time of the window. Clearing this field will cause the search to ignore this filter and fetch arbitrarily far into the future.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <select class = "form-input" name = "onlyOthers">
+                            <option value = "">-</option>
+                            <option value = "true">Only unknown</option>
+                            <option value = "false">Only known</option>
+                        </select>
+
+                        <p class = "form-field-description">
+
+                            <strong>Only others:</strong>
+                            specify if bogus paths (non existent / unknown) should be included or not in the search filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "pathPattern">
+
+                        <p class = "form-field-description">
+
+                            <strong>Path pattern:</strong>
+                            specify the path pattern. Clearing this field will cause the search to ignore this filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "httpStatuses" placeholder = "200,404,...">
+
+                        <p class = "form-field-description">
+
+                            <strong>HTTP Statuses:</strong>
+                            specify the response statuses to be included in the search. To specify multiple, simply separate the values with a comma (no spaces). Clearing this field will cause the search to ignore this filter.
+
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "userAgentPattern">
+
+                        <p class = "form-field-description">
+
+                            <strong>User agent pattern:</strong>
+                            specify the user agent's pattern. Clearing this field will cause the search to ignore this filter.
+
                         </p>
 
                     </div>

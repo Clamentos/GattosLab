@@ -1,17 +1,10 @@
-const pathMeta = {id: "invocations-count", text: "Distinct paths:", hook: "invocations-table-hook"};
-const userAgentMeta = {id: "user-agents-count", text: "Distinct user agents:", hook: "user-agents-table-hook"};
 const timestampMax = 999999999999999;
 const today = new Date();
 
-let inFlightCounter = 0;
-
 today.setUTCHours(0, 0, 0, 0);
-
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
-document.getElementById("submit-loader").style = "display: inline-block";
 
-fetchAndRenderInvocations(today.getTime(), timestampMax, "path-invocations", pathMeta);
-fetchAndRenderInvocations(today.getTime(), timestampMax, "user-agents-count", userAgentMeta);
+fetchAndRenderInvocations(today.getTime(), timestampMax);
 
 function onSubmitEvent(event) {
 
@@ -19,25 +12,35 @@ function onSubmitEvent(event) {
 
     const formStartTimestamp = event.target.startTimestamp.value;
     const formEndTimestamp = event.target.endTimestamp.value;
+    const formOnlyOthers = event.target.onlyOthers.value;
+    const formPathPattern = event.target.pathPattern.value;
+    const formHttpStatuses = event.target.httpStatuses.value;
+    const formUserAgentPattern = event.target.userAgentPattern.value;
 
-    const filterStartTimestamp = formStartTimestamp === "" ? 0 : Date.parse(formStartTimestamp);
-    const filterEndTimestamp = formEndTimestamp === "" ? timestampMax : Date.parse(formEndTimestamp);
+    fetchAndRenderInvocations(
 
-    document.getElementById("submit-loader").style = "display: inline-block";
-
-    fetchAndRenderInvocations(filterStartTimestamp, filterEndTimestamp, "path-invocations", pathMeta);
-    fetchAndRenderInvocations(filterStartTimestamp, filterEndTimestamp, "user-agents-count", userAgentMeta);
+        formStartTimestamp === "" ? 0 : Date.parse(formStartTimestamp),
+        formEndTimestamp === "" ? timestampMax : Date.parse(formEndTimestamp),
+        formOnlyOthers === "" ? null : formOnlyOthers === "true",
+        formPathPattern === "" ? null : formPathPattern,
+        formHttpStatuses === "" ? null : String(formHttpStatuses).split(",").map(s => Number.parseInt(s)),
+        formUserAgentPattern === "" ? null : formUserAgentPattern
+    );
 }
 
-function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
+function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pathPattern, httpStatuses, userAgentPattern) {
 
-    inFlightCounter++;
-    document.getElementById(meta.id).innerText = `${meta.text} -`;
+    document.getElementById("submit-loader").style = "display: inline-block";
+    document.getElementById("invocations-count").innerText = "Distinct paths: -";
+    document.getElementById("user-agents-count").innerText = "Distinct user agents: -";
 
-    const tableBody = document.getElementById(meta.hook);
-    tableBody.replaceChildren();
+    const invocationsTableBody = document.getElementById("invocations-table-hook");
+    const userAgentsTableBody = document.getElementById("user-agents-table-hook");
 
-    fetch(`/admin/api/observability/${path}`,
+    invocationsTableBody.replaceChildren();
+    userAgentsTableBody.replaceChildren();
+
+    fetch("/admin/api/observability/request-metrics",
 
         {
             method: "POST",
@@ -46,7 +49,11 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
             body: JSON.stringify({
 
                 startTimestamp: startTimestamp,
-                endTimestamp: endTimestamp
+                endTimestamp: endTimestamp,
+                onlyOthers: onlyOthers,
+                pathPattern: pathPattern,
+                httpStatuses: httpStatuses,
+                userAgentPattern: userAgentPattern
             })
         }
     )
@@ -56,10 +63,14 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
 
             response.json().then(json => {
 
-                document.getElementById(meta.id).innerText = `${meta.text} ${json.length}`;
+                const processedInvocations = processPaths(json);
+                const processedUserAgents = processUserAgents(json);
 
-                const processedData = json.sort((a, b) => a.count < b.count);
-                for(const entry of processedData) appendRow(entry, tableBody, meta.hook);
+                document.getElementById("invocations-count").innerText = `Distinct paths: ${processedInvocations.length}`;
+                document.getElementById("user-agents-count").innerText = `Distinct user agents: ${processedUserAgents.length}`;
+
+                for(const invocation of processedInvocations) appendRow(invocation, invocationsTableBody, "invocations-table-hook");
+                for(const userAgent of processedUserAgents) appendRow(userAgent, userAgentsTableBody, "user-agents-table-hook");
             });
         }
 
@@ -69,11 +80,75 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, path, meta) {
         }
     })
     .catch(error_ => pushError(error_))
-    .finally(() => {
+    .finally(() => document.getElementById("submit-loader").style = "");
+}
 
-        inFlightCounter--;
-        if(inFlightCounter === 0) document.getElementById("submit-loader").style = "";
-    });
+function processPaths(json) {
+
+    /* path -> processed invocation obj */
+    const processedInvocations = new Map();
+
+    for(const metric of json) {
+
+        if(processedInvocations.has(metric.path)) {
+
+            const elem = processedInvocations.get(metric.path);
+
+            elem.count++;
+            elem.httpStatuses.add(elem.httpStatus);
+
+            if(elem.timestamp < metric.timestamp) elem.timestamp = metric.timestamp;
+        }
+
+        else {
+
+            processedInvocations.set(metric.path, {
+
+                key: metric.path,
+                isOthers: metric.isOthers,
+                count: 1,
+                timestamp: metric.timestamp,
+                httpStatuses: new Set([metric.httpStatus])
+            });
+        }
+    }
+
+    let sortedInvocations = [];
+    for(const elem of processedInvocations.values()) sortedInvocations.push(elem);
+
+    return sortedInvocations.sort((a, b) => a.count < b.count);
+}
+
+function processUserAgents(json) {
+
+    /* user agent -> processed user agent obj */
+    const processedUserAgents = new Map();
+
+    for(const metric of json) {
+
+        if(processedUserAgents.has(metric.userAgent)) {
+
+            const elem = processedUserAgents.get(metric.userAgent);
+
+            elem.count++;
+            if(elem.timestamp < metric.timestamp) elem.timestamp = metric.timestamp;
+        }
+
+        else {
+
+            processedUserAgents.set(metric.userAgent, {
+
+                key: metric.userAgent,
+                count: 1,
+                timestamp: metric.timestamp
+            });
+        }
+    }
+
+    let sortedUserAgents = [];
+    for(const elem of processedUserAgents.values()) sortedUserAgents.push(elem);
+
+    return sortedUserAgents.sort((a, b) => a.count < b.count);
 }
 
 function appendRow(entry, table, hook) {
@@ -85,6 +160,13 @@ function appendRow(entry, table, hook) {
     const count = document.createElement("div");
     const timestamp = document.createElement("div");
 
+    tr.appendChild(key);
+    tr.appendChild(count);
+    tr.appendChild(timestamp);
+
+    key.className = "table-data-elem";
+    key.innerText = (entry.key === null || entry.key === undefined) ? "" : entry.key;
+
     count.className = "table-data-elem";
     count.style = "width: 10%";
     count.innerText = entry.count;
@@ -95,31 +177,21 @@ function appendRow(entry, table, hook) {
 
     if(hook === "invocations-table-hook") {
 
+        if(!entry.isOthers) tr.style = "color: #00FF00";
         const httpStatuses = document.createElement("div");
 
-        key.className = "table-data-elem";
         key.style = "width: 55%";
-        key.innerText = entry.key;
 
         httpStatuses.className = "table-data-elem";
         httpStatuses.style = "width: 20%";
-        httpStatuses.innerText = entry.httpStatuses.join(", ");
+        httpStatuses.innerText = Array.from(entry.httpStatuses).join(", ");
 
-        tr.appendChild(key);
-        tr.appendChild(count);
-        tr.appendChild(timestamp);
         tr.appendChild(httpStatuses);
     }
 
     else {
 
-        key.className = "table-data-elem";
         key.style = "width: 75%";
-        key.innerText = entry.key;
-
-        tr.appendChild(key);
-        tr.appendChild(count);
-        tr.appendChild(timestamp);
     }
 
     table.appendChild(tr);
