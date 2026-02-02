@@ -8,12 +8,12 @@ app:
     cors:
       origins: "https://gattoslab.dev,https://www.gattoslab.dev"
     enabled: true
-#security:
-#  require-ssl: true
+security:
+  require-ssl: true
 server:
   port: 8080
-  #ssl:
-  #  key-store: "/etc/letsencrypt/live/gattoslab.dev/keystore.p12"
-  #  key-store-password: ${SSL_KEY_STORE_PASSWORD}
-  #  keyAlias: "tomcat"
-  #  keyStoreType: "PKCS12"
+  ssl:
+    key-store: "/etc/letsencrypt/live/gattoslab.dev/keystore.p12"
+    key-store-password: ${SSL_KEY_STORE_PASSWORD}
+    keyAlias: "tomcat"
+    keyStoreType: "PKCS12"
