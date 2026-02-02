@@ -6,7 +6,7 @@ app:
       apiKey: "test"
       cookieAttributes: "=$; Path=/;"
     cors:
-      origins: "http://localhost:8081" #https://localhost:8443
+      origins: "http://localhost:8080" #https://localhost:8443
     enabled: true
 security:
   require-ssl: false
