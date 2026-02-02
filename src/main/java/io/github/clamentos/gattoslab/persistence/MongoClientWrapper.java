@@ -64,10 +64,7 @@ public final class MongoClientWrapper {
 
         catch(final RuntimeException exc) {
 
-            final String message = "Could not create MongoClientWrapper bean due to database issue";
-
-            log.error(message, exc);
-            throw new BeanCreationException(message, exc);
+            throw new BeanCreationException("Could not create MongoClientWrapper bean due to database issue", exc);
         }
     }
 

@@ -11,7 +11,7 @@ app:
 security:
   require-ssl: true
 server:
-  port: 443
+  port: 8443
   ssl:
     key-store: "/etc/letsencrypt/live/gattoslab.dev/keystore.p12"
     key-store-password: ${SSL_KEY_STORE_PASSWORD}
