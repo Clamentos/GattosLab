@@ -72,3 +72,4 @@ spring:
   web:
     resources:
       add-mappings: false
+debug: true
