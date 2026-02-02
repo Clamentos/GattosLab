@@ -17,6 +17,7 @@ import java.util.Map;
 
 ///.
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 ///.
 import org.bson.Document;
@@ -31,6 +32,7 @@ import org.jspecify.annotations.NonNull;
 
 ///
 @Component
+@Slf4j
 
 ///
 public final class MongoClientWrapper {
@@ -62,7 +64,10 @@ public final class MongoClientWrapper {
 
         catch(final RuntimeException exc) {
 
-            throw new BeanCreationException("Could not create MongoClientWrapper bean due to database issue", exc);
+            final String message = "Could not create MongoClientWrapper bean due to database issue";
+
+            log.error(message, exc);
+            throw new BeanCreationException(message, exc);
         }
     }
 
