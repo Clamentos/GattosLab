@@ -2,16 +2,10 @@ package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
 import io.github.clamentos.gattoslab.observability.metrics.entries.MetricsEntry;
-import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.utils.FastAtomicCounter;
 
 ///.
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
-
-///.
-import org.bson.Document;
 
 ///.
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,12 +60,9 @@ public final class ObservabilityContext {
     }
 
     ///.
-    public @NonNull Map<DatabaseCollection, List<Document>> toDocuments() {
+    public @NonNull List<MetricsEntry> drainSiphon() {
 
-        final Map<DatabaseCollection, List<Document>> documents = new EnumMap<>(DatabaseCollection.class);
-        documents.put(DatabaseCollection.REQUEST_METRICS, siphon.drain());
-
-        return documents;
+        return siphon.drain();
     }
 
     ///..

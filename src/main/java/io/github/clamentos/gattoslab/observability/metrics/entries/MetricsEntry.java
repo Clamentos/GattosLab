@@ -1,46 +1,92 @@
 package io.github.clamentos.gattoslab.observability.metrics.entries;
 
 ///
-import lombok.Getter;
-import lombok.Setter;
-
-///.
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
-///..
+///.
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 ///
-@Getter
-@Setter
-
-///
-public final class MetricsEntry {
+public final class MetricsEntry extends Document {
 
     ///
-    @NonNull private String path;
-    @Nullable private String userAgent;
-    private boolean isOthers;
-    private long timestamp;
-    private int latency;
-    private short httpStatus;
+    public void createId() {
 
-    ///
-    public @NonNull Document toDocument() {
+        this.put("_id", new ObjectId());
+    }
 
-        final Document document = new Document();
+    ///..
+    public @NonNull String getPath() {
 
-        document.append("_id", new ObjectId());
-        document.append("path", path);
-        document.append("userAgent", userAgent);
-        document.append("isOthers", isOthers);
-        document.append("timestamp", timestamp);
-        document.append("latency", latency);
-        document.append("httpStatus", httpStatus);
+        return (String)this.get("path");
+    }
 
-        return document;
+    ///..
+    public void setPath(@NonNull final String path) {
+
+        this.put("path", path);
+    }
+
+    ///..
+    public @Nullable String getUserAgent() {
+
+        return (String)this.get("userAgent");
+    }
+
+    ///..
+    public void setUserAgent(@Nullable final String userAgent) {
+
+        this.put("userAgent", userAgent);
+    }
+
+    ///..
+    public boolean isOthers() {
+
+        return (boolean)this.get("isOthers");
+    }
+
+    ///..
+    public void setOthers(final boolean isOthers) {
+
+        this.put("isOthers", isOthers);
+    }
+
+    ///..
+    public long getTimestamp() {
+
+        return (long)this.get("timestamp");
+    }
+
+    ///..
+    public void setTimestamp(final long timestamp) {
+
+        this.put("timestamp", timestamp);
+    }
+
+    ///..
+    public int getLatency() {
+
+        return (int)this.get("latency");
+    }
+
+    ///..
+    public void setLatency(final int latency) {
+
+        this.put("latency", latency);
+    }
+
+    ///..
+    public short getHttpStatus() {
+
+        return (short)this.get("httpStatus");
+    }
+
+    ///..
+    public void setHttpStatus(final short httpStatus) {
+
+        this.put("httpStatus", httpStatus);
     }
 
     ///

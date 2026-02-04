@@ -72,7 +72,8 @@ function fetchAndRenderPerformanceMetrics(startTimestamp, endTimestamp, onlyOthe
                 endTimestamp: endTimestamp,
                 onlyOthers: onlyOthers,
                 pathPattern: pathPattern,
-                httpStatuses: httpStatuses
+                httpStatuses: httpStatuses,
+                fieldsToExclude: ["userAgent"]
             })
         }
     )

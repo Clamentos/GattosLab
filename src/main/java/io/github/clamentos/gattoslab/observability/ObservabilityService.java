@@ -28,8 +28,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 ///.
-import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -263,7 +261,22 @@ public class ObservabilityService implements HandlerInterceptor {
             try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
 
                 generator.writeStartArray();
-                while(results.hasNext()) generator.writePOJO(results.next());
+
+                while(results.hasNext()) {
+
+                    final Document entity = results.next();
+
+                    if(!searchFilter.getExcludedFields().isEmpty()) {
+
+                        for(final String fieldToExclude : searchFilter.getExcludedFields()) {
+
+                            entity.remove(fieldToExclude);
+                        }
+                    }
+
+                    generator.writePOJO(entity);
+                }
+
                 generator.writeEndArray();
             }
         };
@@ -318,11 +331,7 @@ public class ObservabilityService implements HandlerInterceptor {
 
         while(!context.isNoOneThere()) GenericUtils.sleep(1L);
 
-        for(final Map.Entry<DatabaseCollection, List<Document>> entity : context.toDocuments().entrySet()) {
-
-            mongoClientWrapper.insertAll(entity.getValue(), entity.getKey());
-        }
-
+        mongoClientWrapper.insertAll(context.drainSiphon(), DatabaseCollection.REQUEST_METRICS);
         context.reset();
     }
 

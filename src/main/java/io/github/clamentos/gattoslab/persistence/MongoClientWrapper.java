@@ -75,7 +75,7 @@ public final class MongoClientWrapper {
     }
 
     ///..
-    public void insertAll(@NonNull final List<Document> documents, @NonNull final DatabaseCollection collection) {
+    public <E extends Document> void insertAll(@NonNull final List<E> documents, @NonNull final DatabaseCollection collection) {
 
         if(!documents.isEmpty()) this.getCollection(collection).insertMany(documents);
     }

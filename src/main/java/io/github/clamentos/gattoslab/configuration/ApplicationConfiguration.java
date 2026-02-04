@@ -57,7 +57,6 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
         @NonNull final RateLimiter rateLimiter,
         @NonNull final ObservabilityService observabilityService,
         @NonNull final SessionService sessionService
-
     ) {
 
         this.propertyProvider = propertyProvider;

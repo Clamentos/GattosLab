@@ -9,6 +9,9 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 
 ///.
+import java.util.Set;
+
+///.
 import lombok.Getter;
 
 ///.
@@ -47,6 +50,13 @@ public class TemporalSearchFilter implements SearchFilter {
     public @NonNull Bson getSorting() {
 
         return Sorts.ascending("timestamp");
+    }
+
+    ///..
+    @Override
+    public @NonNull Set<String> getExcludedFields() {
+
+        return Set.of();
     }
 
     ///

@@ -11,9 +11,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 ///.
-import org.bson.Document;
-
-///..
 import org.springframework.context.ApplicationEventPublisher;
 
 ///..
@@ -56,14 +53,20 @@ public final class Siphon {
     }
 
     ///..
-    public @NonNull List<Document> drain() {
+    public @NonNull List<MetricsEntry> drain() {
 
         isDraining.set(true);
 
         final int length = elements.length();
-        final List<Document> elementList = new ArrayList<>(length);
+        final List<MetricsEntry> elementList = new ArrayList<>(length);
 
-        for(int i = 0; i < index.get(); i++) elementList.add(elements.get(i).toDocument());
+        for(int i = 0; i < index.get(); i++) {
+
+            final MetricsEntry entity = elements.get(i);
+            entity.createId();
+
+            elementList.add(entity);
+        }
 
         return elementList;
     }

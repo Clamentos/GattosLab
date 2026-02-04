@@ -53,7 +53,8 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
                 onlyOthers: onlyOthers,
                 pathPattern: pathPattern,
                 httpStatuses: httpStatuses,
-                userAgentPattern: userAgentPattern
+                userAgentPattern: userAgentPattern,
+                fieldsToExclude: ["latency"]
             })
         }
     )

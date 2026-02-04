@@ -12,15 +12,9 @@ import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 
 ///.
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 ///.
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
-///..
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -60,7 +54,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
             final MongoClientWrapper client = mongoClientReference.get();
 
-            if(client != null) client.getCollection(DatabaseCollection.LOGS).insertOne(this.createLogDocument(logEvent));
+            if(client != null) client.getCollection(DatabaseCollection.LOGS).insertOne(new LogEntity(logEvent));
             else this.writeToFallbackFile(logEvent);
         }
 
@@ -138,52 +132,10 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     }
 
     ///..
-    private @NonNull Document createLogDocument(@NonNull final ILoggingEvent logEvent) {
-
-        final Document document = new Document();
-
-        document.append("_id", new ObjectId());
-        document.append("timestamp", logEvent.getTimeStamp());
-        document.append("severity", logEvent.getLevel().toString());
-        document.append("thread", logEvent.getThreadName());
-        document.append("logger", logEvent.getLoggerName());
-        document.append("message", logEvent.getFormattedMessage());
-
-        final IThrowableProxy throwableProxy = logEvent.getThrowableProxy();
-
-        if(throwableProxy != null) {
-
-            final Document exception = new Document();
-
-            exception.append("className", throwableProxy.getClassName());
-            exception.append("message", throwableProxy.getMessage());
-            exception.append("stacktrace", this.formatStacktraceForDb(throwableProxy.getStackTraceElementProxyArray()));
-
-            document.append("exception", exception);
-        }
-
-        return document;
-    }
-
-    ///..
     private @NonNull String normalize(@Nullable final Object input) {
 
         if(input == null) return "\u0000";
         else return input.toString();
-    }
-
-    ///..
-    private @NonNull List<String> formatStacktraceForDb(@NonNull final StackTraceElementProxy[] stacktrace) {
-
-        final List<String> formattedStacktrace = new ArrayList<>(stacktrace.length);
-
-        for(int i = 0; i < stacktrace.length; i++) {
-
-            final StackTraceElementProxy proxy = stacktrace[i];
-            formattedStacktrace.add(proxy != null ? proxy.toString() : null);
-        }
-
-        return formattedStacktrace;
     }
 
     ///..

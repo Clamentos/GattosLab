@@ -33,6 +33,7 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
     @Nullable private final String pathPattern;
     @Nullable private final Set<Integer> httpStatuses;
     @Nullable private final String userAgentPattern;
+    @NonNull private final Set<String> fieldsToExclude;
 
     ///
     @JsonCreator
@@ -43,7 +44,8 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
         @JsonProperty("onlyOthers") @Nullable final Boolean onlyOthers,
         @JsonProperty("pathPattern") @Nullable final String pathPattern,
         @JsonProperty("httpStatuses") @Nullable final Set<Integer> httpStatuses,
-        @JsonProperty("userAgentPattern") @Nullable final String userAgentPattern
+        @JsonProperty("userAgentPattern") @Nullable final String userAgentPattern,
+        @JsonProperty("fieldsToExclude") @Nullable final Set<String> fieldsToExclude
     ) {
 
         super(startTimestamp, endTimestamp);
@@ -52,6 +54,7 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
         this.pathPattern = pathPattern;
         this.httpStatuses = httpStatuses;
         this.userAgentPattern = userAgentPattern;
+        this.fieldsToExclude = fieldsToExclude != null ? fieldsToExclude : Set.of();
     }
 
     ///
