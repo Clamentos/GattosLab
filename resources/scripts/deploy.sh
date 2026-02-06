@@ -133,7 +133,7 @@ runuser -u "$APP_USER" -- bash -c "
 
     set -a
     source "$SECRETS_FILE"
-    exec java -jar "$RUN_DIR/$NEW_JAR_NAME" --spring.profiles.active=prod -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseHugeTLBFS -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError -XX:-FlightRecorder
+    exec java -jar "$RUN_DIR/$NEW_JAR_NAME" --spring.profiles.active=prod -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError -XX:-FlightRecorder
 " &
 
 echo "--> Waiting for the app to start"

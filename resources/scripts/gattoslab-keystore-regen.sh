@@ -16,3 +16,6 @@ openssl pkcs12 -export -in "$FULLCHAIN" -inkey "$PRIVKEY" -out "$TARGET_DIR/$KEY
 
 chown $OWNER_USER:$OWNER_GROUP "$TARGET_DIR/$KEYSTORE_NAME"
 chmod 400 "$TARGET_DIR/$KEYSTORE_NAME"
+
+# In theory this should require an app-restart because the cert will be different and therefore the keystore
+gattoslab-deploy

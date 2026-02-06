@@ -1,0 +1,9 @@
+# /etc/systemd/system/java-capabilities-watchdog.path
+[Unit]
+Description=Watch Java binary for changes
+
+[Path]
+PathChanged=/usr/bin/java
+
+[Install]
+WantedBy=multi-user.target
