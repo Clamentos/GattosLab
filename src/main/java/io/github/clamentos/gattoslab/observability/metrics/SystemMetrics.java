@@ -1,79 +1,179 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import java.lang.management.ClassLoadingMXBean;
-import java.lang.management.GarbageCollectorMXBean;
+import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
+
+///..
+import java.io.Closeable;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
-import java.lang.management.OperatingSystemMXBean;
-import java.lang.management.ThreadMXBean;
-import java.util.List;
-
-///.
-import org.bson.Document;
-import org.bson.types.ObjectId;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 ///..
-import org.springframework.stereotype.Component;
-
-///..
-import org.jspecify.annotations.NonNull;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordingStream;
 
 ///
-@Component
-
-///
-public final class SystemMetrics {
+public final class SystemMetrics implements Closeable {
 
     ///
-    private final ThreadMXBean threadMXBean;
+    private final AtomicLong virtualThreads;
+    private final AtomicLong platformThreads;
+
+    private final AtomicLong classesLoaded;
+
+    private final AtomicLong fileReads;
+    private final AtomicLong fileWrites;
+
+    private final AtomicLong socketReads;
+    private final AtomicLong socketWrites;
+
+    private final AtomicLong gcCounts;
+    private final AtomicLong gcPause;
+
+    private final AtomicLong cpuLoadJvmUser;
+    private final AtomicLong cpuLoadJvmSystem;
+    private final AtomicLong cpuLoadMachineTotal;
+
+    private final AtomicLong systemMemoryUsed;
+    private final AtomicLong directBuffers;
+    private final AtomicLong directBuffersMemoryUsed;
+
+    private final AtomicLong sampleCounter;
+    private final AtomicLong dumpCounter;
+
+    ///..
     private final MemoryMXBean memoryMXBean;
-    private final OperatingSystemMXBean operatingSystemMXBean;
-    private final ClassLoadingMXBean classLoadingMXBean;
-    private final List<GarbageCollectorMXBean> garbageCollectorMXBeans;
+    private final RecordingStream recordingStream;
 
     ///
-    public SystemMetrics() {
+    public SystemMetrics(final long samplingPeriod) {
 
-        threadMXBean = ManagementFactory.getThreadMXBean();
+        virtualThreads = new AtomicLong();
+        platformThreads = new AtomicLong();
+        classesLoaded = new AtomicLong();
+        fileReads = new AtomicLong();
+        fileWrites = new AtomicLong();
+        socketReads = new AtomicLong();
+        socketWrites = new AtomicLong();
+        gcCounts = new AtomicLong();
+        gcPause = new AtomicLong();
+        cpuLoadJvmUser = new AtomicLong();
+        cpuLoadJvmSystem = new AtomicLong();
+        cpuLoadMachineTotal = new AtomicLong();
+        systemMemoryUsed = new AtomicLong();
+        directBuffers = new AtomicLong();
+        directBuffersMemoryUsed = new AtomicLong();
+
+        sampleCounter = new AtomicLong();
+        dumpCounter = new AtomicLong();
+
         memoryMXBean = ManagementFactory.getMemoryMXBean();
-        operatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean();
-        classLoadingMXBean = ManagementFactory.getClassLoadingMXBean();
-        garbageCollectorMXBeans = ManagementFactory.getGarbageCollectorMXBeans();
+        recordingStream = new RecordingStream();
+
+        this.enableRecording("jdk.VirtualThreadStart", _ -> virtualThreads.incrementAndGet());
+        this.enableRecording("jdk.VirtualThreadEnd", _ -> virtualThreads.decrementAndGet());
+        this.enableRecording("jdk.ThreadStart", _ -> platformThreads.incrementAndGet());
+        this.enableRecording("jdk.ThreadEnd", _ -> platformThreads.decrementAndGet());
+
+        this.enableRecording("jdk.ClassLoad", _ -> classesLoaded.incrementAndGet());
+        this.enableRecording("jdk.ClassUnload", _ -> classesLoaded.decrementAndGet());
+
+        this.enableRecording("jdk.FileRead", _ -> fileReads.incrementAndGet());
+        this.enableRecording("jdk.FileWrite", _ -> fileWrites.incrementAndGet());
+        this.enableRecording("jdk.SocketWrite", _ -> socketReads.incrementAndGet());
+        this.enableRecording("jdk.SocketWrite", _ -> socketWrites.incrementAndGet());
+
+        this.enableRecording("jdk.GarbageCollection", event -> {
+
+            gcCounts.incrementAndGet();
+            gcPause.addAndGet(event.getDuration().get(ChronoUnit.NANOS) / 1000000);
+        });
+
+        this.enablePeriodicRecording("jdk.CPULoad", samplingPeriod, event -> {
+
+            sampleCounter.incrementAndGet();
+
+            cpuLoadJvmUser.set((long)(event.getDouble("jvmUser") * 100));
+            cpuLoadJvmSystem.set((long)(event.getDouble("jvmSystem") * 100));
+            cpuLoadMachineTotal.set((long)(event.getDouble("machineTotal") * 100));
+        });
+
+        this.enablePeriodicRecording("jdk.DirectBufferStatistics", samplingPeriod, event -> {
+
+            directBuffers.set(event.getLong("count"));
+            directBuffersMemoryUsed.set(event.getLong("memoryUsed"));
+        });
+
+        this.enablePeriodicRecording("jdk.PhysicalMemory", samplingPeriod, event -> systemMemoryUsed.set(event.getLong("usedSize")));
+        recordingStream.startAsync();
     }
 
     ///
-    public @NonNull Document toDocument() {
+    public SystemMetricsEntity toEntity() {
 
-        final int daemons = threadMXBean.getDaemonThreadCount();
-        final Document document = new Document();
+        final long currentDump = dumpCounter.incrementAndGet();
+        while(currentDump != sampleCounter.get()) GenericUtils.sleep(100L);
 
-        document.append("_id", new ObjectId());
-        document.append("timestamp", System.currentTimeMillis());
-        document.append("heap", memoryMXBean.getHeapMemoryUsage().getUsed());
-        document.append("nonHeap", memoryMXBean.getNonHeapMemoryUsage().getUsed());
-        document.append("threads", threadMXBean.getThreadCount() - daemons);
-        document.append("daemons", daemons);
-        document.append("cpuLoadAvg", operatingSystemMXBean.getSystemLoadAverage());
-        document.append("loadedClassCount", classLoadingMXBean.getLoadedClassCount());
-        document.append("unloadedClassCount", classLoadingMXBean.getUnloadedClassCount());
+        final SystemMetricsEntity entity = new SystemMetricsEntity(
 
-        long totalCollectionTime = 0;
-        long totalCollectionCount = 0;
+            virtualThreads.get(),
+            platformThreads.get(),
+            classesLoaded.get(),
+            fileReads.get(),
+            fileWrites.get(),
+            socketReads.get(),
+            socketWrites.get(),
+            gcCounts.get(),
+            gcPause.get(),
+            cpuLoadJvmUser.get(),
+            cpuLoadJvmSystem.get(),
+            cpuLoadMachineTotal.get(),
+            systemMemoryUsed.get(),
+            memoryMXBean.getNonHeapMemoryUsage().getUsed(),
+            directBuffers.get(),
+            directBuffersMemoryUsed.get(),
+            memoryMXBean.getHeapMemoryUsage().getUsed()
+        );
 
-        for(final GarbageCollectorMXBean bean : garbageCollectorMXBeans) {
+        fileReads.set(0);
+        fileWrites.set(0);
+        socketReads.set(0);
+        socketWrites.set(0);
+        cpuLoadJvmUser.set(0);
+        cpuLoadJvmSystem.set(0);
+        cpuLoadMachineTotal.set(0);
+        systemMemoryUsed.set(0);
+        directBuffers.set(0);
+        directBuffersMemoryUsed.set(0);
 
-            long collectionTime = bean.getCollectionTime();
-            long collectionCount = bean.getCollectionCount();
+        return entity;
+    }
 
-            if(collectionTime != -1) totalCollectionTime += collectionTime;
-            if(collectionCount != -1) totalCollectionCount += collectionCount;
-        }
+    ///..
+    @Override
+    public void close() throws IOException {
 
-        document.append("totalGcTime", totalCollectionTime);
-        document.append("totalGcCount", totalCollectionCount);
+        recordingStream.close();
+    }
 
-        return document;
+    ///.
+    private void enableRecording(final String name, final Consumer<RecordedEvent> action) {
+
+        recordingStream.enable(name).withoutStackTrace();
+        recordingStream.onEvent(name, action);
+    }
+
+    ///..
+    private void enablePeriodicRecording(final String name, final long samplingPeriod, final Consumer<RecordedEvent> action) {
+
+        recordingStream.enable(name).withoutStackTrace().withPeriod(Duration.ofMillis(samplingPeriod));
+        recordingStream.onEvent(name, action);
     }
 
     ///

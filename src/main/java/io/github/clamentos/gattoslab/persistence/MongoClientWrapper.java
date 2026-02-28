@@ -2,36 +2,38 @@ package io.github.clamentos.gattoslab.persistence;
 
 ///
 import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoException;
+import com.mongodb.ReadConcern;
+import com.mongodb.ReadPreference;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.connection.ClusterConnectionMode;
 
-///.
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
+///..
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.pojos.DatabaseConfig;
+import io.github.clamentos.gattoslab.observability.logging.LogEntityMapper;
+import io.github.clamentos.gattoslab.observability.metrics.mappers.RequestMetricsEntityMapper;
+import io.github.clamentos.gattoslab.observability.metrics.mappers.SystemMetricsEntityMapper;
 
-///.
+///..
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-///.
+///..
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-///.
-import org.bson.Document;
-
 ///..
-import org.springframework.beans.factory.BeanCreationException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
-///..
-import org.jspecify.annotations.NonNull;
+import org.bson.codecs.configuration.CodecRegistries;
 
 ///
-@Component
 @Slf4j
 
 ///
@@ -41,41 +43,70 @@ public final class MongoClientWrapper {
     @Getter
     final MongoClient client;
 
-    final Map<DatabaseCollection, MongoCollection<Document>> collections;
+    final Map<DatabaseCollection, MongoCollection<?>> collections;
 
     ///
-    @Autowired
-    public MongoClientWrapper(@NonNull final PropertyProvider propertyProvider) throws BeanCreationException {
+    public MongoClientWrapper(final ApplicationProperties applicationProperties) throws IllegalArgumentException, MongoException {
 
-        try {
+        log.info("Connecting to database...");
 
-            final ConnectionString connectionString = new ConnectionString(propertyProvider.getProperty("app.database.connectionString", String.class));
+        final DatabaseConfig databaseConfig = applicationProperties.getDatabaseConfig();
+        final ConnectionString connectionString = new ConnectionString(databaseConfig.getConnectionString());
 
-            client = MongoClients.create(connectionString);
-            collections = new EnumMap<>(DatabaseCollection.class);
+        final MongoClientSettings config = MongoClientSettings.builder()
 
-            final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
+            .applyConnectionString(connectionString)
+            .applyToConnectionPoolSettings(pool -> {
 
-            for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
+                pool.minSize(databaseConfig.getMinPoolSize());
+                pool.maxSize(databaseConfig.getMaxPoolSize());
+                pool.maintenanceFrequency(databaseConfig.getMaintenanceFrequency(), TimeUnit.SECONDS);
+                pool.maxConnectionIdleTime(databaseConfig.getMaxConnectionIdleTime(), TimeUnit.SECONDS);
+            })
+            .applyToSocketSettings(socket -> {
 
-                collections.put(databaseCollection, database.getCollection(databaseCollection.getValue()));
-            }
+                socket.connectTimeout(databaseConfig.getConnectTimeout(), TimeUnit.SECONDS);
+                socket.readTimeout(databaseConfig.getReadTimeout(), TimeUnit.SECONDS);
+            })
+            .applyToClusterSettings(cluster -> cluster.mode(ClusterConnectionMode.SINGLE))
+            .readConcern(ReadConcern.LOCAL)
+            .readPreference(ReadPreference.nearest())
+            .writeConcern(WriteConcern.JOURNALED)
+            .codecRegistry(
+
+                CodecRegistries.fromRegistries(
+
+                    CodecRegistries.fromCodecs(new SystemMetricsEntityMapper()),
+                    CodecRegistries.fromCodecs(new RequestMetricsEntityMapper()),
+                    CodecRegistries.fromCodecs(new LogEntityMapper()),
+                    MongoClientSettings.getDefaultCodecRegistry()
+                )
+            )
+            .build()
+        ;
+
+        client = MongoClients.create(config);
+        collections = new EnumMap<>(DatabaseCollection.class);
+
+        final MongoDatabase database = client.getDatabase(connectionString.getDatabase());
+
+        for(final DatabaseCollection databaseCollection : DatabaseCollection.values()) {
+
+            collections.put(databaseCollection, database.getCollection(databaseCollection.getValue(), databaseCollection.getEntityClass()));
         }
 
-        catch(final RuntimeException exc) {
-
-            throw new BeanCreationException("Could not create MongoClientWrapper bean due to database issue", exc);
-        }
+        log.info("Database connection complete");
     }
 
     ///
-    public @NonNull MongoCollection<Document> getCollection(@NonNull final DatabaseCollection collection) {
+    @SuppressWarnings("unchecked")
+    public <T> MongoCollection<T> getCollection(final DatabaseCollection collection) {
 
-        return collections.get(collection);
+        return (MongoCollection<T>)collections.get(collection);
     }
 
     ///..
-    public <E extends Document> void insertAll(@NonNull final List<E> documents, @NonNull final DatabaseCollection collection) {
+    public <E> void insertAll(final List<E> documents, final DatabaseCollection collection) throws MongoException {
 
         if(!documents.isEmpty()) this.getCollection(collection).insertMany(documents);
     }

@@ -3,23 +3,24 @@ package io.github.clamentos.gattoslab.utils;
 ///
 import java.io.File;
 import java.io.IOException;
-import java.net.URLDecoder;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-
-///.
-import lombok.Getter;
-
-///.
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.springframework.stereotype.Component;
+import java.util.Map;
+import java.util.stream.Stream;
 
 ///..
-import org.jspecify.annotations.NonNull;
+import lombok.Getter;
 
 ///
-@Component
 @Getter
 
 ///
@@ -35,83 +36,68 @@ public final class ResourceWalker {
     }
 
     ///
-    public @NonNull List<String> listSiteResourcePaths(@NonNull final String start, @NonNull final PathMatchingResourcePatternResolver resolver)
-    throws IOException {
+    public InputStream getResource(final String path) {
 
-        final List<String> siteResourceNames = this.getResourcesNamesIn(start, resolver);
+        return Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
+    }
 
-        for(int i = 0; i < siteResourceNames.size(); i++) {
+    ///..
+    public List<String> listSiteResourcePaths(final String rootPath) throws IOException {
 
-            if(!siteResourceNames.get(i).contains(".")) {
+        final URL url = Thread.currentThread().getContextClassLoader().getResource(rootPath);
+        if(url == null) throw new IOException("Could not find the resource at: " + rootPath);
 
-                siteResourceNames.addAll(this.listSiteResourcePaths(siteResourceNames.get(i), resolver));
+        try {
+
+            final URI uri = url.toURI();
+
+            if ("jar".equals(uri.getScheme())) return this.listFromJar(uri, rootPath);
+            else return this.listFromFileSystem(uri, rootPath);
+        }
+
+        catch(final URISyntaxException exc) {
+
+            throw new IOException(exc);
+        }
+    }
+
+    ///..
+    private List<String> listFromJar(final URI jarUri, final String rootPath) throws IOException {
+
+        final List<String> result = new ArrayList<>();
+
+        try(FileSystem filesystem = FileSystems.newFileSystem(jarUri, Map.of())) {
+
+            final Path root = filesystem.getPath("/" + rootPath);
+
+            try(final Stream<Path> stream = Files.walk(root)) {
+
+                stream
+
+                    .filter(Files::isRegularFile)
+                    .forEach(p -> result.add(rootPath + "/" + root.relativize(p).toString().replace('\\', '/')))
+                ;
             }
         }
 
-        return siteResourceNames;
+        return result;
     }
 
     ///..
-    private @NonNull List<String> getResourcesNamesIn(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) throws IOException {
+    private List<String> listFromFileSystem(final URI uri, final String rootPath) throws IOException {
 
-        final String rawRootUri = this.getResource(path, resolver).getURI().toString();
-        final String rootUri = URLDecoder.decode(rawRootUri.endsWith(pathDelimiter) ? rawRootUri : rawRootUri + pathDelimiter, "UTF-8");
-        final int rootUriLength = rootUri.length();
+        final Path root = Paths.get(uri);
 
-        final List<Resource> resources = this.getResourcesIn(path, resolver);
-        final List<String> resourceNames = new ArrayList<>(resources.size());
+        try(final Stream<Path> stream = Files.walk(root)) {
 
-        for(final Resource resource : resources) {
+            return stream
 
-            final String uri = URLDecoder.decode(resource.getURI().toString(), "UTF-8");
-            final boolean isFile = uri.indexOf(pathDelimiter, rootUriLength) == -1;
-
-            if(isFile) resourceNames.add(path + pathDelimiter + uri.substring(rootUriLength));
-            else resourceNames.add(path + pathDelimiter + uri.substring(rootUriLength, uri.indexOf(pathDelimiter, rootUriLength + 1)));
+                .filter(Files::isRegularFile)
+                .map(root::relativize)
+                .map(p -> rootPath + "/" + p.toString().replace('\\', '/'))
+                .toList()
+            ;
         }
-
-        return resourceNames;
-    }
-
-    ///..
-    private @NonNull List<Resource> getResourcesIn(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) throws IOException {
-
-        final Resource root = this.getResource(path, resolver);
-        final String rootUri =  root.getURI().toString();
-        final int rootUriLength = rootUri.length();
-        final String pathPattern = (path.endsWith(pathDelimiter)) ? path + "**" : path + pathDelimiter + "**";
-
-        final Resource[] resources = this.getResources(pathPattern, resolver);
-        final List<Resource> children = new ArrayList<>();
-
-        for(final Resource resource : resources) {
-
-            final String uri = resource.getURI().toString();
-            final int uriLength = uri.length();
-            final boolean isChild = uriLength > rootUriLength && !uri.equals(rootUri + pathDelimiter);
-
-            if(isChild) {
-
-                final boolean isDirInside = uri.indexOf(pathDelimiter, rootUriLength + 1) == uriLength - 1;
-                final boolean isFileInside = uri.indexOf(pathDelimiter, rootUriLength + 1) == -1;
-
-                if(isDirInside || isFileInside) children.add(resource);
-            }
-        }
-
-        return children;
-    }
-
-    ///..
-    private @NonNull Resource getResource(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) {
-
-        return resolver.getResource(path.replace("\\", pathDelimiter));
-    }
-
-    ///..
-    private @NonNull Resource[] getResources(@NonNull final String path, @NonNull final PathMatchingResourcePatternResolver resolver) throws IOException {
-
-        return resolver.getResources(path.replace("\\", pathDelimiter));
     }
 
     ///

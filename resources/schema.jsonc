@@ -1,0 +1,25 @@
+{
+    "rate": { // line chart organization
+        "labels": [], // timestamps
+        "datasets": [
+            {
+                "label": "key",
+                "data": []      // rates
+            }
+        ]
+    },
+    "latency": {
+        "datasets": [
+            {
+                "label": "key",
+                "data": [
+                    {
+                        "x": 123, // timestamp
+                        "y": 2, // index of the latency distribution list
+                        "r": 123 // count
+                    }
+                ]
+            }
+        ]
+    }
+}

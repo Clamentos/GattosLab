@@ -1,30 +1,24 @@
 package io.github.clamentos.gattoslab.session.containers;
 
 ///
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.pojos.SessionAdminConfig;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.session.SessionMetadata;
 import io.github.clamentos.gattoslab.session.SessionRole;
 
-///.
-import jakarta.el.PropertyNotFoundException;
-
-///.
+///..
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.Collection;
+import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-///.
+///..
 import lombok.extern.slf4j.Slf4j;
-
-///.
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 ///
 @Slf4j
@@ -36,6 +30,7 @@ public final class AdminSessionContainer implements SessionContainer {
     private final String apiKey;
     private final int maxSessions;
     private final long sessionDuration;
+    private final String cookieAttributes;
 
     ///..
     private final Map<String, SessionMetadata> sessions;
@@ -45,11 +40,14 @@ public final class AdminSessionContainer implements SessionContainer {
     private final Random random;
 
     ///
-    public AdminSessionContainer(@NonNull final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public AdminSessionContainer(final ApplicationProperties applicationProperties) {
 
-        apiKey = propertyProvider.getProperty("app.session.admin.apiKey", String.class);
-        sessionDuration = propertyProvider.getProperty("app.session.admin.sessionDuration", Long.class) * 1000L;
-        maxSessions = propertyProvider.getProperty("app.session.admin.maxSessions", Integer.class);
+        final SessionAdminConfig sessionAdminConfig = applicationProperties.getSessionAdminConfig();
+
+        apiKey = sessionAdminConfig.getApiKey();
+        sessionDuration = applicationProperties.getSessionConfig().getDuration() * 1000L;
+        maxSessions = sessionAdminConfig.getMaxSessions();
+        cookieAttributes = sessionAdminConfig.getCookieAttributes();
 
         sessions = new ConcurrentHashMap<>();
         sizeCounter = new AtomicInteger();
@@ -59,26 +57,16 @@ public final class AdminSessionContainer implements SessionContainer {
 
     ///
     @Override
-    public @NonNull SessionMetadata createSession(
-
-        @Nullable final String authorization,
-        @NonNull final String fingerprint,
-        @NonNull final boolean forceCreate
-
-    ) throws ApiSecurityException {
+    public SessionMetadata createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException {
 
         if(!forceCreate && !this.apiKey.equals(authorization)) throw new ApiSecurityException("Invalid api key for fingerprint: " + fingerprint);
-
-        if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) {
-
-            throw new ApiSecurityException("Too many sessions");
-        }
+        if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) throw new ApiSecurityException("Too many sessions");
 
         final byte[] sessionId = new byte[32];
         random.nextBytes(sessionId);
 
         final long now = System.currentTimeMillis();
-        final String sessionIdString = new String(Base64.getEncoder().encode(sessionId));
+        final String sessionIdString = HexFormat.of().formatHex(sessionId);
         final SessionMetadata session = new SessionMetadata(sessionIdString, SessionRole.ADMIN, fingerprint, now, now + sessionDuration);
 
         sessions.put(sessionIdString, session);
@@ -89,7 +77,7 @@ public final class AdminSessionContainer implements SessionContainer {
 
     ///..
     @Override
-    public @Nullable SessionMetadata getSession(@Nullable final String sessionId) {
+    public SessionMetadata getSession(final String sessionId) {
 
         if(sessionId == null) return null;
         return sessions.get(sessionId);
@@ -97,14 +85,21 @@ public final class AdminSessionContainer implements SessionContainer {
 
     ///..
     @Override
-    public @NonNull Collection<SessionMetadata> getSessions() {
+    public Collection<SessionMetadata> getSessions() {
 
         return sessions.values();
     }
 
     ///..
     @Override
-    public void deleteSession(@Nullable final String sessionId) {
+    public String getCookieAttributes() {
+
+        return cookieAttributes;
+    }
+
+    ///..
+    @Override
+    public void deleteSession(final String sessionId) {
 
         this.removeSession(sessionId, "Admin session logout for fingerprint");
     }
@@ -123,7 +118,7 @@ public final class AdminSessionContainer implements SessionContainer {
     }
 
     ///.
-    private void removeSession(@Nullable final String sessionId, @NonNull final String message) {
+    private void removeSession(final String sessionId, final String message) {
 
         if(sessionId != null) {
 

@@ -5,42 +5,34 @@ import com.mongodb.MongoException;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Sorts;
 
-///.
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
+///..
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.pojos.LogsConfig;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
+import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
+import io.github.clamentos.gattoslab.persistence.EntityField;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
-import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 
-///.
+///..
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 
-///.
+///..
 import lombok.extern.slf4j.Slf4j;
 
-///.
+///..
 import org.bson.Document;
-import org.bson.conversions.Bson;
 
 ///..
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-///..
-import org.jspecify.annotations.NonNull;
-
-///.
+import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonGenerator;
-import tools.jackson.databind.json.JsonMapper;
 
 ///
-@Service
 @Slf4j
 
 ///
@@ -51,60 +43,53 @@ public final class LogsService {
 
     ///..
     private final MongoClientWrapper mongoClientWrapper;
-    private final JsonMapper jsonMapper;
 
     ///
-    @Autowired
-    public LogsService(
+    public LogsService(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final MongoClientWrapper mongoClientWrapper)
+    throws IllegalArgumentException {
 
-        @NonNull final PropertyProvider propertyProvider,
-        @NonNull final MongoClientWrapper mongoClientWrapper,
-        @NonNull final JsonMapper jsonMapper
-    ) {
+        final LogsConfig logsConfig = applicationProperties.getLogsConfig();
 
-        logsRetention = propertyProvider.getProperty("app.logs.logsRetention", Integer.class);
+        logsRetention = logsConfig.getRetention();
+        batchScheduler.schedule(this::deleteOldLogs, "LogsService::deleteOldLogs", logsConfig.getRetentionSchedule());
 
         this.mongoClientWrapper = mongoClientWrapper;
-        this.jsonMapper = jsonMapper;
     }
 
     ///
-    public @NonNull StreamingResponseBody getLogs(@NonNull final LogSearchFilter logSearchFilter) throws MongoException {
+    public void getLogs(final JsonGenerator generator, final LogSearchFilter logSearchFilter) throws JacksonException, MongoException {
 
         final MongoCollection<Document> logsCollection = mongoClientWrapper.getCollection(DatabaseCollection.LOGS);
-        final MongoCursor<Document> cursor = logsCollection.find(logSearchFilter.toBsonFilter()).sort(Sorts.ascending("timestamp")).iterator();
 
-        return outputStream -> {
+        final MongoCursor<Document> cursor = logsCollection
 
-            try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
+            .find(logSearchFilter.toBsonFilter())
+            .sort(Sorts.ascending(EntityField.TIMESTAMP.getField()))
+            .batchSize(500)
+            .iterator()
+        ;
 
-                generator.writeStartArray();
-                while(cursor.hasNext()) generator.writePOJO(cursor.next());
-                generator.writeEndArray();
-            }
-        };
+        try(cursor) {
+
+            generator.writeStartArray();
+            while(cursor.hasNext()) generator.writePOJO(cursor.next());
+            generator.writeEndArray();
+        }
     }
 
     ///..
-    public @NonNull StreamingResponseBody getFallbackLogs() {
+    public void getFallbackLogs(final JsonGenerator generator) throws IOException, JacksonException {
 
-        return outputStream -> {
+        try(final BufferedReader fileReader = new BufferedReader(new FileReader(MongoAppender.FALLBACK_FILE_PATH))) {
 
-            try(
-                final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream));
-                final BufferedReader fileReader = new BufferedReader(new FileReader(MongoAppender.FALLBACK_FILE_PATH))
-            ) {
-
-                generator.writeStartArray();
-                generator.writeString(fileReader.readLine());
-                generator.writeEndArray();
-            }
-        };
+            generator.writeStartArray();
+            generator.writeString(fileReader.readLine());
+            generator.writeEndArray();
+        }
     }
 
     ///.
-    @Scheduled(cron = "${app.logs.retentionSchedule}", scheduler = "batchScheduler")
-    protected void deleteOldMetrics() {
+    private void deleteOldLogs() {
 
         log.info("Begin delete logs by retention");
 
@@ -114,10 +99,10 @@ public final class LogsService {
         try {
 
             final long now = System.currentTimeMillis();
-            final Bson logsDeleteFilter = Filters.lte("timestamp", now - (logsRetention * 24 * 3600 * 1000));
+            final TemporalSearchFilter filter = new TemporalSearchFilter(now - (logsRetention * 24 * 3600 * 1000), now);
 
             session.startTransaction();
-            deleted = mongoClientWrapper.getCollection(DatabaseCollection.LOGS).deleteMany(logsDeleteFilter).getDeletedCount();
+            deleted = mongoClientWrapper.getCollection(DatabaseCollection.LOGS).deleteMany(filter.toBsonFilter()).getDeletedCount();
             session.commitTransaction();
         }
 

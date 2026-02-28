@@ -1,0 +1,16 @@
+{
+    "key": "blacklist",
+    "value": {
+        "ipv4s": [
+            {"start": "...", "end": "..."},
+            {"start": "...", "end": "..."}
+        ],
+        "ipv6s": [
+            {"start": "...", "end": "..."},
+            {"start": "...", "end": "..."}
+        ],
+        "userAgentContains": [
+            "bot"
+        ]
+    }
+}

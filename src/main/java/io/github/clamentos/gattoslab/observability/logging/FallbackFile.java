@@ -5,27 +5,23 @@ import com.mongodb.MongoException;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 
-///.
+///..
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
+import io.github.clamentos.gattoslab.persistence.MongoClientProvider;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
-import io.github.clamentos.gattoslab.utils.BeanProvider;
 
-///.
+///..
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.LocalDate;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
-
-///.
-import org.bson.Document;
-
-///..
-import org.jspecify.annotations.NonNull;
 
 ///
 @SuppressWarnings("squid:S106")
@@ -43,8 +39,7 @@ public final class FallbackFile implements Runnable {
     private final Lock fileLock;
 
     ///
-    public FallbackFile(@NonNull final AtomicReference<MongoClientWrapper> mongoClientReference, final long scheduleDelay, @NonNull final String filePath)
-    throws IOException {
+    public FallbackFile(final AtomicReference<MongoClientWrapper> mongoClientReference, final long scheduleDelay, final String filePath) throws IOException {
 
         this.scheduleDelay = scheduleDelay;
         this.filePath = filePath;
@@ -67,7 +62,7 @@ public final class FallbackFile implements Runnable {
 
                 if(mongoClientReference.get() == null) {
 
-                    final MongoClientWrapper mongoDbClient = BeanProvider.getBean(MongoClientWrapper.class, "mongoClientWrapper");
+                    final MongoClientWrapper mongoDbClient = MongoClientProvider.getWrapper();
                     if(mongoDbClient != null) mongoClientReference.set(mongoDbClient);
                 }
 
@@ -88,14 +83,14 @@ public final class FallbackFile implements Runnable {
 
         catch(final Exception exc) {
 
-            System.out.println("FallbackFile.run => " + exc);
+            System.out.println(LocalDate.now() + ": FallbackFile.run => " + exc);
         }
 
         this.dump();
     }
 
     ///..
-    public void write(@NonNull final String log) throws IOException {
+    public void write(final String log) throws IOException {
 
         fileLock.lock();
         Files.write(fallbackFilePath, log.getBytes(), StandardOpenOption.APPEND);
@@ -118,8 +113,8 @@ public final class FallbackFile implements Runnable {
 
             try(final Stream<String> lines = Files.lines(Path.of(filePath))) {
 
-                final MongoCollection<Document> logsCollection = client.getCollection(DatabaseCollection.LOGS);
-                lines.forEach(line -> logsCollection.insertOne(new LogEntity(line)));
+                final MongoCollection<LogEntity> logsCollection = client.getCollection(DatabaseCollection.LOGS);
+                lines.filter(Objects::nonNull).forEach(line -> logsCollection.insertOne(new LogEntity(line)));
             }
 
             // Clear the file.
@@ -129,7 +124,7 @@ public final class FallbackFile implements Runnable {
 
         catch(final Exception exc) {
 
-            System.out.println("FallbackFile.dump => " + exc);
+            System.out.println(LocalDate.now() + ": FallbackFile.dump => " + exc);
             if(exc instanceof MongoException) session.abortTransaction();
         }
 

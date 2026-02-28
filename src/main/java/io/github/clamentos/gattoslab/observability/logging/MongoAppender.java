@@ -6,17 +6,15 @@ import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
 
-///.
+///..
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
+import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
-///.
+///..
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicReference;
-
-///.
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 ///
 @SuppressWarnings("squid:S106")
@@ -26,7 +24,6 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
     ///
     public static final String FALLBACK_FILE_PATH = "./fallback_logs.log";
-    private static final long JOIN_TIMEOUT = 10_000L;
 
     ///..
     private final AtomicReference<MongoClientWrapper> mongoClientReference;
@@ -41,27 +38,30 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
         super();
 
         mongoClientReference = new AtomicReference<>();
-        fallbackFile = new FallbackFile(mongoClientReference, 2_500L, FALLBACK_FILE_PATH);
+        fallbackFile = new FallbackFile(mongoClientReference, 2500L, FALLBACK_FILE_PATH);
 
-        dumper = Thread.startVirtualThread(fallbackFile);
+        dumper = ThreadSpawner.spawnVirtualThread("gattos-lab-ff-dumper", fallbackFile);
     }
 
     ///
     @Override
-    public void append(@NonNull final ILoggingEvent logEvent) {
+    public void append(final ILoggingEvent logEvent) {
 
-        try {
+        if(logEvent != null) {
 
-            final MongoClientWrapper client = mongoClientReference.get();
+            try {
 
-            if(client != null) client.getCollection(DatabaseCollection.LOGS).insertOne(new LogEntity(logEvent));
-            else this.writeToFallbackFile(logEvent);
-        }
+                final MongoClientWrapper client = mongoClientReference.get();
 
-        catch(final Exception exc) {
+                if(client != null) client.getCollection(DatabaseCollection.LOGS).insertOne(new LogEntity(logEvent));
+                else this.writeToFallbackFile(logEvent);
+            }
 
-            System.out.println("MongoAppender.append => " + exc);
-            this.writeToFallbackFile(logEvent);
+            catch(final Exception exc) {
+
+                System.out.println(LocalDate.now() + ": MongoAppender.append => " + exc);
+                this.writeToFallbackFile(logEvent);
+            }
         }
     }
 
@@ -72,7 +72,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
         try {
 
             dumper.interrupt();
-            dumper.join(JOIN_TIMEOUT);
+            dumper.join(10000L);
 
             final MongoClientWrapper client = mongoClientReference.get();
             if(client != null) client.getClient().close();
@@ -80,7 +80,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
         catch(final InterruptedException _) {
 
-            System.out.println("MongoAppender.stop => interrupted while joining, force quitting");
+            System.out.println(LocalDate.now() + ": MongoAppender.stop => interrupted while joining, force quitting");
             Thread.currentThread().interrupt();
         }
 
@@ -88,7 +88,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     }
 
     ///.
-    private void writeToFallbackFile(@NonNull final ILoggingEvent logEvent) {
+    private void writeToFallbackFile(final ILoggingEvent logEvent) {
 
         /*
             1) timestamp|severity|thread|logger|message
@@ -105,51 +105,58 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
             final String message = logEvent.getFormattedMessage();
             final IThrowableProxy throwableProxy = logEvent.getThrowableProxy(); 
 
-            sb.append(logEvent.getTimeStamp()).append("\u0001");
-            sb.append(this.normalize(logEvent.getLevel())).append("\u0001");
-            sb.append(this.normalize(logEvent.getThreadName())).append("\u0001");
-            sb.append(this.normalize(logEvent.getLoggerName())).append("\u0001");
-            sb.append(this.normalize(message).replace("\n", "\u0002"));
+            sb.append(logEvent.getTimeStamp()).append(LogEntity.SECTION_SEPARATOR);
+            sb.append(this.normalize(logEvent.getLevel())).append(LogEntity.SECTION_SEPARATOR);
+            sb.append(this.normalize(logEvent.getThreadName())).append(LogEntity.SECTION_SEPARATOR);
+            sb.append(this.normalize(logEvent.getLoggerName())).append(LogEntity.SECTION_SEPARATOR);
+            sb.append(this.normalize(message).replace("\n", LogEntity.MESSAGE_LINE_SEPARATOR));
 
             if(throwableProxy != null) {
 
                 final StackTraceElementProxy[] stacktrace = throwableProxy.getStackTraceElementProxyArray();
 
-                sb.append("\u0001").append(throwableProxy.getClassName()).append("\u0001");
-                sb.append(this.normalize(throwableProxy.getMessage()).replace("\n", "\u0002"));
+                sb.append(LogEntity.SECTION_SEPARATOR).append(throwableProxy.getClassName()).append(LogEntity.SECTION_SEPARATOR);
+                sb.append(this.normalize(throwableProxy.getMessage()).replace("\n", LogEntity.MESSAGE_LINE_SEPARATOR));
 
-                if(stacktrace != null) sb.append("\u0001").append(this.formatStacktraceForFile(stacktrace));
+                if(stacktrace != null) sb.append(LogEntity.SECTION_SEPARATOR).append(this.formatStacktraceForFile(stacktrace));
             }
 
-            sb.append("\n");
-            fallbackFile.write(sb.toString());
+            fallbackFile.write(sb.toString() + "\n");
         }
 
         catch(final IOException exc) {
 
-            System.out.println("MongoAppender.writeToFallbackFile => " + exc);
+            System.out.println(LocalDate.now() + ": MongoAppender.writeToFallbackFile => " + exc);
         }
     }
 
     ///..
-    private @NonNull String normalize(@Nullable final Object input) {
+    private String normalize(final Object input) {
 
-        if(input == null) return "\u0000";
-        else return input.toString();
+        if(input != null) {
+
+            final String str = input.toString();
+            return str != null ? str : LogEntity.NULL_REPLACEMENT;
+        }
+
+        return LogEntity.NULL_REPLACEMENT;
     }
 
     ///..
-    private @NonNull String formatStacktraceForFile(@NonNull final StackTraceElementProxy[] stacktrace) {
+    private String formatStacktraceForFile(final StackTraceElementProxy[] stacktrace) {
 
         final StringBuilder sb = new StringBuilder();
 
         for(final StackTraceElementProxy element : stacktrace) {
 
-            sb.append(this.normalize(element).replace("\n", "\u0002")).append("\u0001");
+            sb
+                .append(this.normalize(element).replace("\n", LogEntity.MESSAGE_LINE_SEPARATOR))
+                .append(LogEntity.SECTION_SEPARATOR)
+            ;
         }
 
         if(!sb.isEmpty()) sb.deleteCharAt(sb.length() - 1);
-        return sb.toString();
+        return this.normalize(sb.toString());
     }
 
     ///

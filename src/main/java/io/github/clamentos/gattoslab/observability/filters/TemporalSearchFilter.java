@@ -6,19 +6,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 ///..
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Sorts;
-
-///.
-import java.util.Set;
-
-///.
-import lombok.Getter;
-
-///.
-import org.bson.conversions.Bson;
 
 ///..
-import org.jspecify.annotations.NonNull;
+import io.github.clamentos.gattoslab.persistence.EntityField;
+
+///..
+import lombok.Getter;
+
+///..
+import org.bson.conversions.Bson;
 
 ///
 @Getter
@@ -40,23 +36,15 @@ public class TemporalSearchFilter implements SearchFilter {
 
     ///
     @Override
-    public @NonNull Bson toBsonFilter() {
+    public Bson toBsonFilter() {
 
-        return Filters.and(Filters.gte("timestamp", startTimestamp), Filters.lte("timestamp", endTimestamp));
+        return Filters.and(Filters.gte(EntityField.TIMESTAMP.getField(), startTimestamp), Filters.lte(EntityField.TIMESTAMP.getField(), endTimestamp));
     }
 
-    ///..
-    @Override
-    public @NonNull Bson getSorting() {
+    ///.
+    protected EntityField getTemporalField() {
 
-        return Sorts.ascending("timestamp");
-    }
-
-    ///..
-    @Override
-    public @NonNull Set<String> getExcludedFields() {
-
-        return Set.of();
+        return EntityField.TIMESTAMP;
     }
 
     ///

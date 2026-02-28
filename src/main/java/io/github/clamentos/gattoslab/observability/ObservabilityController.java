@@ -3,36 +3,31 @@ package io.github.clamentos.gattoslab.observability;
 ///
 import com.mongodb.MongoException;
 
-///.
+///..
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
-import io.github.clamentos.gattoslab.session.SessionMetadata;
 import io.github.clamentos.gattoslab.session.SessionService;
-
-///.
-import java.util.List;
-
-///.
-import lombok.RequiredArgsConstructor;
-
-///.
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import io.github.clamentos.gattoslab.utils.HttpUtils;
 
 ///..
-import org.jspecify.annotations.NonNull;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.util.HeaderMap;
+import io.undertow.util.StatusCodes;
+
+///..
+import java.io.IOException;
+
+///..
+import lombok.RequiredArgsConstructor;
+
+///..
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.json.JsonMapper;
 
 ///
 @RequiredArgsConstructor
-@RestController
-@RequestMapping("/admin/api/observability")
 
 ///
 public final class ObservabilityController {
@@ -41,61 +36,58 @@ public final class ObservabilityController {
     private final ObservabilityService observabilityService;
     private final SessionService sessionService;
     private final LogsService logsService;
+    private final JsonMapper jsonMapper;
 
     ///
-    @PostMapping(path = "/request-metrics", consumes = "application/json", produces = "application/json")
-    public @NonNull ResponseEntity<StreamingResponseBody> getRequestMetrics(@RequestBody @NonNull final RequestMetricsSearchFilter chartSearchFilter)
-    throws MongoException {
+    public void getRequestMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
 
-        return ResponseEntity
-
-            .ok()
-            .header("Content-Encoding", "gzip")
-            .header("Cache-Control", "no-cache")
-            .body(observabilityService.getRequestMetrics(chartSearchFilter))
-        ;
+        observabilityService.getRequestMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
+        this.finalizeStreamingResponse(exchange);
     }
 
     ///..
-    @PostMapping(path = "/system-metrics", produces = "application/json")
-    public @NonNull ResponseEntity<StreamingResponseBody> getSystemMetrics(@RequestBody(required = true) @NonNull final TemporalSearchFilter searchFilter)
-    throws MongoException {
+    public void getInvocationMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
 
-        return ResponseEntity
-
-            .ok()
-            .header("Content-Encoding", "gzip")
-            .header("Cache-Control", "no-cache")
-            .body(observabilityService.getSystemMetrics(searchFilter))
-        ;
+        observabilityService.getInvocationMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
+        this.finalizeStreamingResponse(exchange);
     }
 
     ///..
-    @GetMapping(path = "/sessions-metadata", produces = "application/json")
-    public @NonNull ResponseEntity<List<SessionMetadata>> getSessionsMetadata() {
+    public void getSystemMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
 
-        return ResponseEntity.ok().header("Cache-Control", "no-cache").body(sessionService.getSessionsMetadata());
+        observabilityService.getSystemMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
+        this.finalizeStreamingResponse(exchange);
     }
 
     ///..
-    @PostMapping(path = "/logs", consumes = "application/json", produces = "application/json")
-    public @NonNull ResponseEntity<StreamingResponseBody> getLogs(@RequestBody(required = true) @NonNull final LogSearchFilter logSearchFilter)
-    throws MongoException {
+    public void getSessionsMetadata(final HttpServerExchange exchange) throws JacksonException {
 
-        return ResponseEntity.ok().header("Content-Encoding", "gzip").body(logsService.getLogs(logSearchFilter));
+        HttpUtils.respondRest(exchange, StatusCodes.OK, jsonMapper.writeValueAsString(sessionService.getSessionsMetadata()), null);
     }
 
     ///..
-    @GetMapping(path = "/fallback-logs", produces = "application/json")
-    public @NonNull ResponseEntity<StreamingResponseBody> getFallbackLogs() {
+    public void getLogs(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
 
-        return ResponseEntity
+        logsService.getLogs(generator, jsonMapper.readValue(exchange.getInputStream(), LogSearchFilter.class));
+        this.finalizeStreamingResponse(exchange);
+    }
 
-            .ok()
-            .header("Content-Encoding", "gzip")
-            .header("Cache-Control", "no-cache")
-            .body(logsService.getFallbackLogs())
-        ;
+    ///..
+    public void getFallbackLogs(final HttpServerExchange exchange, final JsonGenerator generator) throws IOException, JacksonException, MongoException {
+
+        logsService.getFallbackLogs(generator);
+        this.finalizeStreamingResponse(exchange);
+    }
+
+    ///.
+    private void finalizeStreamingResponse(final HttpServerExchange exchange) {
+
+        exchange.setStatusCode(StatusCodes.OK);
+
+        final HeaderMap headers = exchange.getResponseHeaders();
+
+        HttpUtils.addGzipEncoding(headers);
+        HttpUtils.addNoCache(headers);
     }
 
     ///

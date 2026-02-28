@@ -1,18 +1,12 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import io.github.clamentos.gattoslab.observability.metrics.entries.MetricsEntry;
+import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
+import io.github.clamentos.gattoslab.scheduling.eventbus.EventBus;
 import io.github.clamentos.gattoslab.utils.FastAtomicCounter;
 
-///.
-import java.util.List;
-
-///.
-import org.springframework.context.ApplicationEventPublisher;
-
 ///..
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
+import java.util.List;
 
 ///
 public final class ObservabilityContext {
@@ -22,35 +16,28 @@ public final class ObservabilityContext {
     private final FastAtomicCounter visitorCounter;
 
     ///
-    public ObservabilityContext(@NonNull final ApplicationEventPublisher applicationEventPublisher, final int siphonCapacity) {
+    public ObservabilityContext(final EventBus eventBus, final int siphonCapacity) {
 
-        siphon = new Siphon(applicationEventPublisher, siphonCapacity);
+        siphon = new Siphon(eventBus, siphonCapacity);
         visitorCounter = new FastAtomicCounter();
     }
 
     ///
-    public boolean updateMetrics(
+    public boolean updateMetrics(final String path, final String userAgent, final boolean isOthers, final long startTime, final int httpStatus) {
 
-        @NonNull final String path,
-        @Nullable final String userAgent,
-        final boolean isOthers,
-        final long startTime,
-        final long endTime,
-        final int httpStatus
-    ) {
+        final RequestMetricsEntity entity = siphon.getNext();
+        final long endTime = System.currentTimeMillis();
 
-        final MetricsEntry metricsEntry = siphon.getNext();
-
-        if(metricsEntry != null) {
+        if(entity != null) {
 
             visitorCounter.increment();
 
-            metricsEntry.setPath(path);
-            metricsEntry.setUserAgent(userAgent);
-            metricsEntry.setOthers(isOthers);
-            metricsEntry.setTimestamp(endTime);
-            metricsEntry.setLatency((int)endTime - (int)startTime);
-            metricsEntry.setHttpStatus((short)httpStatus);
+            entity.setPath(path);
+            entity.setUserAgent(userAgent);
+            entity.setOthers(isOthers);
+            entity.setTimestamp(endTime);
+            entity.setLatency((int)endTime - (int)startTime);
+            entity.setHttpStatus((short)httpStatus);
 
             visitorCounter.decrement();
             return true;
@@ -60,7 +47,7 @@ public final class ObservabilityContext {
     }
 
     ///.
-    public @NonNull List<MetricsEntry> drainSiphon() {
+    public List<RequestMetricsEntity> drainSiphon() {
 
         return siphon.drain();
     }

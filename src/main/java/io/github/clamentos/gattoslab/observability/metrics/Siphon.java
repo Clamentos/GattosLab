@@ -1,69 +1,66 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import io.github.clamentos.gattoslab.observability.metrics.entries.MetricsEntry;
+import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
+import io.github.clamentos.gattoslab.scheduling.eventbus.EventBus;
 
-///.
+///..
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
-///.
-import org.springframework.context.ApplicationEventPublisher;
-
 ///..
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
+import org.bson.types.ObjectId;
 
 ///
 public final class Siphon {
 
     ///
-    private final ApplicationEventPublisher applicationEventPublisher;
+    private final EventBus eventBus;
     private final AtomicBoolean isDraining;
 
     ///..
-    private final AtomicReferenceArray<MetricsEntry> elements;
+    private final AtomicReferenceArray<RequestMetricsEntity> elements;
     private final AtomicInteger index;
 
     ///
-    public Siphon(@NonNull final ApplicationEventPublisher applicationEventPublisher, final int capacity) {
+    public Siphon(final EventBus eventBus, final int capacity) {
 
-        this.applicationEventPublisher = applicationEventPublisher;
+        this.eventBus = eventBus;
         isDraining = new AtomicBoolean();
 
-        final MetricsEntry[] metricsEntries = new MetricsEntry[capacity];
-        for(int i = 0; i < capacity; i++) metricsEntries[i] = new MetricsEntry();
+        final RequestMetricsEntity[] entities = new RequestMetricsEntity[capacity];
+        for(int i = 0; i < capacity; i++) entities[i] = new RequestMetricsEntity();
 
-        this.elements = new AtomicReferenceArray<>(metricsEntries);
+        this.elements = new AtomicReferenceArray<>(entities);
         index = new AtomicInteger();
     }
 
     ///
-    public @Nullable MetricsEntry getNext() {
+    public RequestMetricsEntity getNext() {
 
         final int indexValue = index.getAndUpdate(val -> val < elements.length() ? val + 1 : val);
 
         if(indexValue < elements.length()) return elements.get(indexValue);
-        if(isDraining.compareAndSet(false, true)) applicationEventPublisher.publishEvent(new DrainMetricsEvent());
+        if(isDraining.compareAndSet(false, true)) eventBus.trigger();
 
         return null;
     }
 
     ///..
-    public @NonNull List<MetricsEntry> drain() {
+    public List<RequestMetricsEntity> drain() {
 
         isDraining.set(true);
 
         final int length = elements.length();
-        final List<MetricsEntry> elementList = new ArrayList<>(length);
+        final List<RequestMetricsEntity> elementList = new ArrayList<>(length);
 
         for(int i = 0; i < index.get(); i++) {
 
-            final MetricsEntry entity = elements.get(i);
-            entity.createId();
+            final RequestMetricsEntity entity = elements.get(i);
+            entity.setId(new ObjectId());
 
             elementList.add(entity);
         }

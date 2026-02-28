@@ -5,69 +5,63 @@ import com.mongodb.MongoException;
 import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
+import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Sorts;
 
-///.
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
+///..
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.pojos.MetricsConfig;
+import io.github.clamentos.gattoslab.observability.filters.AggregationPipelines;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.SearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
-import io.github.clamentos.gattoslab.observability.metrics.DrainMetricsEvent;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
+import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
+import io.github.clamentos.gattoslab.persistence.EntityField;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
-import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.scheduling.eventbus.EventBus;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.web.Website;
+import io.github.clamentos.gattoslab.utils.HttpUtils;
+import io.github.clamentos.gattoslab.website.Website;
 
-///.
-import jakarta.annotation.PreDestroy;
-import jakarta.el.PropertyNotFoundException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+///..
+import io.undertow.server.HttpServerExchange;
+import io.undertow.util.Headers;
 
-///.
+///..
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-///.
+///..
 import lombok.extern.slf4j.Slf4j;
 
-///.
+///..
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
 ///..
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.HandlerInterceptor;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-///..
-import org.apache.catalina.connector.ClientAbortException;
-
-///..
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
-
-///.
+import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonGenerator;
-import tools.jackson.databind.json.JsonMapper;
 
 ///
-@Service
 @Slf4j
 
 ///
-public class ObservabilityService implements HandlerInterceptor {
+public class ObservabilityService implements Closeable {
 
     ///
     private final int siphonCapacity;
@@ -76,45 +70,54 @@ public class ObservabilityService implements HandlerInterceptor {
     private final Set<String> monitoredPaths;
 
     ///..
-    private final SystemMetrics systemMetrics;
     private final MongoClientWrapper mongoClientWrapper;
-    private final ApplicationEventPublisher applicationEventPublisher;
-    private final JsonMapper jsonMapper;
 
     ///..
+    private final SystemMetrics systemMetrics;
+    private final EventBus eventBus;
+    private final AtomicBoolean isHandlingEvent;
+
     private final AtomicReference<ObservabilityContext> primaryContext;
     private final AtomicReference<ObservabilityContext> secondaryContext;
 
     private final Queue<ObservabilityContext> requestMetricsDumpFailures;
-    private final Queue<Document> systemMetricsDumpFailures;
-
-    private final AtomicBoolean isHandlingEvent;
+    private final Queue<SystemMetricsEntity> systemMetricsDumpFailures;
 
     ///
-    @Autowired
     public ObservabilityService(
 
-        @NonNull final PropertyProvider propertyProvider,
-        @NonNull final Website website,
-        @NonNull final SystemMetrics systemMetrics,
-        @NonNull final MongoClientWrapper mongoClientWrapper,
-        @NonNull final ApplicationEventPublisher applicationEventPublisher,
-        @NonNull final JsonMapper jsonMapper
+        final ApplicationProperties applicationProperties,
+        final BatchScheduler batchScheduler,
+        final Website website,
+        final MongoClientWrapper mongoClientWrapper
 
-    ) throws PropertyNotFoundException {
+    ) throws IllegalArgumentException {
 
-        siphonCapacity = propertyProvider.getProperty("app.metrics.siphonCapacity", Integer.class);
-        requestMetricsRetention = propertyProvider.getProperty("app.metrics.requestMetricsRetention", Integer.class);
-        systemMetricsRetention = propertyProvider.getProperty("app.metrics.systemMetricsRetention", Integer.class);
+        eventBus = new EventBus(this::dumpMetrics);
+        final MetricsConfig metricsConfig = applicationProperties.getMetricsConfig();
+
+        final long systemMetricsSamplingPeriod = batchScheduler.schedule(
+
+            this::sampleSystemMetrics,
+            "ObservabilityService::sampleSystemMetrics",
+            metricsConfig.getSystemMetricsSampling()
+
+        ).getPeriod();
+
+        batchScheduler.schedule(eventBus::trigger, "ObservabilityService::trigger", metricsConfig.getDumpToDbSchedule());
+        batchScheduler.schedule(this::deleteOldMetrics, "ObservabilityService::deleteOldMetrics", metricsConfig.getRetentionSchedule());
+
+        systemMetrics = new SystemMetrics(systemMetricsSamplingPeriod);
+
+        siphonCapacity = metricsConfig.getSiphonCapacity();
+        requestMetricsRetention = metricsConfig.getRequestMetricsRetention();
+        systemMetricsRetention = metricsConfig.getSystemMetricsRetention();
         monitoredPaths = website.getPaths();
 
-        this.systemMetrics = systemMetrics;
         this.mongoClientWrapper = mongoClientWrapper;
-        this.applicationEventPublisher = applicationEventPublisher;
-        this.jsonMapper = jsonMapper;
 
-        primaryContext = new AtomicReference<>(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
-        secondaryContext = new AtomicReference<>(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
+        primaryContext = new AtomicReference<>(new ObservabilityContext(eventBus, siphonCapacity));
+        secondaryContext = new AtomicReference<>(new ObservabilityContext(eventBus, siphonCapacity));
 
         requestMetricsDumpFailures = new ConcurrentLinkedQueue<>();
         systemMetricsDumpFailures = new ConcurrentLinkedQueue<>();
@@ -123,40 +126,130 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///
-    public @NonNull StreamingResponseBody getRequestMetrics(@NonNull final RequestMetricsSearchFilter searchFilter) throws MongoException {
+    public void getRequestMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter) throws JacksonException, MongoException {
 
-        return this.fetchMetrics(DatabaseCollection.REQUEST_METRICS, searchFilter);
+        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
+        final Map<String, Map<Long, Document>> metricsMap = new HashMap<>();
+
+        final List<Bson> pathsAggregation = new ArrayList<>();
+        pathsAggregation.add(Aggregates.match(searchFilter.toBsonFilter()));
+        pathsAggregation.addAll(AggregationPipelines.PERFORMANCE_METRICS);
+
+        try(final MongoCursor<Document> entityCursor = collection.aggregate(pathsAggregation).iterator()) {
+
+            while(entityCursor.hasNext()) {
+
+                final Document entity = entityCursor.next();
+                metricsMap.computeIfAbsent(entity.getString("key"), _ -> new TreeMap<>()).put(entity.getLong("timeSlot"), entity);
+            }
+        }
+
+        final List<Long> labels = new ArrayList<>();
+
+        for(final Map<Long, Document> metricsMapInner : metricsMap.values()) {
+
+            for(long i = searchFilter.getStartTimestamp(); i < searchFilter.getEndTimestamp(); i += searchFilter.getBucketSize()) {
+
+                labels.add(i);
+                metricsMapInner.putIfAbsent(i, null);
+            }
+        }
+
+        final List<Map<String, Object>> rateDatasets = new ArrayList<>();
+        final List<Map<String, Object>> latencyDatasets = new ArrayList<>();
+
+        for(final Map.Entry<String, Map<Long, Document>> metricsMapEntry : metricsMap.entrySet()) {
+
+            final String key = metricsMapEntry.getKey();
+            final Collection<Document> innerEntities = metricsMapEntry.getValue().values();
+
+            rateDatasets.add(Map.of("label", key, "data", innerEntities.stream().map(v -> v.getInteger("rate")).toList()));
+
+            final List<Map<String, Long>> latencyData = new ArrayList<>();
+
+            for(final Document entity : innerEntities) {
+
+                final List<Long> latencyDistribution = (List<Long>)entity.get("latencyDistribution", List.class);
+
+                for(int i = 0; i < latencyDistribution.size(); i++) {
+
+                    latencyData.add(Map.of(
+
+                        "x", entity.getLong("timeSlot"),
+                        "y", (long)i,
+                        "r", latencyDistribution.get(i)
+                    ));
+                }
+            }
+
+            latencyDatasets.add(Map.of("label", key, "data", latencyData));
+        }
+
+        final Map<String, Map<String, Object>> json = Map.of(
+
+            "rate", Map.of("labels", labels, "datasets", rateDatasets),
+            "latency", Map.of("datasets", latencyDatasets)
+        );
+
+        generator.writePOJO(json);
     }
 
     ///..
-    public @NonNull StreamingResponseBody getSystemMetrics(@NonNull final TemporalSearchFilter searchFilter) {
+    public void getInvocationMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter) throws JacksonException, MongoException {
 
-        return this.fetchMetrics(DatabaseCollection.SYSTEM_METRICS, searchFilter);
+        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
+
+        final Bson sort = Aggregates.sort(Sorts.descending("count"));
+        final List<Bson> pathsAggregation = List.of(Aggregates.match(searchFilter.toBsonFilter()), AggregationPipelines.PATH_INVOCATIONS, sort);
+        final List<Bson> userAgentsAggregation = List.of(Aggregates.match(searchFilter.toBsonFilter()), AggregationPipelines.USER_AGENTS, sort);
+
+        try(
+
+            final MongoCursor<Document> paths = collection.aggregate(pathsAggregation).iterator();
+            final MongoCursor<Document> userAgents = collection.aggregate(userAgentsAggregation).iterator();
+        ) {
+
+            generator.writeStartObject();
+
+            generator.writeArrayPropertyStart("paths");
+            while(paths.hasNext()) generator.writePOJO(paths.next());
+            generator.writeEndArray();
+
+            generator.writeArrayPropertyStart("userAgents");
+            while(userAgents.hasNext()) generator.writePOJO(userAgents.next());
+            generator.writeEndArray();
+
+            generator.writeEndObject();
+        }
     }
 
     ///..
-    @Override
-    public void afterCompletion(
+    public void getSystemMetrics(final JsonGenerator generator, final TemporalSearchFilter searchFilter) throws JacksonException, MongoException {
 
-        @NonNull final HttpServletRequest request,
-        @NonNull final HttpServletResponse response,
-        @Nullable final Object handler,
-        @Nullable final Exception exc
-    ) {
+        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS);
 
-        if(exc != null && (exc instanceof ClientAbortException || exc.getCause() instanceof ClientAbortException)) return;
-        final String path = request.getRequestURI();
+        try(final MongoCursor<Document> metrics = collection.find(searchFilter.toBsonFilter()).sort(Sorts.ascending(EntityField.TIMESTAMP.getField())).iterator()) {
+
+            generator.writeStartArray();
+            while(metrics.hasNext()) generator.writePOJO(metrics.next());
+            generator.writeEndArray();
+        }
+    }
+
+    ///..
+    public void updateRequestMetrics(final HttpServerExchange exchange) {
+
+        final String path = exchange.getRequestPath();
 
         while(true) {
 
             final boolean success = primaryContext.get().updateMetrics(
 
                 path,
-                request.getHeader("User-Agent"),
+                HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING),
                 !monitoredPaths.contains(path),
-                (long)request.getAttribute("START_TIME_ATTRIBUTE"),
-                System.currentTimeMillis(),
-                response.getStatus()
+                exchange.getAttachment(HttpUtils.START_TIME_EPOCH_MS),
+                exchange.getStatusCode()
             );
 
             if(success) break;
@@ -164,19 +257,18 @@ public class ObservabilityService implements HandlerInterceptor {
         }
 	}
 
-    ///.
-    @Scheduled(cron = "${app.metrics.dumpToDbSchedule}", scheduler = "batchScheduler")
-    protected void dumpToDb() {
+    ///..
+    public void close() throws IOException {
 
-        applicationEventPublisher.publishEvent(new DrainMetricsEvent());
+        this.dumpMetrics();
+        systemMetrics.close();
     }
 
-    ///..
-    @Scheduled(cron = "${app.metrics.systemMetricsSampling}", scheduler = "batchScheduler")
-    protected void sampleSystemMetrics() {
+    ///.
+    private void sampleSystemMetrics() {
 
         final ClientSession session = mongoClientWrapper.getClient().startSession();
-        Document toSave = systemMetrics.toDocument();
+        SystemMetricsEntity toSave = systemMetrics.toEntity();
 
         try {
 
@@ -201,8 +293,7 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    @Scheduled(cron = "${app.metrics.retentionSchedule}", scheduler = "batchScheduler")
-    protected void deleteOldMetrics() {
+    private void deleteOldMetrics() {
 
         log.info("Begin delete metrics by retention");
         final ClientSession session = mongoClientWrapper.getClient().startSession();
@@ -235,54 +326,6 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    @EventListener
-    @Async("batchScheduler")
-    protected void handleDrainEvent(@Nullable final DrainMetricsEvent event) {
-
-        this.dumpMetrics();
-    }
-
-    ///..
-    @PreDestroy
-    protected void flushMetricsBeforeQuitting() {
-
-        this.dumpMetrics();
-    }
-
-    ///.
-    private @NonNull StreamingResponseBody fetchMetrics(@NonNull final DatabaseCollection databaseCollection, @NonNull final SearchFilter searchFilter)
-    throws MongoException {
-
-        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(databaseCollection);
-        final MongoCursor<Document> results = collection.find(searchFilter.toBsonFilter()).sort(searchFilter.getSorting()).iterator();
-
-        return outputStream -> {
-
-            try(final JsonGenerator generator = jsonMapper.createGenerator(new CompressingOutputStream(outputStream))) {
-
-                generator.writeStartArray();
-
-                while(results.hasNext()) {
-
-                    final Document entity = results.next();
-
-                    if(!searchFilter.getExcludedFields().isEmpty()) {
-
-                        for(final String fieldToExclude : searchFilter.getExcludedFields()) {
-
-                            entity.remove(fieldToExclude);
-                        }
-                    }
-
-                    generator.writePOJO(entity);
-                }
-
-                generator.writeEndArray();
-            }
-        };
-    }
-
-    ///..
     private void dumpMetrics() {
 
         if(isHandlingEvent.compareAndSet(false, true)) {
@@ -307,7 +350,7 @@ public class ObservabilityService implements HandlerInterceptor {
 
                 session.abortTransaction();
                 requestMetricsDumpFailures.add(oldPrimary);
-                secondaryContext.set(new ObservabilityContext(applicationEventPublisher, siphonCapacity));
+                secondaryContext.set(new ObservabilityContext(eventBus, siphonCapacity));
             }
 
             session.close();
@@ -316,7 +359,7 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    private @NonNull ObservabilityContext swapContexts() {
+    private ObservabilityContext swapContexts() {
 
         final ObservabilityContext primary = primaryContext.get();
 
@@ -327,7 +370,7 @@ public class ObservabilityService implements HandlerInterceptor {
     }
 
     ///..
-    private void insertMetrics(@NonNull final ObservabilityContext context) throws MongoException {
+    private void insertMetrics(final ObservabilityContext context) throws MongoException {
 
         while(!context.isNoOneThere()) GenericUtils.sleep(1L);
 

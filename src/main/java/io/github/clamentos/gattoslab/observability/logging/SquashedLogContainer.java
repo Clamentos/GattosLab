@@ -1,53 +1,53 @@
 package io.github.clamentos.gattoslab.observability.logging;
 
 ///
-import io.github.clamentos.gattoslab.observability.logging.log_squash.SquashLogEvent;
-import io.github.clamentos.gattoslab.observability.logging.log_squash.SquashLogEventType;
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEvent;
+import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEventType;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 
-///.
+///..
+import java.io.Closeable;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-///.
+///..
 import lombok.extern.slf4j.Slf4j;
 
-///.
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-
-///..
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
-
 ///
-@Component
 @Slf4j
 
 ///
-public final class SquashedLogContainer {
+public final class SquashedLogContainer implements Closeable {
 
     ///
     private final Map<SquashLogEventType, SquashLogEvent> squashEvents;
 
     ///
-    @Autowired
-    public SquashedLogContainer(@NonNull final List<SquashLogEvent> squashEvents) {
+    public SquashedLogContainer(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final List<SquashLogEvent> squashEvents)
+    throws IllegalArgumentException {
+
+        batchScheduler.schedule(this::log, "SquashedLogContainer::log", applicationProperties.getLogsConfig().getSquashSchedule());
 
         this.squashEvents = new EnumMap<>(SquashLogEventType.class);
         for(final SquashLogEvent squashEvent : squashEvents) this.squashEvents.put(squashEvent.getType(), squashEvent);
     }
 
     ///
-    public <T> void squash(@NonNull final SquashLogEventType eventType, @Nullable final T value) {
+    public <T> void squash(final SquashLogEventType eventType, final T value) {
 
         squashEvents.get(eventType).update(value);
     }
 
+    ///..
+    public void close() {
+
+        this.log();
+    }
+
     ///.
-    @Scheduled(cron = "${app.logs.squashSchedule}", scheduler = "batchScheduler")
-    protected void log() {
+    private void log() {
 
         for(final SquashLogEvent event : squashEvents.values()) {
 

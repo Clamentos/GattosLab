@@ -1,37 +1,22 @@
 package io.github.clamentos.gattoslab.session;
 
 ///
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.pojos.SessionConfig;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
-
-///.
-import jakarta.el.PropertyNotFoundException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-
-///.
-import java.util.EnumMap;
-import java.util.Map;
-
-///.
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestAttribute;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import io.github.clamentos.gattoslab.utils.HttpUtils;
+import io.github.clamentos.gattoslab.utils.MimeType;
 
 ///..
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
+import io.undertow.server.HttpServerExchange;
+import io.undertow.server.handlers.Cookie;
+import io.undertow.util.HeaderMap;
+import io.undertow.util.Headers;
+import io.undertow.util.StatusCodes;
 
-///
-@RestController
-@RequestMapping("/api/session")
+///..
+import java.util.EnumMap;
+import java.util.Map;
 
 ///
 public final class SessionController {
@@ -44,90 +29,74 @@ public final class SessionController {
     private final SessionService sessionService;
 
     ///..
-    @Autowired
-    public SessionController(@NonNull final PropertyProvider propertyProvider, @NonNull final SessionService sessionService) throws PropertyNotFoundException {
+    public SessionController(final ApplicationProperties applicationProperties, final SessionService sessionService) {
 
-        cookieName = propertyProvider.getProperty("app.session.cookieName", String.class);
+        final SessionConfig sessionConfig = applicationProperties.getSessionConfig();
+
+        cookieName = sessionConfig.getCookieName();
         cookieAttributes = new EnumMap<>(SessionRole.class);
 
         for(final SessionRole role : SessionRole.values()) {
 
-            final String attributes = propertyProvider.getProperty("app.session." + role.getPropertySection() + ".cookieAttributes", String.class);
-            final int sessionDuration = propertyProvider.getProperty("app.session." + role.getPropertySection() + ".sessionDuration", Integer.class);
-
-            cookieAttributes.put(role, attributes + " Max-Age=" + sessionDuration + ";");
+            cookieAttributes.put(role, sessionService.getCookieAttributes(role) + " Max-Age=" + sessionConfig.getDuration() + ";");
         }
 
         this.sessionService = sessionService;
     }
 
     ///
-    @PostMapping(produces = "application/json")
-    public @NonNull ResponseEntity<Long> createSession(
+    public void createSession(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        @RequestAttribute("IP_ATTRIBUTE") @NonNull final String ip,
-        @RequestHeader(value = "Authorization", required = false) @Nullable final String key,
-        @RequestHeader(value = "User-Agent", required = false) @Nullable final String userAgent,
-        @RequestParam("role") @NonNull final SessionRole role
+        final SessionRole role = SessionRole.fromParam(exchange);
+        final HeaderMap headers = exchange.getRequestHeaders();
 
-    ) throws ApiSecurityException {
+        final SessionMetadata session = sessionService.createSession(
 
-        final SessionMetadata session = sessionService.createSession(key, role, ip, userAgent);
+            HttpUtils.getHeaderValue(headers, Headers.AUTHORIZATION_STRING),
+            role,
+            exchange.getSourceAddress().getAddress(),
+            HttpUtils.getHeaderValue(headers, Headers.USER_AGENT_STRING)
+        );
 
-        return ResponseEntity
-
-            .ok()
-            .header("Set-Cookie", cookieName + role.name() + cookieAttributes.get(role).replace("$", session.getSessionId()))
-            .body(session.getExpiresAt())
-        ;
+        this.respondWithCookie(exchange, role, session);
     }
 
     ///..
-    @PutMapping(produces = "application/json")
-    public @NonNull ResponseEntity<Long> refreshSession(
+    public void refreshSession(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        @RequestAttribute("IP_ATTRIBUTE") @NonNull final String ip,
-        @RequestHeader(value = "User-Agent", required = false) @Nullable final String userAgent,
-        @RequestParam("role") @NonNull final SessionRole role,
-        @NonNull final HttpServletRequest request
+        final SessionRole role = SessionRole.fromParam(exchange);
+        final Cookie cookie = exchange.getRequestCookie(cookieName + role.name());
 
-    ) throws ApiSecurityException {
+        final SessionMetadata session = sessionService.refreshSession(
 
-        final SessionMetadata session = sessionService.refreshSession(this.getCookie(role, request), role, ip, userAgent);
+            cookie != null ? cookie.getValue() : null,
+            role,
+            exchange.getSourceAddress().getAddress(),
+            HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING)
+        );
 
-        return ResponseEntity
-
-            .ok()
-            .header("Set-Cookie", cookieName + role.name() + cookieAttributes.get(role).replace("$", session.getSessionId()))
-            .body(session.getExpiresAt())
-        ;
+        this.respondWithCookie(exchange, role, session);
     }
 
     ///..
-    @DeleteMapping
-    public @NonNull ResponseEntity<Void> deleteSession(@RequestParam("role") @NonNull final SessionRole role, @NonNull final HttpServletRequest request) {
+    public void deleteSession(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        sessionService.deleteSession(this.getCookie(role, request));
-        return ResponseEntity.ok().build();
+        final SessionRole role = SessionRole.fromParam(exchange);
+        final Cookie cookie = exchange.getRequestCookie(cookieName + role.name());
+
+        sessionService.deleteSession(cookie != null ? cookie.getValue() : null, role);
     }
 
-    ///..
-    private @Nullable String getCookie(@NonNull final SessionRole role, @NonNull final HttpServletRequest request) {
+    ///.
+    private void respondWithCookie(final HttpServerExchange exchange, final SessionRole role, final SessionMetadata session) {
 
-        final Cookie[] cookies = request.getCookies();
+        final HeaderMap headers = exchange.getResponseHeaders();
 
-        if(cookies != null) {
+        HttpUtils.addContentType(headers, MimeType.TXT);
+        HttpUtils.addCookie(headers, cookieName + role.name() + cookieAttributes.get(role).replace("$", session.getSessionId()));
 
-            for(final Cookie cookie : cookies) {
-
-                if(cookie != null && cookie.getName().equals(cookieName + role.name())) {
-
-                    return cookie.getValue();
-                }
-            }
-        }
-
-        return null;
+        exchange.setStatusCode(StatusCodes.OK);
+        exchange.getResponseSender().send(Long.toString(session.getExpiresAt()));
     }
 
     ///

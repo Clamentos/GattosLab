@@ -1,16 +1,16 @@
 package io.github.clamentos.gattoslab.session;
 
 ///
-import io.github.clamentos.gattoslab.configuration.PropertyProvider;
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.pojos.SessionConfig;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.session.containers.AdminSessionContainer;
 import io.github.clamentos.gattoslab.session.containers.SessionContainer;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
-///.
-import jakarta.el.PropertyNotFoundException;
-
-///.
+///..
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -18,20 +18,10 @@ import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-///.
+///..
 import lombok.extern.slf4j.Slf4j;
 
-///.
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-
-///..
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
-
 ///
-@Service
 @Slf4j
 
 ///
@@ -47,20 +37,28 @@ public final class SessionService {
     private final Lock lock;
 
     ///
-    @Autowired
-    public SessionService(@NonNull final PropertyProvider propertyProvider) throws PropertyNotFoundException {
+    public SessionService(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler) throws IllegalArgumentException {
 
-        loginDelay = propertyProvider.getProperty("app.session.loginDelay", Long.class);
+        final SessionConfig sessionConfig = applicationProperties.getSessionConfig();
+
+        loginDelay = sessionConfig.getLoginDelay();
+        batchScheduler.schedule(this::cleanExpired, "SessionService::cleanExpired", sessionConfig.getCleanSchedule());
 
         sessionContainers = new EnumMap<>(SessionRole.class);
-        for(final SessionRole role : SessionRole.values()) sessionContainers.put(role, new AdminSessionContainer(propertyProvider));
+        for(final SessionRole role : SessionRole.values()) sessionContainers.put(role, new AdminSessionContainer(applicationProperties));
 
         lock = new ReentrantLock();
     }
 
     ///
+    public String getCookieAttributes(final SessionRole role) {
+
+        return sessionContainers.get(role).getCookieAttributes();
+    }
+
+    ///..
     // Designed to be slow when wrong on purpose.
-    public @Nullable SessionMetadata check(@NonNull final SessionRole role, @Nullable final String sessionId, @Nullable final String fingerprint) {
+    public SessionMetadata check(final SessionRole role, final String sessionId, final String fingerprint) {
 
         final SessionMetadata session = sessionContainers.get(role).getSession(sessionId);
 
@@ -77,56 +75,34 @@ public final class SessionService {
     }
 
     ///..
-    public @NonNull SessionMetadata createSession(
-
-        @Nullable final String authorization,
-        @NonNull final SessionRole role,
-        @Nullable final String ip,
-        @Nullable final String userAgent
-
-    ) throws ApiSecurityException {
+    public SessionMetadata createSession(final String authorization, final SessionRole role, final InetAddress ip, final String userAgent)
+    throws ApiSecurityException {
 
         return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent), false);
     }
 
     ///..
-    public @NonNull SessionMetadata refreshSession(
-
-        @Nullable final String sessionId,
-        @NonNull final SessionRole role,
-        @Nullable final String ip,
-        @Nullable final String userAgent
-
-    ) throws ApiSecurityException {
+    public SessionMetadata refreshSession(final String sessionId, final SessionRole role, final InetAddress ip, final String userAgent) throws ApiSecurityException {
 
         final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
         final SessionMetadata session = this.check(role, sessionId, fingerprint);
 
-        if(session != null) {
+        if(session == null) throw new ApiSecurityException("Invalid, expired or non existent session");
 
-            final SessionContainer container = sessionContainers.get(role);
-            container.deleteSession(sessionId);
+        final SessionContainer container = sessionContainers.get(role);
+        container.deleteSession(sessionId);
 
-            return container.createSession(null, fingerprint, true);
-        }
-
-        else {
-
-            throw new ApiSecurityException("Invalid, expired or non existent session");
-        }
+        return container.createSession(null, fingerprint, true);
     }
 
     ///..
-    public void deleteSession(@Nullable final String sessionId) {
+    public void deleteSession(final String sessionId, final SessionRole role) {
 
-        for(final SessionContainer sessionContainer : sessionContainers.values()) {
-
-            sessionContainer.deleteSession(sessionId);
-        }
+        sessionContainers.get(role).deleteSession(sessionId);
     }
 
     ///..
-    public @NonNull List<SessionMetadata> getSessionsMetadata() {
+    public List<SessionMetadata> getSessionsMetadata() {
 
         final List<SessionMetadata> sessions = new ArrayList<>();
         for(final SessionContainer sessionContainer : sessionContainers.values()) sessions.addAll(sessionContainer.getSessions());
@@ -135,8 +111,7 @@ public final class SessionService {
     }
 
     ///.
-    @Scheduled(cron = "${app.session.cleanSchedule}", scheduler = "batchScheduler")
-    protected void cleanExpired() {
+    private void cleanExpired() {
 
         final long now = System.currentTimeMillis();
 

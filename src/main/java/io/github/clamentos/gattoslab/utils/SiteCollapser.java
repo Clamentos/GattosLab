@@ -10,9 +10,6 @@ import java.util.Set;
 import java.util.Base64.Encoder;
 import java.util.stream.Collectors;
 
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -25,12 +22,11 @@ public class SiteCollapser {
     private static final String SOURCE_ROOT = "html";
     private static final String DESTINATION_ROOT = "merged";
 
+    private static final ResourceWalker resourceWalker = new ResourceWalker();
+
     public static void main(String[] args) throws IOException {
 
-        final ResourceWalker resourceWalker = new ResourceWalker();
-        final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-
-        final Set<String> paths = resourceWalker.listSiteResourcePaths(SOURCE_ROOT, resolver)
+        final Set<String> paths = resourceWalker.listSiteResourcePaths(SOURCE_ROOT)
 
             .stream()
             .filter(p -> p.contains("."))
@@ -45,7 +41,7 @@ public class SiteCollapser {
 
     private static void processFile(final String path) throws IOException {
 
-        final byte[] data = new ClassPathResource(path).getInputStream().readAllBytes();
+        final byte[] data = resourceWalker.getResource(path).readAllBytes();
 
         if(path.endsWith(".html")) placeFile(path, modifyHtml(path, data));
         else if(!path.endsWith(".css") && !path.endsWith(".js") && !path.endsWith(".svg")) placeFile(path, data);
@@ -100,7 +96,7 @@ public class SiteCollapser {
 
             final String cssRef = stylesheetElem.attr("href");
 
-            sb.append(new String(new ClassPathResource(getPath(htmlPath.getParent(), cssRef)).getInputStream().readAllBytes()));
+            sb.append(new String(resourceWalker.getResource(getPath(htmlPath.getParent(), cssRef)).readAllBytes()));
             stylesheetElem.remove();
         }
 
@@ -118,7 +114,7 @@ public class SiteCollapser {
 
         for(final Element img : imgs) {
 
-            final byte[] svgB64 = new ClassPathResource(getPath(htmlPath.getParent(), img.attr("src"))).getInputStream().readAllBytes();
+            final byte[] svgB64 = resourceWalker.getResource(getPath(htmlPath.getParent(), img.attr("src"))).readAllBytes();
             img.attr("src", "data:image/svg+xml;utf8;base64, " + new String(encoder.encode(svgB64)));
         }
     }
@@ -130,7 +126,7 @@ public class SiteCollapser {
         for(final Element script : scripts) {
 
             final String jsRef = script.attr("src");
-            final String jsSource = new String(new ClassPathResource(getPath(htmlPath.getParent(), jsRef)).getInputStream().readAllBytes());
+            final String jsSource = new String(resourceWalker.getResource(getPath(htmlPath.getParent(), jsRef)).readAllBytes());
 
             script.removeAttr("src");
             script.text(jsSource);

@@ -7,15 +7,6 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.1</version>
-        <relativePath/>
-
-    </parent>
-
     <groupId>io.github.clamentos</groupId>
     <artifactId>gattoslab</artifactId>
     <version>2.1.0</version>
@@ -23,25 +14,40 @@
     <description>Project showcase site</description>
 
     <properties>
-        <java.version>25</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
     </properties>
 
     <dependencies>
 
         <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>3.0.4</version>
+        </dependency>
 
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>3.0.4</version>
+        </dependency>
 
-            <exclusions>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.27</version>
+        </dependency>
 
-                <exclusion>
-                    <groupId>org.apache.tomcat.embed</groupId>
-                    <artifactId>tomcat-embed-websocket</artifactId>
-                </exclusion>
+        <dependency>
+            <groupId>io.undertow</groupId>
+            <artifactId>undertow-core</artifactId>
+            <version>2.3.22.Final</version>
+        </dependency>
 
-            </exclusions>
-
+        <dependency>
+            <groupId>io.undertow</groupId>
+            <artifactId>undertow-servlet</artifactId>
+            <version>2.3.22.Final</version>
         </dependency>
 
         <dependency>
@@ -60,12 +66,7 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
+            <version>1.18.42</version>
         </dependency>
 
         <dependency>
@@ -77,22 +78,6 @@
     </dependencies>
 
     <build>
-
-        <resources>
-
-            <resource>
-
-                <directory>src/main/resources</directory>
-                <filtering>false</filtering>
-
-                <excludes>
-                    <exclude>*.json</exclude>
-                    <exclude>/site-src/**</exclude>
-                </excludes>
-
-            </resource>
-
-        </resources>
 
         <plugins>
 
@@ -106,49 +91,9 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
+                            <version>1.18.42</version>
                         </path>
                     </annotationProcessorPaths>
-                </configuration>
-
-            </plugin>
-
-            <plugin>
-
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-
-                <configuration>
-
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
-
-                    <profiles>
-                        <profile>dev</profile>
-                    </profiles>
-
-                    <jvmArguments>
-                        -XX:+UnlockExperimentalVMOptions
-                        -Xverify:none
-                        -XX:+UseG1GC
-                        -XX:+UseStringDeduplication
-                        -XX:-FlightRecorder
-                        -XX:+AlwaysPreTouch
-                        -XX:+UseTransparentHugePages
-                        -XX:+UseCompactObjectHeaders
-                        -Xmx1024M
-                        -XX:+OptimizeStringConcat
-                        -XX:+UseCompressedOops
-                        -XX:+UseCompressedClassPointers
-                        -XX:+UseCompactObjectHeaders
-                        -XX:+UseSuperWord
-                        -XX:+ExitOnOutOfMemoryError
-                        <!-- -XX:-StackTraceInThrowable -->
-                    </jvmArguments>
-
                 </configuration>
 
             </plugin>

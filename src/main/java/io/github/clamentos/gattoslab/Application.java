@@ -1,35 +1,288 @@
 package io.github.clamentos.gattoslab;
 
 ///
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+///..
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.DynamicProperties;
+import io.github.clamentos.gattoslab.configuration.DynamicPropertyType;
+import io.github.clamentos.gattoslab.configuration.ProfileResolver;
+import io.github.clamentos.gattoslab.configuration.mappers.BlacklistMapper;
+import io.github.clamentos.gattoslab.configuration.mappers.DynamicPropertyMapper;
+import io.github.clamentos.gattoslab.configuration.pojos.SslConfig;
+import io.github.clamentos.gattoslab.configuration.pojos.WebserverConfig;
+import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
+import io.github.clamentos.gattoslab.ingress.IngressHandler;
+import io.github.clamentos.gattoslab.ingress.RequestDispatcher;
+import io.github.clamentos.gattoslab.ingress.filters.BlacklistFilter;
+import io.github.clamentos.gattoslab.lifecycle.BeansContainer;
+import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
+import io.github.clamentos.gattoslab.observability.ObservabilityController;
+import io.github.clamentos.gattoslab.observability.ObservabilityService;
+import io.github.clamentos.gattoslab.observability.logging.LogsService;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
+import io.github.clamentos.gattoslab.observability.logging.squash.BlacklistSquash;
+import io.github.clamentos.gattoslab.observability.logging.squash.IfModifiedSinceMalformedSquash;
+import io.github.clamentos.gattoslab.observability.logging.squash.RateLimitSquash;
+import io.github.clamentos.gattoslab.persistence.MongoClientProvider;
+import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.session.SessionController;
+import io.github.clamentos.gattoslab.session.SessionService;
+import io.github.clamentos.gattoslab.utils.ThreadSpawner;
+import io.github.clamentos.gattoslab.utils.VirtualThreadExecutor;
+import io.github.clamentos.gattoslab.website.Website;
+import io.github.clamentos.gattoslab.website.WebsiteController;
+
+///..
+import io.undertow.Undertow;
+import io.undertow.UndertowOptions;
+import io.undertow.Undertow.Builder;
+import io.undertow.servlet.Servlets;
+
+///..
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
 
-///.
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+///..
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+
+///..
+import lombok.extern.slf4j.Slf4j;
+
+///..
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 ///
-@SpringBootApplication
+@Slf4j
 
 ///
 public class Application {
 
-	///
-	public static void main(final String[] args) throws IOException {
+    ///
+    public static void main(final String[] args) throws Exception {
 
-		final PrintStream consoleOut = new PrintStream("./console_out.log");
+        prepareOutputFiles();
 
-		System.setOut(consoleOut);
-		System.setErr(consoleOut);
+        final ApplicationProperties applicationProperties = new ProfileResolver(args.length > 0 ? args[0] : "dev").getApplicationProperties();
+        final BeansContainer beansContainer = prepareBeans(applicationProperties);
+        final Undertow server = prepareWebserver(applicationProperties, beansContainer.getIngressHandler());
 
-		try(final FileWriter pidFile = new FileWriter("./pid.txt")) {
+        log.info("Starting webserver...");
+        server.start();
+        log.info("Webserver started");
 
-			pidFile.write(Long.toString(ProcessHandle.current().pid()));
-		}
+        prepareShutdownHook(beansContainer, server);
+    }
 
-		SpringApplication.run(Application.class, args);
-	}
+    ///.
+    private static void prepareOutputFiles() throws IOException {
 
-	///
+        final long pid = ProcessHandle.current().pid();
+        final PrintStream consoleOut = new PrintStream("./console_out.log");
+
+        System.setOut(consoleOut);
+        System.setErr(consoleOut);
+
+        try(final FileWriter pidFile = new FileWriter("./pid.txt")) {
+
+            pidFile.write(Long.toString(pid));
+        }
+
+        log.info("Application PID: {}", pid);
+    }
+
+    ///..
+    public static BeansContainer prepareBeans(final ApplicationProperties applicationProperties) throws IOException {
+
+        final BatchScheduler batchScheduler = new BatchScheduler(applicationProperties);
+        final SessionService sessionService = new SessionService(applicationProperties, batchScheduler);
+        final SessionController sessionController = new SessionController(applicationProperties, sessionService);
+        final MongoClientWrapper mongoClientWrapper = new MongoClientWrapper(applicationProperties);
+
+        MongoClientProvider.setWrapper(mongoClientWrapper);
+
+        @SuppressWarnings("squid:S2095") // Closed by shutdown hook
+        final SquashedLogContainer squashedLogContainer = new SquashedLogContainer(
+
+            applicationProperties,
+            batchScheduler,
+            List.of(new IfModifiedSinceMalformedSquash(), new RateLimitSquash(), new BlacklistSquash())
+        );
+
+        final JsonMapper jsonMapper = JsonMapper.builder()
+
+            .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL).withContentInclusion(JsonInclude.Include.NON_NULL))
+            .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .build()
+        ;
+
+        final Map<DynamicPropertyType, DynamicPropertyMapper> dynamicPropertyMappers = new EnumMap<>(DynamicPropertyType.class);
+        dynamicPropertyMappers.put(DynamicPropertyType.BLACKLIST, new BlacklistMapper());
+
+        final DynamicProperties dynamicProperties = new DynamicProperties(applicationProperties, batchScheduler, dynamicPropertyMappers, mongoClientWrapper);
+        final BlacklistFilter blacklistFilter = new BlacklistFilter(dynamicProperties, squashedLogContainer);
+        final LogsService logsService = new LogsService(applicationProperties, batchScheduler, mongoClientWrapper);
+        final Website website = new Website(applicationProperties);
+        final WebsiteController websiteController = new WebsiteController(website, squashedLogContainer);
+        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, batchScheduler, website, mongoClientWrapper);
+        final ObservabilityController observabilityController = new ObservabilityController(observabilityService, sessionService, logsService, jsonMapper);
+        final RequestDispatcher requestDispatcher = new RequestDispatcher(jsonMapper, sessionController, websiteController, observabilityController);
+        final GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler(applicationProperties, jsonMapper);
+
+        final IngressHandler ingressHandler = new IngressHandler(
+
+            applicationProperties,
+            blacklistFilter,
+            batchScheduler,
+            squashedLogContainer,
+            sessionService,
+            observabilityService,
+            requestDispatcher,
+            globalExceptionHandler
+        );
+
+        return new BeansContainer(
+
+            applicationProperties,
+            dynamicProperties,
+            batchScheduler,
+            sessionService,
+            sessionController,
+            mongoClientWrapper,
+            squashedLogContainer,
+            jsonMapper,
+            logsService,
+            website,
+            websiteController,
+            observabilityService,
+            observabilityController,
+            requestDispatcher,
+            globalExceptionHandler,
+            blacklistFilter,
+            ingressHandler
+        );
+    }
+
+    ///..
+    private static Undertow prepareWebserver(final ApplicationProperties applicationProperties, final IngressHandler ingressHandler)
+    throws CertificateException, IOException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
+
+        Servlets.deployment()
+
+            .setExecutor(new VirtualThreadExecutor("gattos-lab-ws-worker"))
+            .setAsyncExecutor(new VirtualThreadExecutor("gattos-lab-wsa-worker"))
+        ;
+
+        final WebserverConfig webserverConfig = applicationProperties.getWebserverConfig();
+        final Builder serverBuilder = Undertow.builder().setHandler(ingressHandler);
+        final SSLContext sslContext = createSSLContext(applicationProperties.getSslConfig());
+
+        serverBuilder.setServerOption(UndertowOptions.MAX_HEADER_SIZE, 8192);
+        serverBuilder.setServerOption(UndertowOptions.MAX_ENTITY_SIZE, 4096L);
+        serverBuilder.setServerOption(UndertowOptions.MULTIPART_MAX_ENTITY_SIZE, 0L);
+        serverBuilder.setServerOption(UndertowOptions.IDLE_TIMEOUT, 30000);
+        serverBuilder.setServerOption(UndertowOptions.REQUEST_PARSE_TIMEOUT, 5000);
+        serverBuilder.setServerOption(UndertowOptions.NO_REQUEST_TIMEOUT, 10000);
+        serverBuilder.setServerOption(UndertowOptions.MAX_PARAMETERS, 32);
+        serverBuilder.setServerOption(UndertowOptions.MAX_HEADERS, 32);
+        serverBuilder.setServerOption(UndertowOptions.MAX_COOKIES, 8);
+        serverBuilder.setServerOption(UndertowOptions.MAX_BUFFERED_REQUEST_SIZE, 4096);
+        serverBuilder.setServerOption(UndertowOptions.ENABLE_RFC6265_COOKIE_VALIDATION, true);
+        serverBuilder.setServerOption(UndertowOptions.REQUIRE_HOST_HTTP11, true);
+        serverBuilder.setServerOption(UndertowOptions.MAX_CACHED_HEADER_SIZE, 128);
+        serverBuilder.setServerOption(UndertowOptions.HTTP_HEADERS_CACHE_SIZE, 32);
+        serverBuilder.setServerOption(UndertowOptions.SHUTDOWN_TIMEOUT, 10000);
+        serverBuilder.setServerOption(UndertowOptions.TRACK_ACTIVE_REQUESTS, false);
+
+        if(sslContext != null) {
+
+            serverBuilder.setServerOption(UndertowOptions.ENABLE_HTTP2, true);
+            serverBuilder.setServerOption(UndertowOptions.HTTP2_SETTINGS_HEADER_TABLE_SIZE, 2048);
+            serverBuilder.setServerOption(UndertowOptions.HTTP2_SETTINGS_ENABLE_PUSH, false);
+            serverBuilder.setServerOption(UndertowOptions.HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, 128);
+            serverBuilder.setServerOption(UndertowOptions.HTTP2_SETTINGS_INITIAL_WINDOW_SIZE, 65536);
+            serverBuilder.setServerOption(UndertowOptions.HTTP2_SETTINGS_MAX_FRAME_SIZE, 16384);
+            serverBuilder.setServerOption(UndertowOptions.HTTP2_HUFFMAN_CACHE_SIZE, 256);
+            serverBuilder.setServerOption(UndertowOptions.MAX_CONCURRENT_REQUESTS_PER_CONNECTION, 128);
+            serverBuilder.setServerOption(UndertowOptions.MAX_QUEUED_READ_BUFFERS, 4);
+            serverBuilder.setServerOption(UndertowOptions.RST_FRAMES_TIME_WINDOW, 10000);
+            serverBuilder.setServerOption(UndertowOptions.MAX_RST_FRAMES_PER_WINDOW, 128);
+            serverBuilder.addHttpsListener(webserverConfig.getServerPort(), webserverConfig.getHost(), sslContext);
+        }
+
+        else {
+
+            serverBuilder.addHttpListener(webserverConfig.getServerPort(), webserverConfig.getHost());
+        }
+
+        return serverBuilder.build();
+    }
+
+    ///..
+    private static void prepareShutdownHook(final BeansContainer beansContainer, final Undertow server) {
+
+        final ShutdownHook shutdownHook = new ShutdownHook(
+
+            beansContainer.getObservabilityService(),
+            beansContainer.getSquashedLogContainer(),
+            beansContainer.getBatchScheduler(),
+            server
+        );
+
+        Runtime.getRuntime().addShutdownHook(ThreadSpawner.createVirtualThread("gattos-lab-shutdown-hook", shutdownHook));
+    }
+
+    ///..
+    private static SSLContext createSSLContext(final SslConfig sslConfig)
+    throws CertificateException, IOException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
+
+        if(sslConfig.isEnabled()) {
+
+            log.info("Loading SSL certificate start...");
+
+            final String password = sslConfig.getKeystorePassword();
+            final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+
+            keyManagerFactory.init(loadKeyStore("keystore.p12", password), password.toCharArray());
+
+            final SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
+
+            log.info("Loading SSL certificate end");
+            return sslContext;
+        }
+
+        log.info("SSL is not enabled, skipping...");
+        return null;
+    }
+
+    ///..
+    private static KeyStore loadKeyStore(final String name, final String password)
+    throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
+
+        try(InputStream keyStream = Application.class.getClassLoader().getResourceAsStream(name)) {
+
+            final KeyStore loadedKeystore = KeyStore.getInstance("JKS");
+            loadedKeystore.load(keyStream, password.toCharArray());
+
+            return loadedKeystore;
+        }
+    }
+
+    ///
 }
