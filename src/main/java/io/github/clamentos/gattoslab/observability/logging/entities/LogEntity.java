@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.observability.logging;
+package io.github.clamentos.gattoslab.observability.logging.entities;
 
 ///
 import ch.qos.logback.classic.spi.ILoggingEvent;

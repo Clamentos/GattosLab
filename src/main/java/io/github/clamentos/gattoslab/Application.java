@@ -5,11 +5,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 ///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.DynamicProperties;
-import io.github.clamentos.gattoslab.configuration.DynamicPropertyType;
 import io.github.clamentos.gattoslab.configuration.ProfileResolver;
-import io.github.clamentos.gattoslab.configuration.mappers.BlacklistMapper;
-import io.github.clamentos.gattoslab.configuration.mappers.DynamicPropertyMapper;
+import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
 import io.github.clamentos.gattoslab.configuration.pojos.SslConfig;
 import io.github.clamentos.gattoslab.configuration.pojos.WebserverConfig;
 import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
@@ -52,9 +49,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
 ///..
 import javax.net.ssl.KeyManagerFactory;
@@ -131,10 +126,7 @@ public class Application {
             .build()
         ;
 
-        final Map<DynamicPropertyType, DynamicPropertyMapper> dynamicPropertyMappers = new EnumMap<>(DynamicPropertyType.class);
-        dynamicPropertyMappers.put(DynamicPropertyType.BLACKLIST, new BlacklistMapper());
-
-        final DynamicProperties dynamicProperties = new DynamicProperties(applicationProperties, batchScheduler, dynamicPropertyMappers, mongoClientWrapper);
+        final DynamicProperties dynamicProperties = new DynamicProperties(applicationProperties, batchScheduler, mongoClientWrapper);
         final BlacklistFilter blacklistFilter = new BlacklistFilter(dynamicProperties, squashedLogContainer);
         final LogsService logsService = new LogsService(applicationProperties, batchScheduler, mongoClientWrapper);
         final Website website = new Website(applicationProperties);

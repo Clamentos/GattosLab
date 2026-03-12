@@ -15,10 +15,14 @@ import com.mongodb.connection.ClusterConnectionMode;
 
 ///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.configuration.dynamic.mappers.DynamicPropertyMapper;
 import io.github.clamentos.gattoslab.configuration.pojos.DatabaseConfig;
-import io.github.clamentos.gattoslab.observability.logging.LogEntityMapper;
+import io.github.clamentos.gattoslab.observability.logging.mappers.LogEntityMapper;
+import io.github.clamentos.gattoslab.observability.metrics.mappers.PathInvocationAggregationEntityMapper;
+import io.github.clamentos.gattoslab.observability.metrics.mappers.RequestMetricsAggregateEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.RequestMetricsEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.SystemMetricsEntityMapper;
+import io.github.clamentos.gattoslab.observability.metrics.mappers.UserAgentAggregationEntityMapper;
 
 ///..
 import java.util.EnumMap;
@@ -79,6 +83,10 @@ public final class MongoClientWrapper {
                     CodecRegistries.fromCodecs(new SystemMetricsEntityMapper()),
                     CodecRegistries.fromCodecs(new RequestMetricsEntityMapper()),
                     CodecRegistries.fromCodecs(new LogEntityMapper()),
+                    CodecRegistries.fromCodecs(new DynamicPropertyMapper()),
+                    CodecRegistries.fromCodecs(new PathInvocationAggregationEntityMapper()),
+                    CodecRegistries.fromCodecs(new UserAgentAggregationEntityMapper()),
+                    CodecRegistries.fromCodecs(new RequestMetricsAggregateEntityMapper()),
                     MongoClientSettings.getDefaultCodecRegistry()
                 )
             )

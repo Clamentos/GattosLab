@@ -5,7 +5,17 @@
     <appender name = "MONGO_LOGS" class = "io.github.clamentos.gattoslab.observability.logging.MongoAppender"></appender>
 
     <!---->
-    <root level = "info">
+    <logger name = "console_logger" level="INFO" additivity = "false">
+
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+    </logger>
+
+    <root level = "INFO">
         <appender-ref ref = "MONGO_LOGS"/>
     </root>
 

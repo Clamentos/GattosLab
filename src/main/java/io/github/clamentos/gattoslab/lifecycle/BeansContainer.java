@@ -2,7 +2,7 @@ package io.github.clamentos.gattoslab.lifecycle;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.DynamicProperties;
+import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
 import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.ingress.IngressHandler;
 import io.github.clamentos.gattoslab.ingress.RequestDispatcher;

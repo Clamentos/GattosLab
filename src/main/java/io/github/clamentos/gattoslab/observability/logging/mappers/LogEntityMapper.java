@@ -1,6 +1,10 @@
-package io.github.clamentos.gattoslab.observability.logging;
+package io.github.clamentos.gattoslab.observability.logging.mappers;
 
 ///
+import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
+import io.github.clamentos.gattoslab.observability.logging.entities.LogEntityStackTrace;
+
+///..
 import java.util.ArrayList;
 import java.util.List;
 

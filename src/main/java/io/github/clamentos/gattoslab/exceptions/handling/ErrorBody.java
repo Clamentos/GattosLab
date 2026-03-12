@@ -20,8 +20,8 @@ public final class ErrorBody {
     ///
     public ErrorBody(final String title, final Throwable exception, final HttpServerExchange exchange) {
 
-        url = exchange != null ? exchange.getRequestURL() : null;
         this.title = title;
+        url = exchange != null ? exchange.getRequestURL() : null;
         details = exception != null ? exception.getMessage() : null;
     }
 

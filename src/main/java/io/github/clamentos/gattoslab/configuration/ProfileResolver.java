@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.configuration;
 
 ///
 import io.github.clamentos.gattoslab.configuration.environments.DevProperties;
+import io.github.clamentos.gattoslab.configuration.environments.Environment;
 import io.github.clamentos.gattoslab.configuration.environments.ProdProperties;
 
 ///..
@@ -21,10 +22,19 @@ public final class ProfileResolver {
     ///
     public ProfileResolver(final String profile) throws IllegalArgumentException {
 
-        final boolean isProd = "prod".equals(profile);
+        if(profile != null && !profile.isEmpty()) {
 
-        log.info("Using profile {}", isProd ? "prod" : "dev");
-        applicationProperties = isProd ? new ProdProperties() : new DevProperties();
+            final Environment environment = Environment.valueOf(profile);
+
+            log.info("Using profile {}", environment);
+            applicationProperties = environment == Environment.PROD ? new ProdProperties() : new DevProperties();
+        }
+
+        else {
+
+            log.info("No profile provided, defaulting to DEV");
+            applicationProperties = new DevProperties();
+        }
     }
 
     ///

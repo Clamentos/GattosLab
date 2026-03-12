@@ -12,17 +12,26 @@ import com.mongodb.client.model.Sorts;
 ///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.pojos.MetricsConfig;
+import io.github.clamentos.gattoslab.eventbus.EventBus;
 import io.github.clamentos.gattoslab.observability.filters.AggregationPipelines;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
+import io.github.clamentos.gattoslab.observability.metrics.entities.PathInvocationAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsAggregateEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.UserAgentAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.charts.BubbleChartDataEntry;
+import io.github.clamentos.gattoslab.observability.metrics.entities.charts.ChartDataset;
+import io.github.clamentos.gattoslab.observability.metrics.entities.charts.RequestMetricsCharts;
+import io.github.clamentos.gattoslab.observability.metrics.entities.charts.RequestMetricsLatencyChart;
+import io.github.clamentos.gattoslab.observability.metrics.entities.charts.RequestMetricsRateChart;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.EntityField;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
-import io.github.clamentos.gattoslab.scheduling.eventbus.EventBus;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.HttpUtils;
 import io.github.clamentos.gattoslab.website.Website;
@@ -128,25 +137,25 @@ public class ObservabilityService implements Closeable {
     ///
     public void getRequestMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter) throws JacksonException, MongoException {
 
-        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
-        final Map<String, Map<Long, Document>> metricsMap = new HashMap<>();
+        final MongoCollection<RequestMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
+        final Map<String, Map<Long, RequestMetricsAggregateEntity>> metricsMap = new HashMap<>();
 
         final List<Bson> pathsAggregation = new ArrayList<>();
         pathsAggregation.add(Aggregates.match(searchFilter.toBsonFilter()));
         pathsAggregation.addAll(AggregationPipelines.PERFORMANCE_METRICS);
 
-        try(final MongoCursor<Document> entityCursor = collection.aggregate(pathsAggregation).iterator()) {
+        try(final MongoCursor<RequestMetricsAggregateEntity> entityCursor = collection.aggregate(pathsAggregation, RequestMetricsAggregateEntity.class).iterator()) {
 
             while(entityCursor.hasNext()) {
 
-                final Document entity = entityCursor.next();
-                metricsMap.computeIfAbsent(entity.getString("key"), _ -> new TreeMap<>()).put(entity.getLong("timeSlot"), entity);
+                final RequestMetricsAggregateEntity entity = entityCursor.next();
+                metricsMap.computeIfAbsent(entity.getKey(), _ -> new TreeMap<>()).put(entity.getTimeSlot(), entity);
             }
         }
 
         final List<Long> labels = new ArrayList<>();
 
-        for(final Map<Long, Document> metricsMapInner : metricsMap.values()) {
+        for(final Map<Long, RequestMetricsAggregateEntity> metricsMapInner : metricsMap.values()) {
 
             for(long i = searchFilter.getStartTimestamp(); i < searchFilter.getEndTimestamp(); i += searchFilter.getBucketSize()) {
 
@@ -155,58 +164,47 @@ public class ObservabilityService implements Closeable {
             }
         }
 
-        final List<Map<String, Object>> rateDatasets = new ArrayList<>();
-        final List<Map<String, Object>> latencyDatasets = new ArrayList<>();
+        final List<ChartDataset<Integer>> rateDatasets = new ArrayList<>();
+        final List<ChartDataset<BubbleChartDataEntry>> latencyDatasets = new ArrayList<>();
 
-        for(final Map.Entry<String, Map<Long, Document>> metricsMapEntry : metricsMap.entrySet()) {
+        for(final Map.Entry<String, Map<Long, RequestMetricsAggregateEntity>> metricsMapEntry : metricsMap.entrySet()) {
 
             final String key = metricsMapEntry.getKey();
-            final Collection<Document> innerEntities = metricsMapEntry.getValue().values();
+            final Collection<RequestMetricsAggregateEntity> innerEntities = metricsMapEntry.getValue().values();
 
-            rateDatasets.add(Map.of("label", key, "data", innerEntities.stream().map(v -> v.getInteger("rate")).toList()));
+            final List<BubbleChartDataEntry> latencyData = new ArrayList<>();
 
-            final List<Map<String, Long>> latencyData = new ArrayList<>();
+            for(final RequestMetricsAggregateEntity entity : innerEntities) {
 
-            for(final Document entity : innerEntities) {
-
-                final List<Long> latencyDistribution = (List<Long>)entity.get("latencyDistribution", List.class);
+                final List<Long> latencyDistribution = entity.getLatencyDistribution();
 
                 for(int i = 0; i < latencyDistribution.size(); i++) {
 
-                    latencyData.add(Map.of(
-
-                        "x", entity.getLong("timeSlot"),
-                        "y", (long)i,
-                        "r", latencyDistribution.get(i)
-                    ));
+                    latencyData.add(new BubbleChartDataEntry(entity.getTimeSlot(), i, latencyDistribution.get(i)));
                 }
             }
 
-            latencyDatasets.add(Map.of("label", key, "data", latencyData));
+            rateDatasets.add(new ChartDataset<>(key, innerEntities.stream().map(RequestMetricsAggregateEntity::getRate).toList()));
+            latencyDatasets.add(new ChartDataset<>(key, latencyData));
         }
 
-        final Map<String, Map<String, Object>> json = Map.of(
-
-            "rate", Map.of("labels", labels, "datasets", rateDatasets),
-            "latency", Map.of("datasets", latencyDatasets)
-        );
-
-        generator.writePOJO(json);
+        generator.writePOJO(new RequestMetricsCharts(new RequestMetricsRateChart(labels, rateDatasets), new RequestMetricsLatencyChart(latencyDatasets)));
     }
 
     ///..
     public void getInvocationMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter) throws JacksonException, MongoException {
 
-        final MongoCollection<Document> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
+        final MongoCollection<RequestMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
 
         final Bson sort = Aggregates.sort(Sorts.descending("count"));
-        final List<Bson> pathsAggregation = List.of(Aggregates.match(searchFilter.toBsonFilter()), AggregationPipelines.PATH_INVOCATIONS, sort);
-        final List<Bson> userAgentsAggregation = List.of(Aggregates.match(searchFilter.toBsonFilter()), AggregationPipelines.USER_AGENTS, sort);
+        final Bson aggregation = Aggregates.match(searchFilter.toBsonFilter());
+        final List<Bson> pathsAggregation = List.of(aggregation, AggregationPipelines.PATH_INVOCATIONS, sort);
+        final List<Bson> userAgentsAggregation = List.of(aggregation, AggregationPipelines.USER_AGENTS, sort);
 
         try(
 
-            final MongoCursor<Document> paths = collection.aggregate(pathsAggregation).iterator();
-            final MongoCursor<Document> userAgents = collection.aggregate(userAgentsAggregation).iterator();
+            final MongoCursor<PathInvocationAggregationEntity> paths = collection.aggregate(pathsAggregation, PathInvocationAggregationEntity.class).iterator();
+            final MongoCursor<UserAgentAggregationEntity> userAgents = collection.aggregate(userAgentsAggregation, UserAgentAggregationEntity.class).iterator();
         ) {
 
             generator.writeStartObject();
@@ -226,6 +224,7 @@ public class ObservabilityService implements Closeable {
     ///..
     public void getSystemMetrics(final JsonGenerator generator, final TemporalSearchFilter searchFilter) throws JacksonException, MongoException {
 
+        // TODO: entitify & aggregate
         final MongoCollection<Document> collection = mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS);
 
         try(final MongoCursor<Document> metrics = collection.find(searchFilter.toBsonFilter()).sort(Sorts.ascending(EntityField.TIMESTAMP.getField())).iterator()) {

@@ -15,8 +15,8 @@ import java.util.Map;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import org.bson.Document;
 ///..
+import org.bson.Document;
 import org.bson.conversions.Bson;
 
 ///
@@ -26,7 +26,7 @@ import org.bson.conversions.Bson;
 public final class AggregationPipelines {
 
     ///
-    public static final List<Bson> PERFORMANCE_METRICS = List.of(
+    public static final List<Bson> PERFORMANCE_METRICS = List.of( // TODO: add fields on 1st stage
 
         Aggregates.group(
 

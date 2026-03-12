@@ -6,6 +6,7 @@ import com.mongodb.client.ClientSession;
 import com.mongodb.client.MongoCollection;
 
 ///..
+import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientProvider;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
@@ -16,15 +17,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.time.LocalDate;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
+///..
+import lombok.extern.slf4j.Slf4j;
+
 ///
-@SuppressWarnings("squid:S106")
+@Slf4j(topic = "console_logger")
 
 ///
 public final class FallbackFile implements Runnable {
@@ -83,7 +86,7 @@ public final class FallbackFile implements Runnable {
 
         catch(final Exception exc) {
 
-            System.out.println(LocalDate.now() + ": FallbackFile.run => " + exc);
+            log.error("Could not log", exc);
         }
 
         this.dump();
@@ -124,7 +127,7 @@ public final class FallbackFile implements Runnable {
 
         catch(final Exception exc) {
 
-            System.out.println(LocalDate.now() + ": FallbackFile.dump => " + exc);
+            log.error("Could not log", exc);
             if(exc instanceof MongoException) session.abortTransaction();
         }
 

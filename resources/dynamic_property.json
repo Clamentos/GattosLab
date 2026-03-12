@@ -1,5 +1,5 @@
 {
-    "key": "blacklist",
+    "key": "BLACKLIST",
     "value": {
         "ipv4s": [
             {"start": "...", "end": "..."},

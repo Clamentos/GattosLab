@@ -1,20 +1,26 @@
 package io.github.clamentos.gattoslab.scheduling;
 
 ///
-import lombok.Getter;
+import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
-///
-@Getter
+///..
+import java.util.Map;
+
+///..
+import lombok.Getter;
 
 ///
 public final class SimpleCron {
 
     ///
-    private final long period;
-    private final long initialDelay;
+    @Getter private final long period;
+
+    ///..
+    private final Runnable task;
+    private long nextTrigger;
 
     ///
-    public SimpleCron(final String simpleCron) throws IllegalArgumentException {
+    public SimpleCron(final Runnable task, final String simpleCron) throws IllegalArgumentException {
 
         /*
             Very simple cron scheduling (no offsets): <time-unit><amount>
@@ -46,13 +52,31 @@ public final class SimpleCron {
                 default: throw new IllegalArgumentException("Unknown time unit: " + unit);
             }
 
-            initialDelay = period - (now % period);
+            this.task = task;
+            nextTrigger = System.currentTimeMillis() + period - (now % period);
         }
 
         else {
 
             throw new IllegalArgumentException("Malformed cron expression: " + simpleCron);
         }
+    }
+
+    ///..
+    Thread trigger(final long timestamp, final long id, final Map<Long, Thread> workers) {
+
+        if(timestamp >= nextTrigger) {
+
+            nextTrigger += period;
+
+            return ThreadSpawner.spawnVirtualThread("gattos-lab-bsw-" + id, () -> {
+
+                task.run();
+                workers.remove(id);
+            });
+        }
+
+        return null;
     }
 
     ///

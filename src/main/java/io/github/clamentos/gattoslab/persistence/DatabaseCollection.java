@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.persistence;
 
 ///
-import io.github.clamentos.gattoslab.observability.logging.LogEntity;
+import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 

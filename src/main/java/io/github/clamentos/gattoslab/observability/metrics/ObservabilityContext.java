@@ -1,8 +1,8 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
+import io.github.clamentos.gattoslab.eventbus.EventBus;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
-import io.github.clamentos.gattoslab.scheduling.eventbus.EventBus;
 import io.github.clamentos.gattoslab.utils.FastAtomicCounter;
 
 ///..

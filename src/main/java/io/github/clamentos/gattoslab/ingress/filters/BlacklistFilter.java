@@ -1,12 +1,14 @@
 package io.github.clamentos.gattoslab.ingress.filters;
 
 ///
-import io.github.clamentos.gattoslab.configuration.DynamicProperties;
-import io.github.clamentos.gattoslab.configuration.DynamicPropertyType;
+import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
+import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyEntity;
+import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyType;
+import io.github.clamentos.gattoslab.configuration.dynamic.pojos.BlacklistDynamicProperty;
+import io.github.clamentos.gattoslab.configuration.dynamic.pojos.BlacklistIpEntry;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
 import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEventType;
-import io.github.clamentos.gattoslab.persistence.EntityField;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.HttpUtils;
 
@@ -17,7 +19,6 @@ import io.undertow.util.Headers;
 ///..
 import java.net.InetAddress;
 import java.util.List;
-import java.util.Map;
 
 ///..
 import lombok.AllArgsConstructor;
@@ -33,19 +34,19 @@ public final class BlacklistFilter {
     private final SquashedLogContainer squashedLogContainer;
 
     ///
-    @SuppressWarnings("unchecked")
     public void isAllowed(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        final Map<String, List<?>> blacklist = dynamicProperties.get(DynamicPropertyType.BLACKLIST, Map.class);
+        final DynamicPropertyEntity<BlacklistDynamicProperty> blacklist = dynamicProperties.get(DynamicPropertyType.BLACKLIST);
         if(blacklist == null) return;
 
+        final BlacklistDynamicProperty value = blacklist.getValue();
         final InetAddress ip = exchange.getSourceAddress().getAddress();
         final String userAgent = HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING);
 
-        this.isIpAllowed(ip, (List<Map<String, byte[]>>)blacklist.get(EntityField.IPV4S.getField()), userAgent);
-        this.isIpAllowed(ip, (List<Map<String, byte[]>>)blacklist.get(EntityField.IPV6S.getField()), userAgent);
+        this.isIpAllowed(ip, value.getIpv4s(), userAgent);
+        this.isIpAllowed(ip, value.getIpv6s(), userAgent);
 
-        final List<String> userAgentContains = (List<String>)blacklist.get(EntityField.USER_AGENT_CONTAINS.getField());
+        final List<String> userAgentContains = value.getUserAgentContains();
         if(userAgentContains.isEmpty() || userAgent == null) return;
 
         for(final String contains : userAgentContains) {
@@ -55,11 +56,11 @@ public final class BlacklistFilter {
     }
 
     ///.
-    private void isIpAllowed(final InetAddress ip, final List<Map<String, byte[]>> ranges, final String userAgent) throws ApiSecurityException {
+    private void isIpAllowed(final InetAddress ip, final List<BlacklistIpEntry> ranges, final String userAgent) throws ApiSecurityException {
 
-        for(final Map<String, byte[]> range : ranges) {
+        for(final BlacklistIpEntry range : ranges) {
 
-            if(this.isInRange(ip, range.get(EntityField.START.getField()), range.get(EntityField.END.getField()))) throw this.createException(ip, userAgent);
+            if(this.isInRange(ip, range.getStart(), range.getEnd())) throw this.createException(ip, userAgent);
         }
     }
 
@@ -76,7 +77,7 @@ public final class BlacklistFilter {
 
         else {
 
-            for(int i = 0; i < 16; i++) {
+            for(int i = 0; i < address.length; i++) {
 
                 final byte elem = address[i];
                 if(elem < start[i] || elem > end[i]) return false;

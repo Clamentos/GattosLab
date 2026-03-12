@@ -7,17 +7,20 @@ import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
 
 ///..
+import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
 ///..
 import java.io.IOException;
-import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicReference;
 
+///..
+import lombok.extern.slf4j.Slf4j;
+
 ///
-@SuppressWarnings("squid:S106")
+@Slf4j(topic = "console_logger")
 
 ///
 public final class MongoAppender extends AppenderBase<ILoggingEvent> {
@@ -59,7 +62,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
             catch(final Exception exc) {
 
-                System.out.println(LocalDate.now() + ": MongoAppender.append => " + exc);
+                log.error("Could not log", exc);
                 this.writeToFallbackFile(logEvent);
             }
         }
@@ -80,7 +83,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
         catch(final InterruptedException _) {
 
-            System.out.println(LocalDate.now() + ": MongoAppender.stop => interrupted while joining, force quitting");
+            log.error("Interrupted while joining, force quitting");
             Thread.currentThread().interrupt();
         }
 
@@ -126,7 +129,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
         catch(final IOException exc) {
 
-            System.out.println(LocalDate.now() + ": MongoAppender.writeToFallbackFile => " + exc);
+            log.error("Could not log", exc);
         }
     }
 

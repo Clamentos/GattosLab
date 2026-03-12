@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.scheduling.eventbus;
+package io.github.clamentos.gattoslab.eventbus;
 
 ///
 import io.github.clamentos.gattoslab.utils.ThreadSpawner;
