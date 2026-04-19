@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.configuration.pojos;
 
 ///
+import java.time.Duration;
+
+///..
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -16,11 +19,11 @@ public final class DatabaseConfig {
 
     private final int minPoolSize;
     private final int maxPoolSize;
-    private final int maintenanceFrequency;
-    private final int maxConnectionIdleTime;
+    private final Duration maintenanceFrequency;
+    private final Duration maxConnectionIdleTime;
 
-    private final int connectTimeout;
-    private final int readTimeout;
+    private final Duration connectTimeout;
+    private final Duration readTimeout;
 
     ///
 }

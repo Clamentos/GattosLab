@@ -38,9 +38,9 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
     @JsonCreator
     public RequestMetricsSearchFilter(
 
-        @JsonProperty("startTimestamp") final long startTimestamp,
-        @JsonProperty("endTimestamp") final long endTimestamp,
-        @JsonProperty("bucketSize") final long bucketSize,
+        @JsonProperty(EntityField.START_TIMESTAMP) final long startTimestamp,
+        @JsonProperty(EntityField.END_TIMESTAMP) final long endTimestamp,
+        @JsonProperty(EntityField.BUCKET_SIZE) final long bucketSize,
         @JsonProperty("onlyOthers") final Boolean onlyOthers,
         @JsonProperty("pathPattern") final String pathPattern,
         @JsonProperty("httpStatuses") final Set<Integer> httpStatuses,
@@ -62,13 +62,13 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
         final List<Bson> filters = new ArrayList<>();
 
-        filters.add(Filters.gte(super.getTemporalField().getField(), super.getStartTimestamp()));
-        filters.add(Filters.lte(super.getTemporalField().getField(), super.getEndTimestamp()));
+        filters.add(Filters.gte(super.getTemporalField(), super.getStartTimestamp()));
+        filters.add(Filters.lte(super.getTemporalField(), super.getEndTimestamp()));
 
-        if(onlyOthers != null) filters.add(Filters.eq(EntityField.IS_OTHERS.getField(), onlyOthers));
-        if(pathPattern != null && !pathPattern.isEmpty()) filters.add(Filters.regex(EntityField.PATH.getField(), pathPattern));
-        if(httpStatuses != null && !httpStatuses.isEmpty()) filters.add(Filters.in(EntityField.HTTP_STATUS.getField(), httpStatuses));
-        if(userAgentPattern != null && !userAgentPattern.isEmpty()) filters.add(Filters.regex(EntityField.USER_AGENT.getField(), userAgentPattern));
+        if(onlyOthers != null) filters.add(Filters.eq(EntityField.IS_OTHERS, onlyOthers));
+        if(pathPattern != null && !pathPattern.isEmpty()) filters.add(Filters.regex(EntityField.PATH, pathPattern));
+        if(httpStatuses != null && !httpStatuses.isEmpty()) filters.add(Filters.in(EntityField.HTTP_STATUS, httpStatuses));
+        if(userAgentPattern != null && !userAgentPattern.isEmpty()) filters.add(Filters.regex(EntityField.USER_AGENT, userAgentPattern));
 
         return Filters.and(filters);
     }

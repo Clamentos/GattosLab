@@ -21,6 +21,7 @@ import io.github.clamentos.gattoslab.observability.logging.mappers.LogEntityMapp
 import io.github.clamentos.gattoslab.observability.metrics.mappers.PathInvocationAggregationEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.RequestMetricsAggregateEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.RequestMetricsEntityMapper;
+import io.github.clamentos.gattoslab.observability.metrics.mappers.SystemMetricsAggregateEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.SystemMetricsEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.UserAgentAggregationEntityMapper;
 
@@ -47,6 +48,7 @@ public final class MongoClientWrapper {
     @Getter
     final MongoClient client;
 
+    ///..
     final Map<DatabaseCollection, MongoCollection<?>> collections;
 
     ///
@@ -64,13 +66,13 @@ public final class MongoClientWrapper {
 
                 pool.minSize(databaseConfig.getMinPoolSize());
                 pool.maxSize(databaseConfig.getMaxPoolSize());
-                pool.maintenanceFrequency(databaseConfig.getMaintenanceFrequency(), TimeUnit.SECONDS);
-                pool.maxConnectionIdleTime(databaseConfig.getMaxConnectionIdleTime(), TimeUnit.SECONDS);
+                pool.maintenanceFrequency(databaseConfig.getMaintenanceFrequency().toMillis(), TimeUnit.MILLISECONDS);
+                pool.maxConnectionIdleTime(databaseConfig.getMaxConnectionIdleTime().toMillis(), TimeUnit.MILLISECONDS);
             })
             .applyToSocketSettings(socket -> {
 
-                socket.connectTimeout(databaseConfig.getConnectTimeout(), TimeUnit.SECONDS);
-                socket.readTimeout(databaseConfig.getReadTimeout(), TimeUnit.SECONDS);
+                socket.connectTimeout(databaseConfig.getConnectTimeout().toMillis(), TimeUnit.MILLISECONDS);
+                socket.readTimeout(databaseConfig.getReadTimeout().toMillis(), TimeUnit.MILLISECONDS);
             })
             .applyToClusterSettings(cluster -> cluster.mode(ClusterConnectionMode.SINGLE))
             .readConcern(ReadConcern.LOCAL)
@@ -87,6 +89,7 @@ public final class MongoClientWrapper {
                     CodecRegistries.fromCodecs(new PathInvocationAggregationEntityMapper()),
                     CodecRegistries.fromCodecs(new UserAgentAggregationEntityMapper()),
                     CodecRegistries.fromCodecs(new RequestMetricsAggregateEntityMapper()),
+                    CodecRegistries.fromCodecs(new SystemMetricsAggregateEntityMapper()),
                     MongoClientSettings.getDefaultCodecRegistry()
                 )
             )
@@ -110,7 +113,7 @@ public final class MongoClientWrapper {
     @SuppressWarnings("unchecked")
     public <T> MongoCollection<T> getCollection(final DatabaseCollection collection) {
 
-        return (MongoCollection<T>)collections.get(collection);
+        return (MongoCollection<T>) collections.get(collection);
     }
 
     ///..

@@ -1,15 +1,11 @@
 package io.github.clamentos.gattoslab.lifecycle;
 
 ///
-import io.github.clamentos.gattoslab.observability.ObservabilityService;
-import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
-import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
-
-///..
 import io.undertow.Undertow;
 
 ///..
 import java.io.Closeable;
+import java.util.List;
 
 ///..
 import lombok.AllArgsConstructor;
@@ -23,22 +19,14 @@ import lombok.extern.slf4j.Slf4j;
 public class ShutdownHook implements Runnable {
 
     ///
-    private final ObservabilityService observabilityService;
-    private final SquashedLogContainer squashedLogContainer;
-    private final BatchScheduler batchScheduler;
-    private final Undertow webserver;
+    private final List<Object> closables;
 
     ///
     @Override
     public void run() {
 
         log.info("Begin shutdown...");
-
-        this.tryClose(webserver);
-        this.tryClose(batchScheduler);
-        this.tryClose(observabilityService);
-        this.tryClose(squashedLogContainer);
-
+        for(final Object closable : closables) this.tryClose(closable);
         log.info("End shutdown");
     }
 
@@ -49,15 +37,15 @@ public class ShutdownHook implements Runnable {
 
             switch(closeable) {
 
-              case final Closeable cl -> cl.close();
-              case final Undertow un -> un.stop();
-              default -> log.warn("Unknown closable class {}", closeable.getClass().getSimpleName());
+                case final Closeable cl -> cl.close();
+                case final Undertow un -> un.stop();
+                default -> log.warn("Unknown closable class {}", closeable.getClass().getSimpleName());
             }
         }
 
         catch(final Exception exc) {
 
-            log.error("Could not close because", exc);
+            log.error("Could not close {} because", closeable.getClass().getSimpleName(), exc);
         }
     }
 

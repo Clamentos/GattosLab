@@ -22,11 +22,9 @@ public class SiteCollapser {
     private static final String SOURCE_ROOT = "html";
     private static final String DESTINATION_ROOT = "merged";
 
-    private static final ResourceWalker resourceWalker = new ResourceWalker();
+    public static void main(final String[] args) throws IOException {
 
-    public static void main(String[] args) throws IOException {
-
-        final Set<String> paths = resourceWalker.listSiteResourcePaths(SOURCE_ROOT)
+        final Set<String> paths = ResourceWalker.listSiteResourcePaths(SOURCE_ROOT)
 
             .stream()
             .filter(p -> p.contains("."))
@@ -41,7 +39,7 @@ public class SiteCollapser {
 
     private static void processFile(final String path) throws IOException {
 
-        final byte[] data = resourceWalker.getResource(path).readAllBytes();
+        final byte[] data = ResourceWalker.getResource(path).readAllBytes();
 
         if(path.endsWith(".html")) placeFile(path, modifyHtml(path, data));
         else if(!path.endsWith(".css") && !path.endsWith(".js") && !path.endsWith(".svg")) placeFile(path, data);
@@ -96,7 +94,7 @@ public class SiteCollapser {
 
             final String cssRef = stylesheetElem.attr("href");
 
-            sb.append(new String(resourceWalker.getResource(getPath(htmlPath.getParent(), cssRef)).readAllBytes()));
+            sb.append(new String(ResourceWalker.getResource(getPath(htmlPath.getParent(), cssRef)).readAllBytes()));
             stylesheetElem.remove();
         }
 
@@ -114,7 +112,7 @@ public class SiteCollapser {
 
         for(final Element img : imgs) {
 
-            final byte[] svgB64 = resourceWalker.getResource(getPath(htmlPath.getParent(), img.attr("src"))).readAllBytes();
+            final byte[] svgB64 = ResourceWalker.getResource(getPath(htmlPath.getParent(), img.attr("src"))).readAllBytes();
             img.attr("src", "data:image/svg+xml;utf8;base64, " + new String(encoder.encode(svgB64)));
         }
     }
@@ -126,7 +124,7 @@ public class SiteCollapser {
         for(final Element script : scripts) {
 
             final String jsRef = script.attr("src");
-            final String jsSource = new String(resourceWalker.getResource(getPath(htmlPath.getParent(), jsRef)).readAllBytes());
+            final String jsSource = new String(ResourceWalker.getResource(getPath(htmlPath.getParent(), jsRef)).readAllBytes());
 
             script.removeAttr("src");
             script.text(jsSource);

@@ -28,7 +28,7 @@ public class TemporalSearchFilter implements SearchFilter {
 
     ///
     @JsonCreator
-    public TemporalSearchFilter(@JsonProperty("startTimestamp") final long startTimestamp, @JsonProperty("endTimestamp") final long endTimestamp) {
+    public TemporalSearchFilter(@JsonProperty(EntityField.START_TIMESTAMP) final long startTimestamp, @JsonProperty(EntityField.END_TIMESTAMP) final long endTimestamp) {
 
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
@@ -38,11 +38,11 @@ public class TemporalSearchFilter implements SearchFilter {
     @Override
     public Bson toBsonFilter() {
 
-        return Filters.and(Filters.gte(EntityField.TIMESTAMP.getField(), startTimestamp), Filters.lte(EntityField.TIMESTAMP.getField(), endTimestamp));
+        return Filters.and(Filters.gte(EntityField.TIMESTAMP, startTimestamp), Filters.lte(EntityField.TIMESTAMP, endTimestamp));
     }
 
     ///.
-    protected EntityField getTemporalField() {
+    protected String getTemporalField() {
 
         return EntityField.TIMESTAMP;
     }

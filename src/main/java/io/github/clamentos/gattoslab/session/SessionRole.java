@@ -31,13 +31,19 @@ public enum SessionRole {
     public static SessionRole fromParam(final HttpServerExchange exchange) throws ApiSecurityException {
 
         final Deque<String> values = exchange.getQueryParameters().get("role");
-        if(values == null) throw new ApiSecurityException("Query param cannot be null");
 
-        final String value = values.peekFirst();
-        if(value == null) throw new ApiSecurityException("Query param cannot be null");
+        if(values != null) {
 
-        try { return SessionRole.valueOf(value); }
-        catch(final IllegalArgumentException _) { throw new ApiSecurityException("Unknown role: " + value); }
+            final String value = values.peekFirst();
+
+            if(value != null) {
+
+                try { return SessionRole.valueOf(value); }
+                catch(final IllegalArgumentException _) { throw new ApiSecurityException("Unknown role: " + value); }
+            }
+        }
+
+        throw new ApiSecurityException("Query param cannot be null");
     }
 
     ///

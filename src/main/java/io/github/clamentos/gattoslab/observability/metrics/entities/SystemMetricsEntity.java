@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Date;
 
 ///..
 import lombok.AllArgsConstructor;
@@ -66,8 +67,10 @@ public final class SystemMetricsEntity {
         final long heapUsed
     ) {
 
-        id = new ObjectId();
-        timestamp = System.currentTimeMillis();
+        final Date now = new Date();
+
+        id = new ObjectId(now);
+        timestamp = now.getTime();
         this.virtualThreads = virtualThreads;
         this.platformThreads = platformThreads;
         this.classesLoaded = classesLoaded;

@@ -19,13 +19,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 
 ///
-public final class SquashedLogContainer implements Closeable {
+public final class SquashedLogsContainer implements Closeable {
 
     ///
     private final Map<SquashLogEventType, SquashLogEvent> squashEvents;
 
     ///
-    public SquashedLogContainer(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final List<SquashLogEvent> squashEvents)
+    public SquashedLogsContainer(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final List<SquashLogEvent> squashEvents)
     throws IllegalArgumentException {
 
         batchScheduler.schedule(this::log, "SquashedLogContainer::log", applicationProperties.getLogsConfig().getSquashSchedule());
@@ -43,7 +43,9 @@ public final class SquashedLogContainer implements Closeable {
     ///..
     public void close() {
 
+        log.info("Begin shutdown...");
         this.log();
+        log.info("End shutdown");
     }
 
     ///.

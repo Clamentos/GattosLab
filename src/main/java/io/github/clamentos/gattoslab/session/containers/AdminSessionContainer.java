@@ -1,6 +1,6 @@
 package io.github.clamentos.gattoslab.session.containers;
 
-///
+///.
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.pojos.SessionAdminConfig;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
@@ -14,6 +14,7 @@ import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,7 +46,7 @@ public final class AdminSessionContainer implements SessionContainer {
         final SessionAdminConfig sessionAdminConfig = applicationProperties.getSessionAdminConfig();
 
         apiKey = sessionAdminConfig.getApiKey();
-        sessionDuration = applicationProperties.getSessionConfig().getDuration() * 1000L;
+        sessionDuration = applicationProperties.getSessionConfig().getDuration().toMillis();
         maxSessions = sessionAdminConfig.getMaxSessions();
         cookieAttributes = sessionAdminConfig.getCookieAttributes();
 
@@ -53,11 +54,12 @@ public final class AdminSessionContainer implements SessionContainer {
         sizeCounter = new AtomicInteger();
 
         random = new SecureRandom();
+        random.setSeed(System.nanoTime());
     }
 
     ///
     @Override
-    public SessionMetadata createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException {
+    public Entry<String, SessionMetadata> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException {
 
         if(!forceCreate && !this.apiKey.equals(authorization)) throw new ApiSecurityException("Invalid api key for fingerprint: " + fingerprint);
         if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) throw new ApiSecurityException("Too many sessions");
@@ -67,12 +69,12 @@ public final class AdminSessionContainer implements SessionContainer {
 
         final long now = System.currentTimeMillis();
         final String sessionIdString = HexFormat.of().formatHex(sessionId);
-        final SessionMetadata session = new SessionMetadata(sessionIdString, SessionRole.ADMIN, fingerprint, now, now + sessionDuration);
+        final SessionMetadata session = new SessionMetadata(SessionRole.ADMIN, fingerprint, now, now + sessionDuration);
 
         sessions.put(sessionIdString, session);
         log.info("Admin session created for fingerprint: {}", fingerprint);
 
-        return session;
+        return Map.entry(sessionIdString, session);
     }
 
     ///..
@@ -113,7 +115,7 @@ public final class AdminSessionContainer implements SessionContainer {
         while(entries.hasNext()) {
 
             final Map.Entry<String, SessionMetadata> entry = entries.next();
-            if(!entry.getValue().isValid(timestamp, null)) this.removeSession(entry.getKey(), "Admin session logout for fingerprint");
+            if(!entry.getValue().isValid(timestamp, null)) this.removeSession(entry.getKey(), "Admin session cleanup for fingerprint");
         }
     }
 

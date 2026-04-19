@@ -1,8 +1,8 @@
 package io.github.clamentos.gattoslab.website;
 
 ///
-import io.github.clamentos.gattoslab.utils.HttpMethod;
-import io.github.clamentos.gattoslab.utils.MimeType;
+import io.github.clamentos.gattoslab.http.HttpMethod;
+import io.github.clamentos.gattoslab.http.MimeType;
 
 ///..
 import java.util.Set;
@@ -24,7 +24,6 @@ public final class WebsiteResource {
     private final String path;
     private final MimeType mimeType;
     private final byte[] content;
-    private final boolean isApi;
     private final Set<HttpMethod> supportedMethods;
 
     ///
@@ -34,7 +33,6 @@ public final class WebsiteResource {
 
         mimeType = from.getMimeType();
         content = from.getContent();
-        isApi = from.isApi();
         supportedMethods = from.getSupportedMethods();
     }
 

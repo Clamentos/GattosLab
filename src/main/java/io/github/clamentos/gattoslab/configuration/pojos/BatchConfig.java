@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.configuration.pojos;
 
 ///
+import java.time.Duration;
+
+///..
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -12,8 +15,7 @@ import lombok.Getter;
 public final class BatchConfig {
 
     ///
-    private final int poolSize;
-    private final long shutdownTimeout;
+    private final Duration shutdownTimeout;
 
     ///
 }

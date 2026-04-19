@@ -5,8 +5,10 @@ import io.github.clamentos.gattoslab.eventbus.EventBus;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
 
 ///..
-import java.util.ArrayList;
+import java.util.AbstractList;
+import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
@@ -15,7 +17,7 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.bson.types.ObjectId;
 
 ///
-public final class Siphon {
+public final class Siphon extends AbstractList<RequestMetricsEntity> {
 
     ///
     private final EventBus eventBus;
@@ -53,19 +55,14 @@ public final class Siphon {
     public List<RequestMetricsEntity> drain() {
 
         isDraining.set(true);
-
-        final int length = elements.length();
-        final List<RequestMetricsEntity> elementList = new ArrayList<>(length);
+        final Date now = new Date();
 
         for(int i = 0; i < index.get(); i++) {
 
-            final RequestMetricsEntity entity = elements.get(i);
-            entity.setId(new ObjectId());
-
-            elementList.add(entity);
+            elements.get(i).setId(new ObjectId(now));
         }
 
-        return elementList;
+        return this;
     }
 
     ///..
@@ -73,6 +70,56 @@ public final class Siphon {
 
         index.set(0);
         isDraining.set(false);
+    }
+
+    ///..
+    @Override
+    public int size() {
+
+        return index.get();
+    }
+
+    ///..
+    @Override
+    public RequestMetricsEntity get(final int index) {
+
+        return elements.get(index);
+    }
+
+    ///..
+    @Override
+    public boolean equals(final Object other) {
+
+        if(other == this) return true;
+        if(!(other instanceof Siphon)) return false;
+
+        final Siphon otherCasted = (Siphon)other;
+        if(otherCasted.size() != this.size()) return false;
+
+        for(int i = 0; i < this.size(); i++) {
+
+            final RequestMetricsEntity thisElem = this.get(i);
+            final Object otherElem = otherCasted.get(i);
+
+            if(thisElem != null) {
+
+                if(!thisElem.equals(otherElem)) return false;
+            }
+
+            else if(otherElem != null) return false;
+        }
+
+        return true;
+    }
+
+    ///..
+    @Override
+    public int hashCode() {
+
+        int result = 1;
+        for(int i = 0; i < elements.length(); i++) result = (result * 31) + Objects.hashCode(elements.get(i));
+
+        return result;
     }
 
     ///

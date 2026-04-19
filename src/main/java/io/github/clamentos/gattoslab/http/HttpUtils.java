@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.utils;
+package io.github.clamentos.gattoslab.http;
 
 ///
 import io.undertow.server.HttpServerExchange;
@@ -26,6 +26,8 @@ public final class HttpUtils {
 
     ///
     public static final AttachmentKey<Long> START_TIME_EPOCH_MS = AttachmentKey.create(Long.class);
+    public static final AttachmentKey<HttpMethod> DECODED_HTTP_METHOD = AttachmentKey.create(HttpMethod.class);
+    public static final AttachmentKey<Boolean> BROKEN_PIPE = AttachmentKey.create(Boolean.class);
 
     ///..
     public static HeaderMap addContentType(final HeaderMap headerMap, final MimeType mimeType) {
@@ -34,7 +36,7 @@ public final class HttpUtils {
     }
 
     ///..
-    public static HeaderMap addJsonContent(final HeaderMap headerMap) {
+    public static HeaderMap addJsonContentType(final HeaderMap headerMap) {
 
         return headerMap.add(HttpString.tryFromString(Headers.CONTENT_TYPE_STRING), MimeType.JSON.getMimeValue());
     }
@@ -46,9 +48,9 @@ public final class HttpUtils {
     }
 
     ///..
-    public static HeaderMap addCache(final HeaderMap headerMap, final int duration) {
+    public static HeaderMap addCache(final HeaderMap headerMap, final long duration) {
 
-        return headerMap.add(HttpString.tryFromString(Headers.CACHE_CONTROL_STRING), "max-age=" + Integer.toString(duration) + ", public");
+        return headerMap.add(HttpString.tryFromString(Headers.CACHE_CONTROL_STRING), "max-age=" + Long.toString(duration) + ", public");
     }
 
     ///..
@@ -64,9 +66,9 @@ public final class HttpUtils {
     }
 
     ///..
-    public static HeaderMap addRetryAfter(final HeaderMap headerMap, final int retryAfter) {
+    public static HeaderMap addRetryAfter(final HeaderMap headerMap, final long retryAfter) {
 
-        return headerMap.add(HttpString.tryFromString(Headers.RETRY_AFTER_STRING), Integer.toString(retryAfter));
+        return headerMap.add(HttpString.tryFromString(Headers.RETRY_AFTER_STRING), Long.toString(retryAfter));
     }
 
     ///..
@@ -104,6 +106,12 @@ public final class HttpUtils {
     }
 
     ///..
+    public static HeaderMap addRedirect(final HeaderMap headerMap, final String location) {
+
+        return headerMap.add(HttpString.tryFromString(Headers.LOCATION_STRING), location);
+    }
+
+    ///..
     public static String getHeaderValue(final HeaderMap headerMap, final String name) {
 
         final HeaderValues values = headerMap.get(name);
@@ -122,15 +130,14 @@ public final class HttpUtils {
     }
 
     ///..
-    public static void respondRest(final HttpServerExchange exchange, final int statusCode, final String json, final HeaderMap additionalHeaders)
-    throws IllegalStateException {
+    public static void respondRest(final HttpServerExchange exchange, final int statusCode, final String json, final HeaderMap extraHeaders) throws IllegalStateException {
 
         final HeaderMap headers = clearHeaders(exchange);
 
-        HttpUtils.addJsonContent(headers);
+        HttpUtils.addJsonContentType(headers);
         HttpUtils.addNoCache(headers);
 
-        if(additionalHeaders != null) headers.putAll(additionalHeaders);
+        if(extraHeaders != null) headers.putAll(extraHeaders);
 
         exchange.setStatusCode(statusCode);
         exchange.getResponseSender().send(json);

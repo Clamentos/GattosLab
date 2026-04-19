@@ -1,7 +1,6 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -18,31 +17,23 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 ///..
-import lombok.Getter;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 ///
-@Getter
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 
 ///
 public final class ResourceWalker {
 
     ///
-    private final String pathDelimiter;
-
-    ///
-    public ResourceWalker() {
-
-        pathDelimiter = File.separator;
-    }
-
-    ///
-    public InputStream getResource(final String path) {
+    public static InputStream getResource(final String path) {
 
         return Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
     }
 
     ///..
-    public List<String> listSiteResourcePaths(final String rootPath) throws IOException {
+    public static List<String> listSiteResourcePaths(final String rootPath) throws IOException {
 
         final URL url = Thread.currentThread().getContextClassLoader().getResource(rootPath);
         if(url == null) throw new IOException("Could not find the resource at: " + rootPath);
@@ -51,8 +42,8 @@ public final class ResourceWalker {
 
             final URI uri = url.toURI();
 
-            if ("jar".equals(uri.getScheme())) return this.listFromJar(uri, rootPath);
-            else return this.listFromFileSystem(uri, rootPath);
+            if ("jar".equals(uri.getScheme())) return listFromJar(uri, rootPath);
+            else return listFromFileSystem(uri, rootPath);
         }
 
         catch(final URISyntaxException exc) {
@@ -62,7 +53,7 @@ public final class ResourceWalker {
     }
 
     ///..
-    private List<String> listFromJar(final URI jarUri, final String rootPath) throws IOException {
+    private static List<String> listFromJar(final URI jarUri, final String rootPath) throws IOException {
 
         final List<String> result = new ArrayList<>();
 
@@ -84,7 +75,7 @@ public final class ResourceWalker {
     }
 
     ///..
-    private List<String> listFromFileSystem(final URI uri, final String rootPath) throws IOException {
+    private static List<String> listFromFileSystem(final URI uri, final String rootPath) throws IOException {
 
         final Path root = Paths.get(uri);
 

@@ -7,6 +7,7 @@ import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
 ///..
 import java.io.Closeable;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 public final class BatchScheduler implements Closeable {
 
     ///
-    private final long shutdownTimeout;
+    private final Duration shutdownTimeout;
 
     ///..
     private final Thread scheduler;
@@ -41,17 +42,20 @@ public final class BatchScheduler implements Closeable {
     }
 
     ///
-    public SimpleCron schedule(final Runnable task, final String name, final String simpleCron) throws IllegalArgumentException {
+    public long schedule(final Runnable task, final String name, final String simpleCron) throws IllegalArgumentException {
 
-        final SimpleCron cron = new SimpleCron(task, simpleCron);
+        final SimpleCron cron = new SimpleCron(task, name, simpleCron);
+        jobs.add(cron);
 
         log.info("Scheduled task: {}, period: {}ms", name, cron.getPeriod());
-        return cron;
+        return cron.getPeriod();
     }
 
     ///..
     @Override
     public void close() {
+
+        log.info("Begin shutdown...");
 
         try {
 
@@ -61,29 +65,30 @@ public final class BatchScheduler implements Closeable {
 
         catch(final InterruptedException _) {
 
-            Thread.currentThread().interrupt();
             log.warn("Interrupted wile joining");
+            Thread.currentThread().interrupt();
         }
+
+        log.info("End shutdown");
     }
 
     ///.
     private final void triggerJobs() {
 
-        long id = 0;
+        final long[] idRef = new long[]{0};
 
         while(true) {
 
             final long now = System.currentTimeMillis();
-            for(final SimpleCron job : jobs) job.trigger(now, id++, workers);
+            for(final SimpleCron job : jobs) job.trigger(now, idRef, workers);
 
             try {
 
-                Thread.sleep(250);
+                Thread.sleep(500L);
             }
 
             catch(final InterruptedException _) {
 
-                Thread.currentThread().interrupt();
                 for(final Thread worker : workers.values()) worker.interrupt();
 
                 for(final Thread worker : workers.values()) {
@@ -95,8 +100,8 @@ public final class BatchScheduler implements Closeable {
 
                     catch(final InterruptedException _) {
 
+                        log.error("Interrupted wile joining, force quitting");
                         Thread.currentThread().interrupt();
-                        log.warn("Interrupted wile joining");
 
                         break;
                     }

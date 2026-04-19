@@ -3,18 +3,21 @@ package io.github.clamentos.gattoslab.ingress;
 ///
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.exceptions.IllegalHttpMethodException;
-import io.github.clamentos.gattoslab.exceptions.WrappingRuntimeException;
+import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
+import io.github.clamentos.gattoslab.http.HttpMethod;
+import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.observability.ObservabilityController;
+import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.session.SessionController;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
-import io.github.clamentos.gattoslab.utils.HttpMethod;
+import io.github.clamentos.gattoslab.utils.ExceptionalConsumer;
+import io.github.clamentos.gattoslab.website.Apis;
 import io.github.clamentos.gattoslab.website.WebsiteController;
 
 ///..
 import io.undertow.server.HttpServerExchange;
 
 ///..
-import java.io.IOException;
 import java.util.Set;
 
 ///..
@@ -26,160 +29,152 @@ public final class RequestDispatcher {
 
     ///
     private final JsonMapper jsonMapper;
+    private final GlobalExceptionHandler exceptionHandler;
 
     ///..
     private final SessionController sessionController;
     private final WebsiteController websiteController;
     private final ObservabilityController observabilityController;
 
+    ///..
+    private final ObservabilityService observabilityService;
+
     ///
     public RequestDispatcher(
 
         final JsonMapper jsonMapper,
+        final GlobalExceptionHandler exceptionHandler,
         final SessionController sessionController,
         final WebsiteController websiteController,
-        final ObservabilityController observabilityController
+        final ObservabilityController observabilityController,
+        final ObservabilityService observabilityService
     ) {
 
         this.jsonMapper = jsonMapper;
+        this.exceptionHandler = exceptionHandler;
+
         this.sessionController = sessionController;
         this.websiteController = websiteController;
         this.observabilityController = observabilityController;
+
+        this.observabilityService = observabilityService;
     }
 
     ///
-    public void dispatch(final HttpServerExchange exchange) throws ApiSecurityException, IllegalHttpMethodException, IOException, WrappingRuntimeException {
+    public boolean dispatch(final HttpServerExchange exchange) throws ApiSecurityException, IllegalHttpMethodException {
 
-        final String requestMethod = exchange.getRequestMethod().toString();
+        final HttpMethod requestMethod = exchange.getAttachment(HttpUtils.DECODED_HTTP_METHOD);
 
         switch(exchange.getRequestURI()) {
 
-            case "/api/session":
+            case Apis.AUTH_ENDPOINT:
 
                 switch(requestMethod) {
 
-                    case "POST": sessionController.createSession(exchange); break;
-                    case "PUT": sessionController.refreshSession(exchange); break;
-                    case "DELETE": sessionController.deleteSession(exchange); break;
+                    case POST: sessionController.createSession(exchange); break;
+                    case PUT: sessionController.refreshSession(exchange); break;
+                    case DELETE: sessionController.deleteSession(exchange); break;
 
-                    default: throw this.createException(requestMethod, Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
+                    default: throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
                 }
 
-            break;
+            return true;
 
-            case "/admin/api/observability/request-metrics":
+            case Apis.REQUEST_METRICS_ENDPOINT:
 
-                if("POST".equals(requestMethod)) {
+                if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getRequestMetrics, exchange);
+                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
 
-                    final JsonGenerator generator = this.createGenerator(exchange);
+            return false;
 
-                    exchange.dispatch(() -> {
+            case Apis.INVOCATION_METRICS_ENDPOINT:
 
-                        exchange.startBlocking();
-                        observabilityController.getRequestMetrics(exchange, generator);
-                    });
-                }
+                if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getInvocationMetrics, exchange);
+                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
 
-                else throw this.createException(requestMethod, Set.of(HttpMethod.POST));
+            return false;
 
-            break;
+            case Apis.SYSTEM_METRICS_ENDPOINT:
 
-            case "/admin/api/observability/invocation-metrics":
+                if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getSystemMetrics, exchange);
+                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
 
-                if("POST".equals(requestMethod)) {
+            return false;
 
-                    final JsonGenerator generator = this.createGenerator(exchange);
+            case Apis.SESSION_METADATA_ENDPOINT:
 
-                    exchange.dispatch(() -> {
+                if(requestMethod == HttpMethod.GET) observabilityController.getSessionsMetadata(exchange);
+                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.GET));
 
-                        exchange.startBlocking();
-                        observabilityController.getInvocationMetrics(exchange, generator);
-                    });
-                }
+            return true;
 
-                else throw this.createException(requestMethod, Set.of(HttpMethod.POST));
+            case Apis.LOGS_ENDPOINT:
 
-            break;
+                if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getLogs, exchange);
+                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
 
-            case "/admin/api/observability/system-metrics":
+            return false;
 
-                if("POST".equals(requestMethod)) {
+            case Apis.FALLBACK_LOGS_ENDPOINT:
 
-                    final JsonGenerator generator = this.createGenerator(exchange);
+                if(requestMethod == HttpMethod.GET) this.doDispatch(observabilityController::getFallbackLogs, exchange);
+                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.GET));
 
-                    exchange.dispatch(() -> {
+            return false;
 
-                        exchange.startBlocking();
-                        observabilityController.getSystemMetrics(exchange, generator);
-                    });
-                }
+            default:
 
-                else throw this.createException(requestMethod, Set.of(HttpMethod.POST));
+                websiteController.serveContent(exchange);
 
-            break;
-
-            case "/admin/api/observability/session-metadata":
-
-                if("GET".equals(requestMethod)) observabilityController.getSessionsMetadata(exchange);
-                else throw this.createException(requestMethod, Set.of(HttpMethod.GET));
-
-            break;
-
-            case "/admin/api/observability/logs":
-
-                if("POST".equals(requestMethod)) {
-
-                    final JsonGenerator generator = this.createGenerator(exchange);
-
-                    exchange.dispatch(() -> {
-
-                        exchange.startBlocking();
-                        observabilityController.getLogs(exchange, generator);
-                    });
-                }
-
-                else throw this.createException(requestMethod, Set.of(HttpMethod.POST));
-
-            break;
-
-            case "/admin/api/observability/fallback-logs":
-
-                if("GET".equals(requestMethod)) {
-
-                    final JsonGenerator generator = this.createGenerator(exchange);
-
-                    exchange.dispatch(() -> {
-
-                        exchange.startBlocking();
-                        this.tryWrapped(exchange, generator);
-                    });
-                }
-
-                else throw this.createException(requestMethod, Set.of(HttpMethod.GET));
-
-            break;
-
-            default: websiteController.serveContent(exchange); break;
+            return true;
         }
     }
 
     ///.
-    private JsonGenerator createGenerator(final HttpServerExchange exchange) throws IOException {
+    // NOTE: Try with resources breaks this implementation:
+    // When an exception is triggered, "generator" is immediately closed before the catch, thus closing the underlying undertow stream.
+    // This makes it impossible to utilize the stream for sending an error response because the exchange will be in the "response already sent" state.
 
-        return jsonMapper.createGenerator(new CompressingOutputStream(exchange.getOutputStream()));
+    @SuppressWarnings("squid:S2093")
+    private void doDispatch(final ExceptionalConsumer<HttpServerExchange, JsonGenerator> serviceMethod, final HttpServerExchange exchange) {
+
+        exchange.dispatch(() -> {
+
+            boolean skipUpdateMetrics = false;
+            JsonGenerator generator = null;
+
+            exchange.startBlocking();
+
+            try {
+
+                generator = jsonMapper.createGenerator(new CompressingOutputStream(exchange.getOutputStream()));
+                serviceMethod.execute(exchange, generator);
+                generator.flush();
+                generator.close();
+            }
+
+            catch(final Exception exc) {
+
+                skipUpdateMetrics = exceptionHandler.handle(exc, exchange);
+            }
+
+            finally {
+
+                if(generator != null) {
+
+                    generator.flush();
+                    generator.close();
+                }
+
+                if(!skipUpdateMetrics) observabilityService.updateRequestMetrics(exchange);
+            }
+        });
     }
 
     ///..
-    private IllegalHttpMethodException createException(final String method, final Set<HttpMethod> allowedMethods) {
+    private IllegalHttpMethodException rejectInvalidHttpMethod(final HttpMethod method, final Set<HttpMethod> allowedMethods) {
 
-        return new IllegalHttpMethodException("Method " + method + " is not supported for this endpoint. Supported methods are: " + allowedMethods);
-    }
-
-    ///..
-    private void tryWrapped(final HttpServerExchange exchange, final JsonGenerator generator) throws WrappingRuntimeException {
-
-        try { observabilityController.getFallbackLogs(exchange, generator); }
-        catch(final IOException exc) { throw new WrappingRuntimeException(exc); }
+        return new IllegalHttpMethodException("Method " + method.name() + " is not supported for this endpoint. Supported methods are: " + allowedMethods);
     }
 
     ///

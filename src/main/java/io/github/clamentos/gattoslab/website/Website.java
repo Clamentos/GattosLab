@@ -3,13 +3,14 @@ package io.github.clamentos.gattoslab.website;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.pojos.SiteConfig;
+import io.github.clamentos.gattoslab.http.HttpMethod;
+import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
-import io.github.clamentos.gattoslab.utils.HttpMethod;
-import io.github.clamentos.gattoslab.utils.MimeType;
 import io.github.clamentos.gattoslab.utils.ResourceWalker;
 
 ///..
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -27,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 public final class Website {
 
     ///
-    @Getter private final int cacheDuration;
+    @Getter private final long cacheDuration;
     @Getter private final OffsetDateTime timeAtStartup;
 
     ///..
@@ -38,7 +39,7 @@ public final class Website {
 
         final SiteConfig siteConfig = applicationProperties.getSiteConfig();
 
-        cacheDuration = siteConfig.getCacheDuration() * 60;
+        cacheDuration = siteConfig.getCacheDuration().toSeconds();
         timeAtStartup = OffsetDateTime.now();
 
         final String siteRoot = siteConfig.getRoot();
@@ -48,34 +49,33 @@ public final class Website {
         websiteStructure = new HashMap<>();
         log.info("Loading and compressing the site into memory...");
 
-        final ResourceWalker resourceWalker = new ResourceWalker();
         long uncompressedSize = 0;
         long compressedSize = 0;
 
-        for(final String path : resourceWalker.listSiteResourcePaths(siteRoot)) {
+        for(final String path : ResourceWalker.listSiteResourcePaths(siteRoot)) {
 
             if(path.contains(".")) {
 
-                final String adjustedPath = path.contains(siteRoot) ? path.substring(siteRoot.length()) : resourceWalker.getPathDelimiter() + path;
-                final byte[] content = resourceWalker.getResource(siteRoot + adjustedPath).readAllBytes();
+                final String adjustedPath = path.contains(siteRoot) ? path.substring(siteRoot.length()) : File.separator + path;
+                final byte[] content = ResourceWalker.getResource(siteRoot + adjustedPath).readAllBytes();
                 final byte[] compressedContent = this.compress(content);
 
                 uncompressedSize += content.length;
                 compressedSize += compressedContent.length;
 
-                websiteStructure.put(adjustedPath, new WebsiteResource(adjustedPath, this.getMediaType(adjustedPath), compressedContent, false, supportedGetMethod));
+                websiteStructure.put(adjustedPath, new WebsiteResource(adjustedPath, this.getMediaType(adjustedPath), compressedContent, supportedGetMethod));
             }
         }
 
         websiteStructure.put("/", new WebsiteResource("/", websiteStructure.get("/index.html")));
 
-        this.addPath(websiteStructure, "/api/session", Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
-        this.addPath(websiteStructure, "/admin/api/observability/request-metrics", supportedPostMethod);
-        this.addPath(websiteStructure, "/admin/api/observability/invocation-metrics", supportedPostMethod);
-        this.addPath(websiteStructure, "/admin/api/observability/system-metrics", supportedPostMethod);
-        this.addPath(websiteStructure, "/admin/api/observability/sessions-metadata", supportedGetMethod);
-        this.addPath(websiteStructure, "/admin/api/observability/logs", supportedPostMethod);
-        this.addPath(websiteStructure, "/admin/api/observability/fallback-logs", supportedGetMethod);
+        this.addPath(websiteStructure, Apis.AUTH_ENDPOINT, Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
+        this.addPath(websiteStructure, Apis.REQUEST_METRICS_ENDPOINT, supportedPostMethod);
+        this.addPath(websiteStructure, Apis.INVOCATION_METRICS_ENDPOINT, supportedPostMethod);
+        this.addPath(websiteStructure, Apis.SYSTEM_METRICS_ENDPOINT, supportedPostMethod);
+        this.addPath(websiteStructure, Apis.SESSION_METADATA_ENDPOINT, supportedGetMethod);
+        this.addPath(websiteStructure, Apis.LOGS_ENDPOINT, supportedPostMethod);
+        this.addPath(websiteStructure, Apis.FALLBACK_LOGS_ENDPOINT, supportedGetMethod);
 
         log.info("Loading and compressing the site into memory complete. Before: {}, after: {}", uncompressedSize, compressedSize);
         log.info("Website structure: {}", websiteStructure.toString());
@@ -120,7 +120,7 @@ public final class Website {
     ///..
     private void addPath(final Map<String, WebsiteResource> websiteStructure, final String path, final Set<HttpMethod> supportedMethods) {
 
-        websiteStructure.put(path, new WebsiteResource(path, MimeType.JSON, null, true, supportedMethods));
+        websiteStructure.put(path, new WebsiteResource(path, MimeType.JSON, null, supportedMethods));
     }
 
     ///

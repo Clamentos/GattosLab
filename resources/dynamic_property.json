@@ -1,5 +1,6 @@
 {
     "key": "BLACKLIST",
+    "enabled": true,
     "value": {
         "ipv4s": [
             {"start": "...", "end": "..."},

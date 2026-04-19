@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -59,9 +60,9 @@ public final class FallbackFile implements Runnable {
     @Override
     public void run() {
 
-        try {
+        while(true) {
 
-            while(!Thread.currentThread().isInterrupted()) {
+            try {
 
                 if(mongoClientReference.get() == null) {
 
@@ -76,20 +77,21 @@ public final class FallbackFile implements Runnable {
 
                 Thread.sleep(scheduleDelay);
             }
+
+            catch(final InterruptedException _) {
+
+                this.dump();
+                Thread.currentThread().interrupt();
+
+                break;
+            }
+
+            catch(final Exception exc) {
+
+                log.error("Could not log", exc);
+                this.dump();
+            }
         }
-
-        catch(final InterruptedException _) {
-
-            Thread.currentThread().interrupt();
-            Thread.interrupted();
-        }
-
-        catch(final Exception exc) {
-
-            log.error("Could not log", exc);
-        }
-
-        this.dump();
     }
 
     ///..
@@ -116,8 +118,10 @@ public final class FallbackFile implements Runnable {
 
             try(final Stream<String> lines = Files.lines(Path.of(filePath))) {
 
+                final Date now = new Date();
                 final MongoCollection<LogEntity> logsCollection = client.getCollection(DatabaseCollection.LOGS);
-                lines.filter(Objects::nonNull).forEach(line -> logsCollection.insertOne(new LogEntity(line)));
+
+                lines.filter(Objects::nonNull).forEach(line -> logsCollection.insertOne(new LogEntity(line, now)));
             }
 
             // Clear the file.

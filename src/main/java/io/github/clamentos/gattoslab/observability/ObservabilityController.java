@@ -1,22 +1,18 @@
 package io.github.clamentos.gattoslab.observability;
 
 ///
-import com.mongodb.MongoException;
-
-///..
+import io.github.clamentos.gattoslab.http.HttpUtils;
+import io.github.clamentos.gattoslab.http.ResponseSender;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
+import io.github.clamentos.gattoslab.observability.filters.SystemMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
 import io.github.clamentos.gattoslab.session.SessionService;
-import io.github.clamentos.gattoslab.utils.HttpUtils;
 
 ///..
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.StatusCodes;
-
-///..
-import java.io.IOException;
 
 ///..
 import lombok.RequiredArgsConstructor;
@@ -39,24 +35,24 @@ public final class ObservabilityController {
     private final JsonMapper jsonMapper;
 
     ///
-    public void getRequestMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
+    public void getRequestMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws Exception {
 
-        observabilityService.getRequestMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
-        this.finalizeStreamingResponse(exchange);
+        final ResponseSender sender = observabilityService.getRequestMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
+        this.finalizeCompressedResponse(exchange, sender);
     }
 
     ///..
-    public void getInvocationMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
+    public void getInvocationMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws Exception {
 
-        observabilityService.getInvocationMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
-        this.finalizeStreamingResponse(exchange);
+        final ResponseSender sender = observabilityService.getInvocationMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
+        this.finalizeCompressedResponse(exchange, sender);
     }
 
     ///..
-    public void getSystemMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
+    public void getSystemMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws Exception {
 
-        observabilityService.getSystemMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), RequestMetricsSearchFilter.class));
-        this.finalizeStreamingResponse(exchange);
+        final ResponseSender sender = observabilityService.getSystemMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), SystemMetricsSearchFilter.class));
+        this.finalizeCompressedResponse(exchange, sender);
     }
 
     ///..
@@ -66,21 +62,21 @@ public final class ObservabilityController {
     }
 
     ///..
-    public void getLogs(final HttpServerExchange exchange, final JsonGenerator generator) throws JacksonException, MongoException {
+    public void getLogs(final HttpServerExchange exchange, final JsonGenerator generator) throws Exception {
 
-        logsService.getLogs(generator, jsonMapper.readValue(exchange.getInputStream(), LogSearchFilter.class));
-        this.finalizeStreamingResponse(exchange);
+        final ResponseSender sender = logsService.getLogs(generator, jsonMapper.readValue(exchange.getInputStream(), LogSearchFilter.class));
+        this.finalizeCompressedResponse(exchange, sender);
     }
 
     ///..
-    public void getFallbackLogs(final HttpServerExchange exchange, final JsonGenerator generator) throws IOException, JacksonException, MongoException {
+    public void getFallbackLogs(final HttpServerExchange exchange, final JsonGenerator generator) throws Exception {
 
-        logsService.getFallbackLogs(generator);
-        this.finalizeStreamingResponse(exchange);
+        final ResponseSender sender = logsService.getFallbackLogs(generator);
+        this.finalizeCompressedResponse(exchange, sender);
     }
 
     ///.
-    private void finalizeStreamingResponse(final HttpServerExchange exchange) {
+    private void finalizeCompressedResponse(final HttpServerExchange exchange, final ResponseSender sender) throws Exception {
 
         exchange.setStatusCode(StatusCodes.OK);
 
@@ -88,6 +84,8 @@ public final class ObservabilityController {
 
         HttpUtils.addGzipEncoding(headers);
         HttpUtils.addNoCache(headers);
+
+        sender.send();
     }
 
     ///

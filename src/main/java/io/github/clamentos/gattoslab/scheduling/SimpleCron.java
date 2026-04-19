@@ -8,26 +8,32 @@ import java.util.Map;
 
 ///..
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+///
+@Slf4j
 
 ///
 public final class SimpleCron {
 
     ///
-    @Getter private final long period;
+    private final Runnable task;
+    private final String name;
 
     ///..
-    private final Runnable task;
+    @Getter
+    private final long period;
+
     private long nextTrigger;
 
     ///
-    public SimpleCron(final Runnable task, final String simpleCron) throws IllegalArgumentException {
+    public SimpleCron(final Runnable task, final String name, final String simpleCron) throws IllegalArgumentException {
 
         /*
             Very simple cron scheduling (no offsets): <time-unit><amount>
 
             time-units:
 
-                l -> milliseconds
                 s -> seconds
                 m -> minutes
                 h -> hours
@@ -44,7 +50,6 @@ public final class SimpleCron {
 
             switch(unit) {
 
-                case 'l': period = amount; break;
                 case 's': period = amount * 1000; break;
                 case 'm': period = amount * 1000 * 60; break;
                 case 'h': period = amount * 1000 * 60 * 60; break;
@@ -53,6 +58,8 @@ public final class SimpleCron {
             }
 
             this.task = task;
+            this.name = name;
+
             nextTrigger = System.currentTimeMillis() + period - (now % period);
         }
 
@@ -63,17 +70,26 @@ public final class SimpleCron {
     }
 
     ///..
-    Thread trigger(final long timestamp, final long id, final Map<Long, Thread> workers) {
+    public Thread trigger(final long timestamp, final long[] idRef, final Map<Long, Thread> workers) {
 
         if(timestamp >= nextTrigger) {
 
+            final long id = idRef[0];
             nextTrigger += period;
 
-            return ThreadSpawner.spawnVirtualThread("gattos-lab-bsw-" + id, () -> {
+            final Thread worker = ThreadSpawner.createVirtualThread("gattos-lab-bsw-" + id, () -> {
 
-                task.run();
+                try { task.run(); }
+                catch(final RuntimeException exc) { log.error("Uncaught exception in scheduled task {}", name, exc); }
+
                 workers.remove(id);
             });
+
+            workers.put(id, worker);
+            worker.start();
+            idRef[0]++;
+
+            return worker;
         }
 
         return null;

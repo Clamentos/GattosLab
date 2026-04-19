@@ -13,12 +13,11 @@ import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.ingress.IngressHandler;
 import io.github.clamentos.gattoslab.ingress.RequestDispatcher;
 import io.github.clamentos.gattoslab.ingress.filters.BlacklistFilter;
-import io.github.clamentos.gattoslab.lifecycle.BeansContainer;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
 import io.github.clamentos.gattoslab.observability.ObservabilityController;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
-import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
 import io.github.clamentos.gattoslab.observability.logging.squash.BlacklistSquash;
 import io.github.clamentos.gattoslab.observability.logging.squash.IfModifiedSinceMalformedSquash;
 import io.github.clamentos.gattoslab.observability.logging.squash.RateLimitSquash;
@@ -49,6 +48,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.ArrayList;
 import java.util.List;
 
 ///..
@@ -73,15 +73,16 @@ public class Application {
 
         prepareOutputFiles();
 
-        final ApplicationProperties applicationProperties = new ProfileResolver(args.length > 0 ? args[0] : "dev").getApplicationProperties();
-        final BeansContainer beansContainer = prepareBeans(applicationProperties);
-        final Undertow server = prepareWebserver(applicationProperties, beansContainer.getIngressHandler());
+        final ApplicationProperties applicationProperties = new ProfileResolver(args.length > 0 ? args[0] : null).getApplicationProperties();
+        final List<Object> beansContainer = prepareBeans(applicationProperties);
+        final Undertow server = prepareWebserver(applicationProperties, (IngressHandler) beansContainer.getLast());
 
         log.info("Starting webserver...");
         server.start();
         log.info("Webserver started");
 
-        prepareShutdownHook(beansContainer, server);
+        beansContainer.set(beansContainer.size() - 1, server);
+        prepareShutdownHook(beansContainer);
     }
 
     ///.
@@ -102,7 +103,7 @@ public class Application {
     }
 
     ///..
-    public static BeansContainer prepareBeans(final ApplicationProperties applicationProperties) throws IOException {
+    public static List<Object> prepareBeans(final ApplicationProperties applicationProperties) throws IOException {
 
         final BatchScheduler batchScheduler = new BatchScheduler(applicationProperties);
         final SessionService sessionService = new SessionService(applicationProperties, batchScheduler);
@@ -112,7 +113,7 @@ public class Application {
         MongoClientProvider.setWrapper(mongoClientWrapper);
 
         @SuppressWarnings("squid:S2095") // Closed by shutdown hook
-        final SquashedLogContainer squashedLogContainer = new SquashedLogContainer(
+        final SquashedLogsContainer squashedLogsContainer = new SquashedLogsContainer(
 
             applicationProperties,
             batchScheduler,
@@ -127,47 +128,45 @@ public class Application {
         ;
 
         final DynamicProperties dynamicProperties = new DynamicProperties(applicationProperties, batchScheduler, mongoClientWrapper);
-        final BlacklistFilter blacklistFilter = new BlacklistFilter(dynamicProperties, squashedLogContainer);
+        final BlacklistFilter blacklistFilter = new BlacklistFilter(dynamicProperties, squashedLogsContainer);
         final LogsService logsService = new LogsService(applicationProperties, batchScheduler, mongoClientWrapper);
         final Website website = new Website(applicationProperties);
-        final WebsiteController websiteController = new WebsiteController(website, squashedLogContainer);
+        final WebsiteController websiteController = new WebsiteController(website, squashedLogsContainer);
         final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, batchScheduler, website, mongoClientWrapper);
         final ObservabilityController observabilityController = new ObservabilityController(observabilityService, sessionService, logsService, jsonMapper);
-        final RequestDispatcher requestDispatcher = new RequestDispatcher(jsonMapper, sessionController, websiteController, observabilityController);
-        final GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler(applicationProperties, jsonMapper);
+        final GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler(applicationProperties, jsonMapper, observabilityService);
+
+        final RequestDispatcher requestDispatcher = new RequestDispatcher(
+
+            jsonMapper,
+            globalExceptionHandler,
+            sessionController,
+            websiteController,
+            observabilityController,
+            observabilityService
+        );
 
         final IngressHandler ingressHandler = new IngressHandler(
 
             applicationProperties,
             blacklistFilter,
             batchScheduler,
-            squashedLogContainer,
+            squashedLogsContainer,
             sessionService,
             observabilityService,
-            requestDispatcher,
-            globalExceptionHandler
-        );
-
-        return new BeansContainer(
-
-            applicationProperties,
-            dynamicProperties,
-            batchScheduler,
-            sessionService,
-            sessionController,
-            mongoClientWrapper,
-            squashedLogContainer,
-            jsonMapper,
-            logsService,
-            website,
-            websiteController,
-            observabilityService,
-            observabilityController,
             requestDispatcher,
             globalExceptionHandler,
-            blacklistFilter,
-            ingressHandler
+            website
         );
+
+        final List<Object> closableBeans = new ArrayList<>();
+
+        closableBeans.add(observabilityService);
+        closableBeans.add(squashedLogsContainer);
+        closableBeans.add(batchScheduler);
+        closableBeans.add(ingressHandler);
+
+        return closableBeans;
     }
 
     ///..
@@ -195,7 +194,6 @@ public class Application {
         serverBuilder.setServerOption(UndertowOptions.MAX_COOKIES, 8);
         serverBuilder.setServerOption(UndertowOptions.MAX_BUFFERED_REQUEST_SIZE, 4096);
         serverBuilder.setServerOption(UndertowOptions.ENABLE_RFC6265_COOKIE_VALIDATION, true);
-        serverBuilder.setServerOption(UndertowOptions.REQUIRE_HOST_HTTP11, true);
         serverBuilder.setServerOption(UndertowOptions.MAX_CACHED_HEADER_SIZE, 128);
         serverBuilder.setServerOption(UndertowOptions.HTTP_HEADERS_CACHE_SIZE, 32);
         serverBuilder.setServerOption(UndertowOptions.SHUTDOWN_TIMEOUT, 10000);
@@ -226,17 +224,9 @@ public class Application {
     }
 
     ///..
-    private static void prepareShutdownHook(final BeansContainer beansContainer, final Undertow server) {
+    private static void prepareShutdownHook(final List<Object> beansContainer) {
 
-        final ShutdownHook shutdownHook = new ShutdownHook(
-
-            beansContainer.getObservabilityService(),
-            beansContainer.getSquashedLogContainer(),
-            beansContainer.getBatchScheduler(),
-            server
-        );
-
-        Runtime.getRuntime().addShutdownHook(ThreadSpawner.createVirtualThread("gattos-lab-shutdown-hook", shutdownHook));
+        Runtime.getRuntime().addShutdownHook(ThreadSpawner.createVirtualThread("gattos-lab-shutdown-hook", new ShutdownHook(beansContainer)));
     }
 
     ///..
@@ -264,8 +254,7 @@ public class Application {
     }
 
     ///..
-    private static KeyStore loadKeyStore(final String name, final String password)
-    throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
+    private static KeyStore loadKeyStore(final String name, final String password) throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
 
         try(InputStream keyStream = Application.class.getClassLoader().getResourceAsStream(name)) {
 

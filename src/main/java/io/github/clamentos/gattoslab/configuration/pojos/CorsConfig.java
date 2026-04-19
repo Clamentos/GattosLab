@@ -1,6 +1,7 @@
 package io.github.clamentos.gattoslab.configuration.pojos;
 
 ///
+import java.time.Duration;
 import java.util.Set;
 
 ///..
@@ -17,7 +18,7 @@ public final class CorsConfig {
     ///
     private final boolean enabled;
     private final Set<String> allowedOrigins;
-    private final int maxAge;
+    private final Duration maxAge;
 
     ///
 }

@@ -22,7 +22,7 @@ public final class ErrorBody {
 
         this.title = title;
         url = exchange != null ? exchange.getRequestURL() : null;
-        details = exception != null ? exception.getMessage() : null;
+        details = exception != null ? (exception.getClass().getSimpleName() + " >> " + exception.getMessage()) : null;
     }
 
     ///

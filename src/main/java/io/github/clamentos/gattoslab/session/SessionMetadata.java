@@ -1,9 +1,6 @@
 package io.github.clamentos.gattoslab.session;
 
 ///
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-///..
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -15,9 +12,6 @@ import lombok.Getter;
 public final class SessionMetadata {
 
     ///
-    @JsonIgnore
-    private final String sessionId;
-
     private final SessionRole role;
     private final String fingerprint;
     private final long createdAt;

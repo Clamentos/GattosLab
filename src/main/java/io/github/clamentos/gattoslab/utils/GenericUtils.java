@@ -21,20 +21,5 @@ public final class GenericUtils {
         return ip.getHostAddress() + " >> " + userAgent;
     }
 
-    ///..
-    public static void sleep(long amount) {
-
-        try {
-
-            Thread.sleep(amount);
-        }
-
-        catch(final InterruptedException exc) {
-
-            Thread.currentThread().interrupt();
-            log.warn("Interrupted while sleeping", exc);
-        }
-    }
-
     ///
 }

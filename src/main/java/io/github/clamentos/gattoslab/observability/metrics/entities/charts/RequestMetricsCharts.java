@@ -12,8 +12,8 @@ import lombok.Getter;
 public final class RequestMetricsCharts {
 
     ///
-    private final RequestMetricsRateChart rate;
-    private final RequestMetricsLatencyChart latency;
+    private final LineChart rate;
+    private final BubbleChart latency;
 
     ///
 }

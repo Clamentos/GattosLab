@@ -6,12 +6,13 @@ import io.github.clamentos.gattoslab.session.SessionMetadata;
 
 ///..
 import java.util.Collection;
+import java.util.Map.Entry;
 
 ///
 public interface SessionContainer {
 
     ///
-    SessionMetadata createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException;
+    Entry<String, SessionMetadata> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException;
 
     ///..
     SessionMetadata getSession(final String sessionId);

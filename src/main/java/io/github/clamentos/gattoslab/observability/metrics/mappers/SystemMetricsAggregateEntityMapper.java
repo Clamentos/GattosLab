@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.observability.metrics.mappers;
 
 ///
-import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsAggregateEntity;
 import io.github.clamentos.gattoslab.persistence.EntityField;
 
 ///..
@@ -11,54 +11,29 @@ import org.bson.BsonWriter;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
 import org.bson.codecs.EncoderContext;
-import org.bson.types.ObjectId;
 
 ///
-public final class SystemMetricsEntityMapper implements Codec<SystemMetricsEntity> {
+public final class SystemMetricsAggregateEntityMapper implements Codec<SystemMetricsAggregateEntity> {
 
     ///
     @Override
-    public Class<SystemMetricsEntity> getEncoderClass() {
+    public Class<SystemMetricsAggregateEntity> getEncoderClass() {
 
-        return SystemMetricsEntity.class;
+        return SystemMetricsAggregateEntity.class;
     }
 
     ///..
     @Override
-    public void encode(final BsonWriter writer, final SystemMetricsEntity entity, final EncoderContext encoderContext) {
+    public void encode(final BsonWriter writer, final SystemMetricsAggregateEntity value, final EncoderContext encoderContext) {
 
-        writer.writeStartDocument();
-
-        writer.writeObjectId(EntityField.ID, entity.getId());
-        writer.writeInt64(EntityField.TIMESTAMP, entity.getTimestamp());
-        writer.writeInt64(EntityField.VIRTUAL_THREADS, entity.getVirtualThreads());
-        writer.writeInt64(EntityField.PLATFORM_THREADS, entity.getPlatformThreads());
-        writer.writeInt64(EntityField.CLASSES_LOADED, entity.getClassesLoaded());
-        writer.writeInt64(EntityField.FILE_READS, entity.getFileReads());
-        writer.writeInt64(EntityField.FILE_WRITES, entity.getFileWrites());
-        writer.writeInt64(EntityField.SOCKET_READS, entity.getSocketReads());
-        writer.writeInt64(EntityField.SOCKET_WRITES, entity.getSocketWrites());
-        writer.writeInt64(EntityField.GC_COUNTS, entity.getGcCounts());
-        writer.writeInt64(EntityField.GC_PAUSE, entity.getGcPause());
-        writer.writeInt64(EntityField.CPU_LOAD_JVM_USER, entity.getCpuLoadJvmUser());
-        writer.writeInt64(EntityField.CPU_LOAD_JVM_SYSTEM, entity.getCpuLoadJvmSystem());
-        writer.writeInt64(EntityField.CPU_LOAD_MACHINE_TOTAL, entity.getCpuLoadMachineTotal());
-        writer.writeInt64(EntityField.SYSTEM_MEMORY_USED, entity.getSystemMemoryUsed());
-        writer.writeInt64(EntityField.META_SPACE_USED, entity.getMetaSpaceUsed());
-        writer.writeInt64(EntityField.DIRECT_BUFFERS_USED, entity.getDirectBuffersUsed());
-        writer.writeInt64(EntityField.DIRECT_BUFFERS_MEMORY_USED, entity.getDirectBuffersMemoryUsed());
-        writer.writeInt64(EntityField.HEAP_USED, entity.getHeapUsed());
-        writer.writeInt64(EntityField.STORAGE_USED, entity.getStorageUsed());
-
-        writer.writeEndDocument();
+        throw new UnsupportedOperationException("Aggregations are read-only");
     }
 
     ///..
     @Override
-    public SystemMetricsEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
+    public SystemMetricsAggregateEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
 
-        ObjectId id = null;
-        long timestamp = 0;
+        long timeSlot = 0;
         long virtualThreads = 0;
         long platformThreads = 0;
         long classesLoaded = 0;
@@ -86,8 +61,7 @@ public final class SystemMetricsEntityMapper implements Codec<SystemMetricsEntit
 
             switch(name) {
 
-                case EntityField.ID: id = reader.readObjectId(); break;
-                case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
+                case EntityField.TIME_SLOT: timeSlot = reader.readInt64(); break;
                 case EntityField.VIRTUAL_THREADS: virtualThreads = reader.readInt64(); break;
                 case EntityField.PLATFORM_THREADS: platformThreads = reader.readInt64(); break;
                 case EntityField.CLASSES_LOADED: classesLoaded = reader.readInt64(); break;
@@ -107,16 +81,16 @@ public final class SystemMetricsEntityMapper implements Codec<SystemMetricsEntit
                 case EntityField.HEAP_USED: heapUsed = reader.readInt64(); break;
                 case EntityField.STORAGE_USED: storageUsed = reader.readInt64(); break;
 
+                case EntityField.ID: break;
                 default: throw new IllegalArgumentException("Unknown field name " + name);
             }
         }
 
         reader.readEndDocument();
 
-        return new SystemMetricsEntity(
+        return new SystemMetricsAggregateEntity(
 
-            id,
-            timestamp,
+            timeSlot,
             virtualThreads,
             platformThreads,
             classesLoaded,

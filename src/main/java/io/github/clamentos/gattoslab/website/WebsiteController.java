@@ -2,10 +2,10 @@ package io.github.clamentos.gattoslab.website;
 
 ///
 import io.github.clamentos.gattoslab.exceptions.IllegalHttpMethodException;
-import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
+import io.github.clamentos.gattoslab.http.HttpMethod;
+import io.github.clamentos.gattoslab.http.HttpUtils;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
 import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEventType;
-import io.github.clamentos.gattoslab.utils.HttpMethod;
-import io.github.clamentos.gattoslab.utils.HttpUtils;
 
 ///..
 import io.undertow.server.HttpServerExchange;
@@ -30,16 +30,16 @@ public final class WebsiteController {
 
     ///
     private final Website website;
-    private final SquashedLogContainer squashedLogContainer;
+    private final SquashedLogsContainer squashedLogsContainer;
 
     ///..
     private final WebsiteResource notFoundResource;
 
     ///
-    public WebsiteController(final Website staticSite, final SquashedLogContainer squashedLogContainer) {
+    public WebsiteController(final Website staticSite, final SquashedLogsContainer squashedLogsContainer) {
 
         this.website = staticSite;
-        this.squashedLogContainer = squashedLogContainer;
+        this.squashedLogsContainer = squashedLogsContainer;
 
         notFoundResource = staticSite.getContent("/errors/not-found.html");
     }
@@ -47,17 +47,18 @@ public final class WebsiteController {
     ///
     public void serveContent(final HttpServerExchange exchange) throws IllegalHttpMethodException {
 
-        final String requestMethod = exchange.getRequestMethod().toString();
-
-        if(!requestMethod.equals(HttpMethod.GET.name())) {
-
-            throw new IllegalHttpMethodException("Method " + requestMethod + " is not supported for this endpoint. Supported methods are: GET");
-        }
-
-        final String ifModifiedSince = HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.IF_MODIFIED_SINCE_STRING);
         final WebsiteResource content = website.getContent(exchange.getRequestPath());
 
         if(content != null) {
+
+            final HttpMethod requestMethod = exchange.getAttachment(HttpUtils.DECODED_HTTP_METHOD);
+
+            if(requestMethod != HttpMethod.GET) {
+
+                throw new IllegalHttpMethodException("Method " + requestMethod + " is not supported for this endpoint. Supported methods are: GET");
+            }
+
+            final String ifModifiedSince = HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.IF_MODIFIED_SINCE_STRING);
 
             if(ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
 
@@ -74,8 +75,7 @@ public final class WebsiteController {
 
                 catch(final DateTimeParseException _) {
 
-                    // Continue without caching.
-                    squashedLogContainer.squash(SquashLogEventType.IF_MODIFIED_SINCE_HEADER_MALFORMED, null);
+                    squashedLogsContainer.squash(SquashLogEventType.IF_MODIFIED_SINCE_HEADER_MALFORMED, null);
                 }
             }
 

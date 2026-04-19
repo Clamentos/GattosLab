@@ -1,14 +1,14 @@
-package io.github.clamentos.gattoslab.ingress.filters;
+package io.github.clamentos.gattoslab.ingress.filters.ratelimit;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.pojos.RateLimitConfig;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
-import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
+import io.github.clamentos.gattoslab.http.HttpUtils;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
 import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEventType;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.utils.HttpUtils;
 
 ///..
 import io.undertow.server.HttpServerExchange;
@@ -34,22 +34,22 @@ public final class RateLimitFilter {
     private final int blockCounterStart;
 
     ///..
-    private final SquashedLogContainer squashedLogContainer;
+    private final SquashedLogsContainer squashedLogsContainer;
 
     ///..
-    private final Map<String, RateLimitEntry> tokensByIp;
+    private final Map<InetAddress, RateLimitEntry> tokensByIp;
 
     ///
-    public RateLimitFilter(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final SquashedLogContainer squashedLogContainer)
+    public RateLimitFilter(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final SquashedLogsContainer squashedLogsContainer)
     throws IllegalArgumentException {
 
         final RateLimitConfig rateLimitConfig = applicationProperties.getRateLimitConfig();
-        final int schedule = (int)batchScheduler.schedule(this::replenish, "RateLimitFilter::replenish", rateLimitConfig.getReplenishRate()).getPeriod();
+        final int schedule = (int)batchScheduler.schedule(this::replenish, "RateLimitFilter::replenish", rateLimitConfig.getReplenishRate());
 
         maxTokensPerIp = rateLimitConfig.getMaxTokensPerIp();
-        blockCounterStart = rateLimitConfig.getRetryAfter() / schedule;
+        blockCounterStart = (int)(rateLimitConfig.getRetryAfter().toMillis() / schedule);
 
-        this.squashedLogContainer = squashedLogContainer;
+        this.squashedLogsContainer = squashedLogsContainer;
 
         tokensByIp = new ConcurrentHashMap<>();
     }
@@ -58,12 +58,12 @@ public final class RateLimitFilter {
     public void rateLimit(final HttpServerExchange exchange) throws TooManyRequestsException {
 
         final InetAddress ip = exchange.getSourceAddress().getAddress();
-        final RateLimitEntry entry = tokensByIp.computeIfAbsent(ip.getHostAddress(), _ -> new RateLimitEntry(maxTokensPerIp, blockCounterStart));
+        final RateLimitEntry entry = tokensByIp.computeIfAbsent(ip, _ -> new RateLimitEntry(maxTokensPerIp, blockCounterStart));
 
         if(entry.isRateLimited()) {
 
             final String fingerprint = GenericUtils.composeFingerprint(ip, HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING));
-            squashedLogContainer.squash(SquashLogEventType.RATE_LIMIT, fingerprint);
+            squashedLogsContainer.squash(SquashLogEventType.RATE_LIMIT, fingerprint);
 
             throw new TooManyRequestsException("Rate limit reached for fingerprint: " + fingerprint);
         }
@@ -72,11 +72,11 @@ public final class RateLimitFilter {
     ///.
     private void replenish() {
 
-        final Iterator<Map.Entry<String, RateLimitEntry>> entries = tokensByIp.entrySet().iterator();
+        final Iterator<Map.Entry<InetAddress, RateLimitEntry>> entries = tokensByIp.entrySet().iterator();
 
         while(entries.hasNext()) {
 
-            final Map.Entry<String, RateLimitEntry> entry = entries.next();
+            final Map.Entry<InetAddress, RateLimitEntry> entry = entries.next();
             if(entry.getValue().doReplenish(maxTokensPerIp)) tokensByIp.remove(entry.getKey());
         }
     }

@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.ingress.filters;
+package io.github.clamentos.gattoslab.ingress.filters.ratelimit;
 
 ///
 import java.util.concurrent.atomic.AtomicInteger;

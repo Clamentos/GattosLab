@@ -1,9 +1,6 @@
 package io.github.clamentos.gattoslab.observability.metrics.entities;
 
-///
-import java.util.List;
-
-///..
+///.
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -19,7 +16,7 @@ public final class RequestMetricsAggregateEntity {
     private final long timeSlot;
     private final boolean isOthers;
     private final int rate;
-    private final List<Long> latencyDistribution;
+    private final int[] latencyDistribution;
 
     ///
 }

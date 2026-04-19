@@ -3,16 +3,18 @@ package io.github.clamentos.gattoslab.ingress;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
+import io.github.clamentos.gattoslab.http.HttpMethod;
+import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.ingress.filters.BlacklistFilter;
 import io.github.clamentos.gattoslab.ingress.filters.CorsFilter;
-import io.github.clamentos.gattoslab.ingress.filters.RateLimitFilter;
 import io.github.clamentos.gattoslab.ingress.filters.SecurityFilter;
+import io.github.clamentos.gattoslab.ingress.filters.ratelimit.RateLimitFilter;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
-import io.github.clamentos.gattoslab.observability.logging.SquashedLogContainer;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.session.SessionRole;
 import io.github.clamentos.gattoslab.session.SessionService;
-import io.github.clamentos.gattoslab.utils.HttpUtils;
+import io.github.clamentos.gattoslab.website.Website;
 
 ///..
 import io.undertow.server.HttpHandler;
@@ -32,6 +34,8 @@ public final class IngressHandler implements HttpHandler {
     private final CorsFilter corsFilter;
     private final RateLimitFilter rateLimitFilter;
     private final SecurityFilter securityFilter;
+
+    ///..
     private final ObservabilityService observabilityService;
     private final RequestDispatcher requestDispatcher;
     private final GlobalExceptionHandler globalExceptionHandler;
@@ -42,11 +46,12 @@ public final class IngressHandler implements HttpHandler {
         final ApplicationProperties applicationProperties,
         final BlacklistFilter blacklistFilter,
         final BatchScheduler batchScheduler,
-        final SquashedLogContainer squashedLogContainer,
+        final SquashedLogsContainer squashedLogsContainer,
         final SessionService sessionService,
         final ObservabilityService observabilityService,
         final RequestDispatcher requestDispatcher,
-        final GlobalExceptionHandler globalExceptionHandler
+        final GlobalExceptionHandler globalExceptionHandler,
+        final Website website
     ) {
 
         final boolean isCorsEnabled = applicationProperties.getCorsConfig().isEnabled();
@@ -55,8 +60,8 @@ public final class IngressHandler implements HttpHandler {
 
         this.blacklistFilter = blacklistFilter;
         corsFilter = isCorsEnabled ? new CorsFilter(applicationProperties) : null;
-        rateLimitFilter = isRateLimitEnabled ? new RateLimitFilter(applicationProperties, batchScheduler, squashedLogContainer) : null;
-        securityFilter = isSecurityEnabled ? new SecurityFilter(applicationProperties, SessionRole.ADMIN, sessionService) : null;
+        rateLimitFilter = isRateLimitEnabled ? new RateLimitFilter(applicationProperties, batchScheduler, squashedLogsContainer) : null;
+        securityFilter = isSecurityEnabled ? new SecurityFilter(applicationProperties, SessionRole.ADMIN, sessionService, website) : null;
 
         this.observabilityService = observabilityService;
         this.requestDispatcher = requestDispatcher;
@@ -72,13 +77,14 @@ public final class IngressHandler implements HttpHandler {
         try {
 
             blacklistFilter.isAllowed(exchange);
+            exchange.putAttachment(HttpUtils.DECODED_HTTP_METHOD, HttpMethod.decode(exchange.getRequestMethod()));
 
-            if(corsFilter != null) corsFilter.isAllowed(exchange);
-            if(rateLimitFilter != null) rateLimitFilter.rateLimit(exchange);
-            if(securityFilter != null) securityFilter.authorize(exchange);
+            if(corsFilter != null && corsFilter.isAllowed(exchange)) {
 
-            requestDispatcher.dispatch(exchange);
-            observabilityService.updateRequestMetrics(exchange);
+                if(rateLimitFilter != null) rateLimitFilter.rateLimit(exchange);
+                if(securityFilter != null) securityFilter.authorize(exchange);
+                if(requestDispatcher.dispatch(exchange)) observabilityService.updateRequestMetrics(exchange);
+            }
         }
 
         catch(final Exception exc) {

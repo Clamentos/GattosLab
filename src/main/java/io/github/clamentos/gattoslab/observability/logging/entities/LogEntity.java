@@ -7,6 +7,7 @@ import ch.qos.logback.classic.spi.StackTraceElementProxy;
 
 ///..
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 ///..
@@ -40,8 +41,10 @@ public final class LogEntity {
     ///
     public LogEntity(final ILoggingEvent logEvent) {
 
-        id = new ObjectId();
-        timestamp = logEvent.getTimeStamp();
+        final long logbackTimestamp = logEvent.getTimeStamp();
+
+        id = new ObjectId(new Date(logbackTimestamp));
+        timestamp = logbackTimestamp;
         severity = logEvent.getLevel().toString();
         thread = logEvent.getThreadName();
         logger = logEvent.getLoggerName();
@@ -66,11 +69,11 @@ public final class LogEntity {
     }
 
     ///..
-    public LogEntity(final String log) {
+    public LogEntity(final String log, final Date now) {
 
         final String[] splits = log.split(SECTION_SEPARATOR);
 
-        id = new ObjectId();
+        id = new ObjectId(now);
         timestamp = Long.parseLong(splits[0]);
         severity = this.undoNormalization(splits[1]);
         thread = this.undoNormalization(splits[2]);
@@ -85,7 +88,7 @@ public final class LogEntity {
 
             if(splits.length > 7) {
 
-                excStacktrace = new ArrayList<>();
+                excStacktrace = new ArrayList<>(splits.length - 7);
                 for(int i = 7; i < splits.length; i++) excStacktrace.add(this.undoNormalization(splits[i].replace(MESSAGE_LINE_SEPARATOR, "\n")));
             }
 

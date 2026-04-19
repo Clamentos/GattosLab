@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.utils;
+package io.github.clamentos.gattoslab.http;
 
 ///
 import lombok.AccessLevel;

@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -41,7 +42,7 @@ public final class SessionService {
 
         final SessionConfig sessionConfig = applicationProperties.getSessionConfig();
 
-        loginDelay = sessionConfig.getLoginDelay();
+        loginDelay = sessionConfig.getLoginDelay().toMillis();
         batchScheduler.schedule(this::cleanExpired, "SessionService::cleanExpired", sessionConfig.getCleanSchedule());
 
         sessionContainers = new EnumMap<>(SessionRole.class);
@@ -65,9 +66,11 @@ public final class SessionService {
         if(session == null || !session.isValid(System.currentTimeMillis(), fingerprint)) {
 
             lock.lock();
-            GenericUtils.sleep(loginDelay);
-            lock.unlock();
 
+            try { Thread.sleep(loginDelay); }
+            catch(final InterruptedException _) { Thread.currentThread().interrupt(); }
+
+            lock.unlock();
             return null;
         }
 
@@ -75,14 +78,15 @@ public final class SessionService {
     }
 
     ///..
-    public SessionMetadata createSession(final String authorization, final SessionRole role, final InetAddress ip, final String userAgent)
+    public final Entry<String, SessionMetadata> createSession(final String authorization, final SessionRole role, final InetAddress ip, final String userAgent)
     throws ApiSecurityException {
 
         return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent), false);
     }
 
     ///..
-    public SessionMetadata refreshSession(final String sessionId, final SessionRole role, final InetAddress ip, final String userAgent) throws ApiSecurityException {
+    public Entry<String, SessionMetadata> refreshSession(final String sessionId, final SessionRole role, final InetAddress ip, final String userAgent)
+    throws ApiSecurityException {
 
         final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
         final SessionMetadata session = this.check(role, sessionId, fingerprint);

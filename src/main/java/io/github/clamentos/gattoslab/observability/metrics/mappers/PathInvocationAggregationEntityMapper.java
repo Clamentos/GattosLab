@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.observability.metrics.mappers;
 
 ///
 import io.github.clamentos.gattoslab.observability.metrics.entities.PathInvocationAggregationEntity;
+import io.github.clamentos.gattoslab.persistence.EntityField;
 
 ///..
 import java.util.HashSet;
@@ -36,27 +37,50 @@ public final class PathInvocationAggregationEntityMapper implements Codec<PathIn
     @Override
     public PathInvocationAggregationEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
 
+        String path = null;
+        long firstInvocation = 0;
+        long lastInvocation = 0;
+        long count = 0;
+        Set<Short> httpStatuses = null;
+
         reader.readStartDocument();
 
-        reader.readName("httpStatuses");
-        reader.readStartArray();
+        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-        final Set<Short> httpStatuses = new HashSet<>();
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) httpStatuses.add((short)reader.readInt32());
+            final String name = reader.readName();
 
-        reader.readEndArray();
+            switch(name) {
 
-        final PathInvocationAggregationEntity entity = new PathInvocationAggregationEntity(
+                case EntityField.PATH: path = reader.readString(); break;
+                case EntityField.FIRST_INVOCATION: firstInvocation = reader.readInt64(); break;
+                case EntityField.LAST_INVOCATION: lastInvocation = reader.readInt64(); break;
+                case EntityField.COUNT: count = reader.readInt64(); break;
 
-            reader.readString("path"),
-            httpStatuses,
-            reader.readInt64("firstInvocation"),
-            reader.readInt64("lastInvocation"),
-            reader.readInt64("count")
-        );
+                case EntityField.HTTP_STATUSES:
+
+                    reader.readStartArray();
+                    httpStatuses = new HashSet<>();
+                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) httpStatuses.add((short)reader.readInt64());
+                    reader.readEndArray();
+
+                break;
+
+                case EntityField.ID: break;
+                default: throw new IllegalArgumentException("Unknown field name " + name);
+            }
+        }
 
         reader.readEndDocument();
-        return entity;
+        short[] httpStatusesArray = null;
+
+        if(httpStatuses != null) {
+
+            int i = 0;
+            httpStatusesArray = new short[httpStatuses.size()];
+            for(final Short status : httpStatuses) httpStatusesArray[i++] = status;
+        }
+
+        return new PathInvocationAggregationEntity(path, firstInvocation, lastInvocation, count, httpStatusesArray);
     }
 
     ///

@@ -3,8 +3,8 @@ package io.github.clamentos.gattoslab.ingress.filters;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.pojos.CorsConfig;
-import io.github.clamentos.gattoslab.utils.HttpMethod;
-import io.github.clamentos.gattoslab.utils.HttpUtils;
+import io.github.clamentos.gattoslab.http.HttpMethod;
+import io.github.clamentos.gattoslab.http.HttpUtils;
 
 ///..
 import io.undertow.server.HttpServerExchange;
@@ -31,13 +31,12 @@ public final class CorsFilter {
 
         allowedMethods = Arrays.stream(HttpMethod.values()).collect(Collectors.toSet());
         allowedOrigins = corsConfig.getAllowedOrigins();
-        maxAge = corsConfig.getMaxAge();
+        maxAge = corsConfig.getMaxAge().toSecondsPart();
     }
 
     ///
-    public void isAllowed(final HttpServerExchange exchange) {
+    public boolean isAllowed(final HttpServerExchange exchange) throws IllegalArgumentException {
 
-        final HttpMethod method = HttpMethod.valueOf(exchange.getRequestMethod().toString());
         final HeaderMap responseHeaders = exchange.getResponseHeaders();
 
         HttpUtils.addAllowedMethods(responseHeaders, allowedMethods);
@@ -45,11 +44,15 @@ public final class CorsFilter {
         HttpUtils.addAllowCredentials(responseHeaders);
         HttpUtils.addCorsMaxAge(responseHeaders, maxAge);
 
-        if(method == HttpMethod.OPTIONS) {
+        if(exchange.getAttachment(HttpUtils.DECODED_HTTP_METHOD) == HttpMethod.OPTIONS) {
 
             exchange.setStatusCode(StatusCodes.NO_CONTENT);
             exchange.endExchange();
+
+            return false;
         }
+
+        return true;
     }
 
     ///

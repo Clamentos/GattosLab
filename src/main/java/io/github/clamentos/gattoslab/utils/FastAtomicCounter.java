@@ -22,12 +22,6 @@ public final class FastAtomicCounter {
     }
 
     ///..
-    public void increment(final long amount) {
-
-        paddedCounters.addAndGet(this.getIndex(), amount);
-    }
-
-    ///..
     public void decrement() {
 
         paddedCounters.decrementAndGet(this.getIndex());

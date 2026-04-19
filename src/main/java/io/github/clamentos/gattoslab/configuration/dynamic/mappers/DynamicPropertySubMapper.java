@@ -10,7 +10,7 @@ import org.bson.BsonReader;
 public interface DynamicPropertySubMapper<T> {
 
     ///
-    T map(final BsonReader reader);
+    T map(final BsonReader reader) throws IllegalArgumentException;
 
     ///
 }

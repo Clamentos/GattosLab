@@ -38,8 +38,8 @@ public final class LogSearchFilter extends TemporalSearchFilter {
     @JsonCreator
     public LogSearchFilter(
 
-        @JsonProperty("startTimestamp") final long startTimestamp,
-        @JsonProperty("endTimestamp") final long endTimestamp,
+        @JsonProperty(EntityField.START_TIMESTAMP) final long startTimestamp,
+        @JsonProperty(EntityField.END_TIMESTAMP) final long endTimestamp,
         @JsonProperty("severities") final Set<String> severities,
         @JsonProperty("threadPattern") final String threadPattern,
         @JsonProperty("loggerPattern") final String loggerPattern,
@@ -62,17 +62,17 @@ public final class LogSearchFilter extends TemporalSearchFilter {
 
         final List<Bson> filters = new ArrayList<>();
 
-        filters.add(Filters.gte(super.getTemporalField().getField(), super.getStartTimestamp()));
-        filters.add(Filters.lte(super.getTemporalField().getField(), super.getEndTimestamp()));
+        filters.add(Filters.gte(super.getTemporalField(), super.getStartTimestamp()));
+        filters.add(Filters.lte(super.getTemporalField(), super.getEndTimestamp()));
 
-        if(severities != null && !severities.isEmpty()) filters.add(Filters.in(EntityField.SEVERITY.getField(), severities));
-        if(threadPattern != null && !threadPattern.isEmpty()) filters.add(Filters.regex(EntityField.THREAD.getField(), threadPattern));
-        if(loggerPattern != null && !loggerPattern.isEmpty()) filters.add(Filters.regex(EntityField.LOGGER.getField(), loggerPattern));
-        if(messagePattern != null && !messagePattern.isEmpty()) filters.add(Filters.regex(EntityField.MESSAGE.getField(), messagePattern));
+        if(severities != null && !severities.isEmpty()) filters.add(Filters.in(EntityField.SEVERITY, severities));
+        if(threadPattern != null && !threadPattern.isEmpty()) filters.add(Filters.regex(EntityField.THREAD, threadPattern));
+        if(loggerPattern != null && !loggerPattern.isEmpty()) filters.add(Filters.regex(EntityField.LOGGER, loggerPattern));
+        if(messagePattern != null && !messagePattern.isEmpty()) filters.add(Filters.regex(EntityField.MESSAGE, messagePattern));
 
         if(exceptionClassPattern != null && !exceptionClassPattern.isEmpty()) {
 
-            filters.add(Filters.regex(EntityField.EXCEPTION.getField() + "." + EntityField.CLASS_NAME.getField(), exceptionClassPattern));
+            filters.add(Filters.regex(EntityField.EXCEPTION + "." + EntityField.CLASS_NAME, exceptionClassPattern));
         }
 
         return Filters.and(filters);

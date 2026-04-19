@@ -12,10 +12,11 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class RequestMetricsLatencyChart {
+public final class LineChart {
 
     ///
-    private final List<ChartDataset<BubbleChartDataEntry>> datasets;
+    private final long[] labels;
+    private final List<ChartDataset<long[]>> datasets;
 
     ///
 }

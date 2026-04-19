@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
-import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.Closeable;
@@ -17,6 +16,12 @@ import java.util.function.Consumer;
 ///..
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingStream;
+
+///..
+import lombok.extern.slf4j.Slf4j;
+
+///
+@Slf4j
 
 ///
 public final class SystemMetrics implements Closeable {
@@ -118,7 +123,20 @@ public final class SystemMetrics implements Closeable {
     public SystemMetricsEntity toEntity() {
 
         final long currentDump = dumpCounter.incrementAndGet();
-        while(currentDump != sampleCounter.get()) GenericUtils.sleep(100L);
+
+        while(currentDump != sampleCounter.get()) {
+
+            try {
+
+                Thread.sleep(100L);
+            }
+
+            catch(final InterruptedException _) {
+
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
 
         final SystemMetricsEntity entity = new SystemMetricsEntity(
 
@@ -159,7 +177,9 @@ public final class SystemMetrics implements Closeable {
     @Override
     public void close() throws IOException {
 
+        log.info("Begin shutdown...");
         recordingStream.close();
+        log.info("End shutdown");
     }
 
     ///.

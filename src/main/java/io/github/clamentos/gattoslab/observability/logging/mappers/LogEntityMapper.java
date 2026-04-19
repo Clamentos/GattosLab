@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.observability.logging.mappers;
 ///
 import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
 import io.github.clamentos.gattoslab.observability.logging.entities.LogEntityStackTrace;
+import io.github.clamentos.gattoslab.persistence.EntityField;
 
 ///..
 import java.util.ArrayList;
@@ -33,25 +34,27 @@ public final class LogEntityMapper implements Codec<LogEntity> {
 
         writer.writeStartDocument();
 
-        writer.writeObjectId("_id", entity.getId());
-        writer.writeInt64("timestamp", entity.getTimestamp());
-        writer.writeString("severity", entity.getSeverity());
-        writer.writeString("thread", entity.getThread());
-        writer.writeString("logger", entity.getLogger());
-        writer.writeString("message", entity.getMessage());
+        writer.writeObjectId(EntityField.ID, entity.getId());
+        writer.writeInt64(EntityField.TIMESTAMP, entity.getTimestamp());
+        writer.writeString(EntityField.SEVERITY, entity.getSeverity());
+        writer.writeString(EntityField.THREAD, entity.getThread());
+        writer.writeString(EntityField.LOGGER, entity.getLogger());
+
+        if(entity.getMessage() != null) writer.writeString(EntityField.MESSAGE, entity.getMessage());
 
         if(entity.getException() != null) {
 
             final LogEntityStackTrace exception = entity.getException();
 
+            writer.writeName(EntityField.EXCEPTION);
             writer.writeStartDocument();
 
-            writer.writeString("className", exception.getClassName());
-            writer.writeString("message", exception.getMessage());
+            writer.writeString(EntityField.CLASS_NAME, exception.getClassName());
+            if(exception.getMessage() != null) writer.writeString(EntityField.MESSAGE, exception.getMessage());
 
             if(exception.getStacktrace() != null) {
 
-                writer.writeStartArray("stacktrace");
+                writer.writeStartArray(EntityField.STACKTRACE);
                 for(final String trace : exception.getStacktrace()) writer.writeString(trace);
                 writer.writeEndArray();
             }
@@ -66,49 +69,69 @@ public final class LogEntityMapper implements Codec<LogEntity> {
     @Override
     public LogEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
 
-        reader.readStartDocument();
-
-        final ObjectId id = reader.readObjectId("_id");
-        final long timestamp = reader.readInt64("timestamp");
-        final String severity = reader.readString("severity");
-        final String thread = reader.readString("thread");
-        final String logger = reader.readString("logger");
-        final String message = reader.readString("message");
-
+        ObjectId id = null;
+        long timestamp = 0;
+        String severity = null;
+        String thread = null;
+        String logger = null;
+        String message = null;
         LogEntityStackTrace exception = null;
 
-        if(reader.getCurrentBsonType() == BsonType.DOCUMENT) {
+        reader.readStartDocument();
 
-            reader.readStartDocument();
+        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            final String className = reader.readString("className");
-            final String exceptionMessage = reader.readString("message");
+            final String name = reader.readName();
 
-            reader.readEndDocument();
-            List<String> stacktrace = null;
+            switch(name) {
 
-            if(reader.getCurrentBsonType() == BsonType.ARRAY) {
+                case EntityField.ID: id = reader.readObjectId(); break;
+                case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
+                case EntityField.SEVERITY: severity = reader.readString(); break;
+                case EntityField.THREAD: thread = reader.readString(); break;
+                case EntityField.LOGGER: logger = reader.readString(); break;
+                case EntityField.MESSAGE: message = reader.readString(); break;
 
-                stacktrace = new ArrayList<>();
+                case EntityField.EXCEPTION:
 
-                reader.readStartArray();
-                while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) stacktrace.add(reader.readString());
-                reader.readEndArray();
+                    String className = null;
+                    String excMessage = null;
+                    List<String> stacktrace = null;
+
+                    reader.readStartDocument();
+
+                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+
+                        final String innerName = reader.readName();
+
+                        switch(innerName) {
+
+                            case EntityField.CLASS_NAME: className = reader.readString(); break;
+                            case EntityField.MESSAGE: excMessage = reader.readString(); break;
+
+                            case EntityField.STACKTRACE:
+
+                                reader.readStartArray();
+                                stacktrace = new ArrayList<>();
+                                while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) stacktrace.add(reader.readString());
+                                reader.readEndArray();
+
+                            break;
+
+                            default: throw new IllegalArgumentException("Unknown field name " + name);
+                        }
+                    }
+
+                    reader.readEndDocument();
+                    exception = new LogEntityStackTrace(className, excMessage, stacktrace);
+
+                break;
+
+                default: throw new IllegalArgumentException("Unknown field name " + name);
             }
-
-            else {
-
-                reader.readNull();
-            }
-
-            exception = new LogEntityStackTrace(className, exceptionMessage, stacktrace);
         }
 
-        else {
-
-            reader.readNull();
-        }
-
+        reader.readEndDocument();
         return new LogEntity(id, timestamp, severity, thread, logger, message, exception);
     }
 

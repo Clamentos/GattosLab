@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.configuration.dynamic.mappers;
 ///
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyEntity;
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyType;
+import io.github.clamentos.gattoslab.persistence.EntityField;
 
 ///..
 import java.util.EnumMap;
@@ -10,6 +11,7 @@ import java.util.Map;
 
 ///..
 import org.bson.BsonReader;
+import org.bson.BsonType;
 import org.bson.BsonWriter;
 import org.bson.codecs.Codec;
 import org.bson.codecs.DecoderContext;
@@ -45,15 +47,28 @@ public final class DynamicPropertyMapper implements Codec<DynamicPropertyEntity<
 
     ///..
     @Override
-    public DynamicPropertyEntity<?> decode(final BsonReader reader, final DecoderContext decoderContext) {
+    public DynamicPropertyEntity<?> decode(final BsonReader reader, final DecoderContext decoderContext) throws IllegalArgumentException {
+
+        DynamicPropertyType type = null;
+        Object value = null;
 
         reader.readStartDocument();
 
-        final DynamicPropertyType type = DynamicPropertyType.valueOf(reader.readString("key"));
-        final Object value = subMappers.get(type).map(reader);
+        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+
+            final String name = reader.readName();
+
+            switch(name) {
+
+                case EntityField.KEY: type = DynamicPropertyType.valueOf(reader.readString()); break;
+                case EntityField.VALUE: value = subMappers.get(type).map(reader); break;
+
+                case EntityField.ID: break;
+                default: throw new IllegalArgumentException("Unknown field name " + name);
+            }
+        }
 
         reader.readEndDocument();
-
         return new DynamicPropertyEntity<>(type, value);
     }
 

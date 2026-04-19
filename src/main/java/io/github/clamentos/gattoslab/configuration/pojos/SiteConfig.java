@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.configuration.pojos;
 
 ///
+import java.time.Duration;
+
+///..
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -12,7 +15,7 @@ import lombok.Getter;
 public final class SiteConfig {
 
     ///
-    private final int cacheDuration;
+    private final Duration cacheDuration;
     private final String root;
 
     ///
