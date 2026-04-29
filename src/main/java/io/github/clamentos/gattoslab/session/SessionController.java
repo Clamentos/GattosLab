@@ -49,12 +49,14 @@ public final class SessionController {
     public void createSession(final HttpServerExchange exchange) throws ApiSecurityException {
 
         final SessionRole role = SessionRole.fromParam(exchange);
+        final Cookie cookie = exchange.getRequestCookie(cookieName + role.name());
         final HeaderMap headers = exchange.getRequestHeaders();
 
         final Entry<String, SessionMetadata> session = sessionService.createSession(
 
             HttpUtils.getHeaderValue(headers, Headers.AUTHORIZATION_STRING),
             role,
+            cookie != null ? cookie.getValue() : null,
             exchange.getSourceAddress().getAddress(),
             HttpUtils.getHeaderValue(headers, Headers.USER_AGENT_STRING)
         );

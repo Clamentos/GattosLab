@@ -40,11 +40,11 @@ public final class LogSearchFilter extends TemporalSearchFilter {
 
         @JsonProperty(EntityField.START_TIMESTAMP) final long startTimestamp,
         @JsonProperty(EntityField.END_TIMESTAMP) final long endTimestamp,
-        @JsonProperty("severities") final Set<String> severities,
-        @JsonProperty("threadPattern") final String threadPattern,
-        @JsonProperty("loggerPattern") final String loggerPattern,
-        @JsonProperty("messagePattern") final String messagePattern,
-        @JsonProperty("exceptionClassPattern") final String exceptionClassPattern
+        @JsonProperty(EntityField.SEVERITIES) final Set<String> severities,
+        @JsonProperty(EntityField.THREAD_PATTERN) final String threadPattern,
+        @JsonProperty(EntityField.LOGGER_PATTERN) final String loggerPattern,
+        @JsonProperty(EntityField.MESSAGE_PATTERN) final String messagePattern,
+        @JsonProperty(EntityField.EXCEPTION_CLASS_PATTERN) final String exceptionClassPattern
     ) {
 
         super(startTimestamp, endTimestamp);
@@ -61,9 +61,10 @@ public final class LogSearchFilter extends TemporalSearchFilter {
     public Bson toBsonFilter() {
 
         final List<Bson> filters = new ArrayList<>();
+        final String temporalFieldname = super.getTemporalField();
 
-        filters.add(Filters.gte(super.getTemporalField(), super.getStartTimestamp()));
-        filters.add(Filters.lte(super.getTemporalField(), super.getEndTimestamp()));
+        filters.add(Filters.gte(temporalFieldname, super.getStartTimestamp()));
+        filters.add(Filters.lte(temporalFieldname, super.getEndTimestamp()));
 
         if(severities != null && !severities.isEmpty()) filters.add(Filters.in(EntityField.SEVERITY, severities));
         if(threadPattern != null && !threadPattern.isEmpty()) filters.add(Filters.regex(EntityField.THREAD, threadPattern));

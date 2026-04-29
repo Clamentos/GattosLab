@@ -13,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -28,8 +29,9 @@ import lombok.extern.slf4j.Slf4j;
 public final class Website {
 
     ///
-    @Getter private final long cacheDuration;
+    @Getter private final String cacheDuration;
     @Getter private final OffsetDateTime timeAtStartup;
+    @Getter private final String timeAtStartupStr;
 
     ///..
     private final Map<String, WebsiteResource> websiteStructure;
@@ -39,8 +41,9 @@ public final class Website {
 
         final SiteConfig siteConfig = applicationProperties.getSiteConfig();
 
-        cacheDuration = siteConfig.getCacheDuration().toSeconds();
+        cacheDuration = Long.toString(siteConfig.getCacheDuration().toSeconds());
         timeAtStartup = OffsetDateTime.now();
+        timeAtStartupStr = DateTimeFormatter.RFC_1123_DATE_TIME.format(timeAtStartup);
 
         final String siteRoot = siteConfig.getRoot();
         final Set<HttpMethod> supportedGetMethod = Set.of(HttpMethod.GET);
@@ -59,15 +62,16 @@ public final class Website {
                 final String adjustedPath = path.contains(siteRoot) ? path.substring(siteRoot.length()) : File.separator + path;
                 final byte[] content = ResourceWalker.getResource(siteRoot + adjustedPath).readAllBytes();
                 final byte[] compressedContent = this.compress(content);
+                final boolean isCacheable = !adjustedPath.startsWith("/admin");
 
                 uncompressedSize += content.length;
                 compressedSize += compressedContent.length;
 
-                websiteStructure.put(adjustedPath, new WebsiteResource(adjustedPath, this.getMediaType(adjustedPath), compressedContent, supportedGetMethod));
+                websiteStructure.put(adjustedPath, new WebsiteResource(adjustedPath, this.getMediaType(adjustedPath), compressedContent, supportedGetMethod, isCacheable));
             }
         }
 
-        websiteStructure.put("/", new WebsiteResource("/", websiteStructure.get("/index.html")));
+        websiteStructure.put(Apis.FE_ROOT, new WebsiteResource(Apis.FE_ROOT, websiteStructure.get(Apis.FE_INDEX)));
 
         this.addPath(websiteStructure, Apis.AUTH_ENDPOINT, Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
         this.addPath(websiteStructure, Apis.REQUEST_METRICS_ENDPOINT, supportedPostMethod);
@@ -120,7 +124,7 @@ public final class Website {
     ///..
     private void addPath(final Map<String, WebsiteResource> websiteStructure, final String path, final Set<HttpMethod> supportedMethods) {
 
-        websiteStructure.put(path, new WebsiteResource(path, MimeType.JSON, null, supportedMethods));
+        websiteStructure.put(path, new WebsiteResource(path, MimeType.JSON, null, supportedMethods, false));
     }
 
     ///

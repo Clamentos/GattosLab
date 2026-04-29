@@ -39,11 +39,11 @@ public enum SessionRole {
             if(value != null) {
 
                 try { return SessionRole.valueOf(value); }
-                catch(final IllegalArgumentException _) { throw new ApiSecurityException("Unknown role: " + value); }
+                catch(final IllegalArgumentException _) { throw new ApiSecurityException("SessionRole.fromParam~Unknown role: " + value); }
             }
         }
 
-        throw new ApiSecurityException("Query param cannot be null");
+        throw new ApiSecurityException("SessionRole.fromParam~Query param cannot be null");
     }
 
     ///

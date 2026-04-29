@@ -44,10 +44,10 @@ public final class RateLimitFilter {
     throws IllegalArgumentException {
 
         final RateLimitConfig rateLimitConfig = applicationProperties.getRateLimitConfig();
-        final int schedule = (int)batchScheduler.schedule(this::replenish, "RateLimitFilter::replenish", rateLimitConfig.getReplenishRate());
+        final int schedule = (int) batchScheduler.schedule(this::replenish, "RateLimitFilter::replenish", rateLimitConfig.getReplenishRate());
 
         maxTokensPerIp = rateLimitConfig.getMaxTokensPerIp();
-        blockCounterStart = (int)(rateLimitConfig.getRetryAfter().toMillis() / schedule);
+        blockCounterStart = (int) (rateLimitConfig.getRetryAfter().toMillis() / schedule);
 
         this.squashedLogsContainer = squashedLogsContainer;
 
@@ -65,7 +65,7 @@ public final class RateLimitFilter {
             final String fingerprint = GenericUtils.composeFingerprint(ip, HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING));
             squashedLogsContainer.squash(SquashLogEventType.RATE_LIMIT, fingerprint);
 
-            throw new TooManyRequestsException("Rate limit reached for fingerprint: " + fingerprint);
+            throw new TooManyRequestsException("RateLimitFilter.rateLimit~Rate limit reached for fingerprint: " + fingerprint);
         }
     }
 

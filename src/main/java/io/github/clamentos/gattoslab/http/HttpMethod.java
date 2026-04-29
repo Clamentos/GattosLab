@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.http;
 
 ///
+import io.github.clamentos.gattoslab.exceptions.ValidationException;
+
+///..
 import io.undertow.util.HttpString;
 
 ///..
@@ -25,7 +28,7 @@ public enum HttpMethod {
     private final HttpString method;
 
     ///
-    public static HttpMethod decode(final HttpString method) throws IllegalArgumentException {
+    public static HttpMethod decode(final HttpString method) throws ValidationException {
 
         if(HttpMethod.GET.method.equals(method)) return HttpMethod.GET;
         if(HttpMethod.POST.method.equals(method)) return HttpMethod.POST;
@@ -34,7 +37,7 @@ public enum HttpMethod {
         if(HttpMethod.DELETE.method.equals(method)) return HttpMethod.DELETE;
         if(HttpMethod.OPTIONS.method.equals(method)) return HttpMethod.OPTIONS;
 
-        throw new IllegalArgumentException("Unknown method " + method);
+        throw new ValidationException("HttpMethod.decode~Unknown method " + method);
     }
 
     ///

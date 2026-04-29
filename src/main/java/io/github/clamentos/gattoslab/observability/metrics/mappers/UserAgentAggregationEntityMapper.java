@@ -26,7 +26,7 @@ public final class UserAgentAggregationEntityMapper implements Codec<UserAgentAg
     @Override
     public void encode(final BsonWriter writer, final UserAgentAggregationEntity value, final EncoderContext encoderContext) {
 
-        throw new UnsupportedOperationException("Aggregations are read-only");
+        throw new UnsupportedOperationException("UserAgentAggregationEntityMapper.encode~Aggregations are read-only");
     }
 
     ///..
@@ -46,13 +46,19 @@ public final class UserAgentAggregationEntityMapper implements Codec<UserAgentAg
 
             switch(name) {
 
-                case EntityField.USER_AGENT: userAgent = reader.readString(); break;
+                case EntityField.ID:
+
+                    reader.readStartDocument();
+                    userAgent = reader.readString(EntityField.USER_AGENT);
+                    reader.readEndDocument();
+
+                break;
+
                 case EntityField.FIRST_INVOCATION: firstInvocation = reader.readInt64(); break;
                 case EntityField.LAST_INVOCATION: lastInvocation = reader.readInt64(); break;
-                case EntityField.COUNT: count = reader.readInt64(); break;
+                case EntityField.COUNT: count = reader.readInt32(); break;
 
-                case EntityField.ID: break;
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                default: throw new IllegalArgumentException("UserAgentAggregationEntityMapper.decode~Unknown field name " + name);
             }
         }
 

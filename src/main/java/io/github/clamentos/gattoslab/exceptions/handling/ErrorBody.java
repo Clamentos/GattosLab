@@ -22,7 +22,18 @@ public final class ErrorBody {
 
         this.title = title;
         url = exchange != null ? exchange.getRequestURL() : null;
-        details = exception != null ? (exception.getClass().getSimpleName() + " >> " + exception.getMessage()) : null;
+        details = exception != null ? (exception.getClass().getSimpleName() + " >> " + this.removeInternalInfo(exception.getMessage())) : null;
+    }
+
+    ///..
+    private String removeInternalInfo(final String message) {
+
+        if(message == null || message.isBlank()) return null;
+
+        final long idx = message.indexOf("~");
+
+        if(idx == -1) return message;
+        return message.substring(message.indexOf("~"));
     }
 
     ///

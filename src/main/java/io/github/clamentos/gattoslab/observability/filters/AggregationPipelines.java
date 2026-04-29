@@ -42,7 +42,7 @@ public final class AggregationPipelines {
     private static final Field<Map<String, List<Object>>> perfPipelineKey = new Field<>(
 
         EntityField.KEY,
-        Map.of("$concat", List.of(Map.of("$toString", EntityField.HTTP_STATUS), ":", EntityField.PATH))
+        Map.of("$concat", List.of(Map.of("$toString", "$" + EntityField.HTTP_STATUS), ":", "$" + EntityField.PATH))
     );
 
     ///..
@@ -51,6 +51,7 @@ public final class AggregationPipelines {
         Aggregates.group(
 
             groupId(EntityField.TIME_SLOT, EntityField.KEY),
+            Accumulators.first(EntityField.IS_OTHERS, "$" + EntityField.IS_OTHERS),
             Accumulators.sum(EntityField.RATE, 1),
             Accumulators.sum(EntityField.LATENCIES.get(0), Map.of(COND, List.of(Map.of(LESS_THAN, List.of("$" + EntityField.LATENCY, 2)), 1, 0))),
             Accumulators.sum(EntityField.LATENCIES.get(1), latency(2, 5)),
@@ -71,8 +72,9 @@ public final class AggregationPipelines {
                 Projections.excludeId(),
                 computedId(EntityField.KEY),
                 computedId(EntityField.TIME_SLOT),
+                Projections.include(EntityField.IS_OTHERS),
                 Projections.include(EntityField.RATE),
-                Projections.computed(EntityField.LATENCY_DISTRIBUTION, EntityField.LATENCIES)
+                Projections.computed(EntityField.LATENCY_DISTRIBUTION, EntityField.LATENCIES.stream().map(e -> "$" + e).toList())
             )
         )
     );
@@ -82,8 +84,9 @@ public final class AggregationPipelines {
 
         groupId(EntityField.PATH),
         Accumulators.addToSet(EntityField.HTTP_STATUSES, "$" + EntityField.HTTP_STATUS),
-        accumulatorsMin(EntityField.FIRST_INVOCATION),
-        accumulatorsMax(EntityField.LAST_INVOCATION),
+        Accumulators.first(EntityField.IS_OTHERS, "$" + EntityField.IS_OTHERS),
+        accumulatorsMin(EntityField.FIRST_INVOCATION, EntityField.TIMESTAMP),
+        accumulatorsMax(EntityField.LAST_INVOCATION, EntityField.TIMESTAMP),
         Accumulators.sum(COUNT, 1)
     );
 
@@ -91,8 +94,8 @@ public final class AggregationPipelines {
     private static final Bson USER_AGENTS = Aggregates.group(
 
         groupId(EntityField.USER_AGENT),
-        accumulatorsMin(EntityField.FIRST_INVOCATION),
-        accumulatorsMax(EntityField.LAST_INVOCATION),
+        accumulatorsMin(EntityField.FIRST_INVOCATION, EntityField.TIMESTAMP),
+        accumulatorsMax(EntityField.LAST_INVOCATION, EntityField.TIMESTAMP),
         Accumulators.sum(COUNT, 1)
     );
 
@@ -109,8 +112,8 @@ public final class AggregationPipelines {
             accumulatorsSum(EntityField.FILE_WRITES),
             accumulatorsSum(EntityField.SOCKET_READS),
             accumulatorsSum(EntityField.SOCKET_WRITES),
-            accumulatorsMax(EntityField.GC_COUNTS),
-            accumulatorsMax(EntityField.GC_PAUSE),
+            accumulatorsSum(EntityField.GC_COUNTS),
+            accumulatorsSum(EntityField.GC_PAUSE),
             accumulatorsAverage(EntityField.CPU_LOAD_JVM_USER),
             accumulatorsAverage(EntityField.CPU_LOAD_JVM_SYSTEM),
             accumulatorsAverage(EntityField.CPU_LOAD_MACHINE_TOTAL),
@@ -151,38 +154,46 @@ public final class AggregationPipelines {
     );
 
     ///
-    public static List<Bson> performanceMetricsPipeline(final RequestMetricsSearchFilter searchFilter, final long bucketSize) {
+    public static List<Bson> performanceMetricsPipeline(final RequestMetricsSearchFilter searchFilter) {
 
         final List<Bson> aggregation = new ArrayList<>();
-
         aggregation.add(Aggregates.match(searchFilter.toBsonFilter()));
-        aggregation.add(Aggregates.addFields(perfPipelineKey, new Field<>(EntityField.TIME_SLOT, Map.of("$floor", Map.of("$divide", List.of(EntityField.TIMESTAMP, bucketSize))))));
-        aggregation.addAll(AggregationPipelines.PERFORMANCE_METRICS);
 
+        aggregation.add(Aggregates.addFields(
+
+            perfPipelineKey,
+            new Field<>(EntityField.TIME_SLOT, Map.of("$floor", Map.of("$divide", List.of("$" + EntityField.TIMESTAMP, searchFilter.getBucketSize()))))
+        ));
+
+        aggregation.addAll(AggregationPipelines.PERFORMANCE_METRICS);
         return aggregation;
     }
 
     ///..
-    public static List<Bson> pathMetricsPipeline(final RequestMetricsSearchFilter searchFilter) {
+    public static List<Bson> invocationMetricsPipeline(final SearchFilter searchFilter) {
 
         return List.of(Aggregates.match(searchFilter.toBsonFilter()), AggregationPipelines.PATH_INVOCATIONS, Aggregates.sort(Sorts.descending(COUNT)));
     }
 
     ///..
-    public static List<Bson> userAgentMetricsPipeline(final RequestMetricsSearchFilter searchFilter) {
+    public static List<Bson> userAgentMetricsPipeline(final SearchFilter searchFilter) {
 
         return List.of(Aggregates.match(searchFilter.toBsonFilter()), AggregationPipelines.USER_AGENTS, Aggregates.sort(Sorts.descending(COUNT)));
     }
 
     ///..
-    public static List<Bson> systemMetricsPipeline(final SystemMetricsSearchFilter searchFilter, final long bucketSize) {
+    public static List<Bson> systemMetricsPipeline(final AggregatedSearchFilter searchFilter) {
 
         final List<Bson> aggregation = new ArrayList<>();
-
         aggregation.add(Aggregates.match(searchFilter.toBsonFilter()));
-        aggregation.add(Aggregates.addFields(new Field<>(EntityField.TIME_SLOT, Map.of("$floor", Map.of("$divide", List.of(EntityField.TIMESTAMP, bucketSize))))));
-        aggregation.addAll(AggregationPipelines.SYSTEM_METRICS);
 
+        aggregation.add(Aggregates.addFields(new Field<>(
+
+            EntityField.TIME_SLOT,
+            Map.of("$floor", Map.of("$divide", List.of("$" + EntityField.TIMESTAMP, searchFilter.getBucketSize())))
+        )));
+
+        aggregation.addAll(AggregationPipelines.SYSTEM_METRICS);
         return aggregation;
     }
 
@@ -214,7 +225,7 @@ public final class AggregationPipelines {
     ///..
     private static Bson projectionsComputedCeil(final String fieldName) {
 
-        return Projections.computed(fieldName, new Document("$ceil", "$" + fieldName));
+        return Projections.computed(fieldName, Map.of("$ceil", "$" + fieldName));
     }
 
     ///..
@@ -230,15 +241,15 @@ public final class AggregationPipelines {
     }
 
     ///..
-    private static BsonField accumulatorsMin(final String fieldName) {
+    private static BsonField accumulatorsMin(final String fieldName, final String source) {
 
-        return Accumulators.min(fieldName, "$" + fieldName);
+        return Accumulators.min(fieldName, "$" + source);
     }
 
     ///..
-    private static BsonField accumulatorsMax(final String fieldName) {
+    private static BsonField accumulatorsMax(final String fieldName, final String source) {
 
-        return Accumulators.max(fieldName, "$" + fieldName);
+        return Accumulators.max(fieldName, "$" + source);
     }
 
     ///

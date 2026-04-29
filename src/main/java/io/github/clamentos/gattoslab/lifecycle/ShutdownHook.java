@@ -41,6 +41,8 @@ public class ShutdownHook implements Runnable {
                 case final Undertow un -> un.stop();
                 default -> log.warn("Unknown closable class {}", closeable.getClass().getSimpleName());
             }
+
+            log.info("Closed {}", closeable.getClass().getSimpleName());
         }
 
         catch(final Exception exc) {

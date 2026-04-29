@@ -1,10 +1,10 @@
-const timestampMax = 999999999999999;
 const today = new Date();
-
 today.setUTCHours(0, 0, 0, 0);
-document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 
-fetchAndRenderInvocations(today.getTime(), timestampMax);
+document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
+document.getElementById("end-timestamp").value = new Date(today.getTime() + 86400000).toISOString().slice(0, 16);
+
+fetchAndRenderInvocations(today.getTime(), today.getTime() + 86400000);
 
 function onSubmitEvent(event) {
 
@@ -17,10 +17,12 @@ function onSubmitEvent(event) {
     const formHttpStatuses = event.target.httpStatuses.value;
     const formUserAgentPattern = event.target.userAgentPattern.value;
 
+    const range = normalizeTimeRange(formStartTimestamp, formEndTimestamp, today);
+
     fetchAndRenderInvocations(
 
-        formStartTimestamp === "" ? 0 : Date.parse(formStartTimestamp),
-        formEndTimestamp === "" ? timestampMax : Date.parse(formEndTimestamp),
+        range.start,
+        range.end,
         formOnlyOthers === "" ? null : formOnlyOthers === "true",
         formPathPattern === "" ? null : formPathPattern,
         formHttpStatuses === "" ? null : String(formHttpStatuses).split(",").map(s => Number.parseInt(s)),
@@ -40,7 +42,7 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
     invocationsTableBody.replaceChildren();
     userAgentsTableBody.replaceChildren();
 
-    fetch("/admin/api/observability/request-metrics",
+    fetch("/admin/api/observability/invocation-metrics",
 
         {
             method: "POST",
@@ -53,8 +55,7 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
                 onlyOthers: onlyOthers,
                 pathPattern: pathPattern,
                 httpStatuses: httpStatuses,
-                userAgentPattern: userAgentPattern,
-                fieldsToExclude: ["latency"]
+                userAgentPattern: userAgentPattern
             })
         }
     )
@@ -64,14 +65,14 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
 
             response.json().then(json => {
 
-                const processedInvocations = processPaths(json);
-                const processedUserAgents = processUserAgents(json);
+                const invocations = json.paths;
+                const userAgents = json.userAgents;
 
-                document.getElementById("invocations-count").innerText = `Distinct paths: ${processedInvocations.length}`;
-                document.getElementById("user-agents-count").innerText = `Distinct user agents: ${processedUserAgents.length}`;
+                document.getElementById("invocations-count").innerText = `Distinct paths: ${invocations.length}`;
+                document.getElementById("user-agents-count").innerText = `Distinct user agents: ${userAgents.length}`;
 
-                for(const invocation of processedInvocations) appendRow(invocation, invocationsTableBody, "invocations-table-hook");
-                for(const userAgent of processedUserAgents) appendRow(userAgent, userAgentsTableBody, "user-agents-table-hook");
+                for(const invocation of invocations) appendRow(invocation, invocationsTableBody, "invocations-table-hook");
+                for(const userAgent of userAgents) appendRow(userAgent, userAgentsTableBody, "user-agents-table-hook");
             });
         }
 
@@ -84,74 +85,6 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
     .finally(() => document.getElementById("submit-loader").style = "");
 }
 
-function processPaths(json) {
-
-    /* path -> processed invocation obj */
-    const processedInvocations = new Map();
-
-    for(const metric of json) {
-
-        if(processedInvocations.has(metric.path)) {
-
-            const elem = processedInvocations.get(metric.path);
-
-            elem.count++;
-            elem.httpStatuses.add(elem.httpStatus);
-
-            if(elem.timestamp < metric.timestamp) elem.timestamp = metric.timestamp;
-        }
-
-        else {
-
-            processedInvocations.set(metric.path, {
-
-                key: metric.path,
-                isOthers: metric.isOthers,
-                count: 1,
-                timestamp: metric.timestamp,
-                httpStatuses: new Set([metric.httpStatus])
-            });
-        }
-    }
-
-    let sortedInvocations = [];
-    for(const elem of processedInvocations.values()) sortedInvocations.push(elem);
-
-    return sortedInvocations.sort((a, b) => a.count < b.count);
-}
-
-function processUserAgents(json) {
-
-    /* user agent -> processed user agent obj */
-    const processedUserAgents = new Map();
-
-    for(const metric of json) {
-
-        if(processedUserAgents.has(metric.userAgent)) {
-
-            const elem = processedUserAgents.get(metric.userAgent);
-
-            elem.count++;
-            if(elem.timestamp < metric.timestamp) elem.timestamp = metric.timestamp;
-        }
-
-        else {
-
-            processedUserAgents.set(metric.userAgent, {
-
-                key: metric.userAgent,
-                count: 1,
-                timestamp: metric.timestamp
-            });
-        }
-    }
-
-    let sortedUserAgents = [];
-    for(const elem of processedUserAgents.values()) sortedUserAgents.push(elem);
-
-    return sortedUserAgents.sort((a, b) => a.count < b.count);
-}
-
 function appendRow(entry, table, hook) {
 
     const tr = document.createElement("div");
@@ -159,32 +92,38 @@ function appendRow(entry, table, hook) {
 
     const key = document.createElement("div");
     const count = document.createElement("div");
-    const timestamp = document.createElement("div");
+    const firstInvocation = document.createElement("div");
+    const lastInvocation = document.createElement("div");
 
     tr.appendChild(key);
     tr.appendChild(count);
-    tr.appendChild(timestamp);
+    tr.appendChild(firstInvocation);
+    tr.appendChild(lastInvocation);
 
     key.className = "table-data-elem";
-    key.innerText = (entry.key === null || entry.key === undefined) ? "" : entry.key;
+    key.innerText = hook === "invocations-table-hook" ? entry.path : entry.userAgent;
 
     count.className = "table-data-elem";
-    count.style = "width: 10%";
+    count.style = "width: 5%; text-align: end";
     count.innerText = entry.count;
 
-    timestamp.className = "table-data-elem";
-    timestamp.style = "width: 15%";
-    timestamp.innerText = formatDate(new Date(entry.timestamp));
+    firstInvocation.className = "table-data-elem";
+    firstInvocation.style = "width: 10%; text-align: center";
+    firstInvocation.innerText = formatDate(new Date(entry.firstInvocation));
+
+    lastInvocation.className = "table-data-elem";
+    lastInvocation.style = "width: 10%; text-align: center";
+    lastInvocation.innerText = formatDate(new Date(entry.lastInvocation));
 
     if(hook === "invocations-table-hook") {
 
         if(!entry.isOthers) tr.style = "color: #00FF00";
         const httpStatuses = document.createElement("div");
 
-        key.style = "width: 55%";
+        key.style = "width: 60%";
 
         httpStatuses.className = "table-data-elem";
-        httpStatuses.style = "width: 20%";
+        httpStatuses.style = "width: 15%";
         httpStatuses.innerText = Array.from(entry.httpStatuses).join(", ");
 
         tr.appendChild(httpStatuses);

@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.configuration.dynamic.mappers;
 ///
 import io.github.clamentos.gattoslab.configuration.dynamic.pojos.BlacklistDynamicProperty;
 import io.github.clamentos.gattoslab.configuration.dynamic.pojos.BlacklistIpEntry;
+import io.github.clamentos.gattoslab.exceptions.CodecException;
 import io.github.clamentos.gattoslab.persistence.EntityField;
 
 ///..
@@ -21,66 +22,94 @@ public final class BlacklistMapper implements DynamicPropertySubMapper<Blacklist
 
     ///
     @Override
-    public BlacklistDynamicProperty map(final BsonReader reader) throws IllegalArgumentException {
+    public BlacklistDynamicProperty map(final BsonReader reader) throws CodecException {
 
-        List<BlacklistIpEntry> ipv4s = null;
-        List<BlacklistIpEntry> ipv6s = null;
-        Set<String> userAgentContains = null;
+        try {
 
-        reader.readStartDocument();
+            List<BlacklistIpEntry> ipv4s = null;
+            List<BlacklistIpEntry> ipv6s = null;
+            Set<String> userAgentContains = null;
 
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            reader.readStartDocument();
 
-            final String name = reader.readName();
+            while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            switch(name) {
+                final String name = reader.readName();
 
-                case EntityField.IPV4S: ipv4s = this.readIps(reader); break;
-                case EntityField.IPV6S: ipv6s = this.readIps(reader); break;
+                switch(name) {
 
-                case EntityField.USER_AGENT_CONTAINS:
+                    case EntityField.IPV4S: ipv4s = this.readIps(reader); break;
+                    case EntityField.IPV6S: ipv6s = this.readIps(reader); break;
 
-                    reader.readStartArray();
-                    userAgentContains = new HashSet<>();
-                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) userAgentContains.add(reader.readString());
-                    reader.readEndArray();
+                    case EntityField.USER_AGENT_CONTAINS:
 
-                break;
+                        reader.readStartArray();
+                        userAgentContains = new HashSet<>();
+                        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) userAgentContains.add(reader.readString());
+                        reader.readEndArray();
 
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                    break;
+
+                    default: throw new CodecException("BlacklistMapper.map~Unknown field name " + name);
+                }
             }
+
+            reader.readEndDocument();
+            return new BlacklistDynamicProperty(ipv4s, ipv6s, userAgentContains);
         }
 
-        reader.readEndDocument();
-        return new BlacklistDynamicProperty(ipv4s, ipv6s, userAgentContains);
+        catch(final IllegalStateException exc) {
+
+            throw new CodecException("BlacklistMapper.map~" + exc.getMessage(), exc);
+        }
     }
 
     ///.
-    private List<BlacklistIpEntry> readIps(final BsonReader reader) throws IllegalArgumentException {
+    private List<BlacklistIpEntry> readIps(final BsonReader reader) throws CodecException {
 
-        final List<BlacklistIpEntry> ips = new ArrayList<>();
-        reader.readStartArray();
+        try {
 
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            final List<BlacklistIpEntry> ips = new ArrayList<>();
+            reader.readStartArray();
 
-            String startAddress = null;
-            String endAddress = null;
+            while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            final String name = reader.readName();
+                reader.readStartDocument();
 
-            switch(name) {
+                String startAddress = null;
+                String endAddress = null;
 
-                case EntityField.START: startAddress = reader.readString(); break;
-                case EntityField.END: endAddress = reader.readString(); break;
+                while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                    final String name = reader.readName();
+
+                    switch(name) {
+
+                        case EntityField.START: startAddress = reader.readString(); break;
+                        case EntityField.END: endAddress = reader.readString(); break;
+
+                        default: throw new CodecException("BlacklistMapper.readIps~Unknown field name " + name);
+                    }
+                }
+
+                reader.readEndDocument();
+
+                if(startAddress != null && startAddress.compareTo(endAddress) > 0) {
+
+                    throw new CodecException("BlacklistMapper.readIps~Start address cannot be greater then end address: " + startAddress + " -> " + endAddress);
+                }
+
+                ips.add(new BlacklistIpEntry(InetAddress.ofLiteral(startAddress).getAddress(), InetAddress.ofLiteral(endAddress).getAddress()));
             }
 
-            ips.add(new BlacklistIpEntry(InetAddress.ofLiteral(startAddress).getAddress(), InetAddress.ofLiteral(endAddress).getAddress()));
+            reader.readEndArray();
+            return ips;
         }
 
-        reader.readEndArray();
-        return ips;
+        catch(final IllegalStateException exc) {
+
+            throw new CodecException("BlacklistMapper.readIps~" + exc.getMessage(), exc);
+        }
     }
 
     ///

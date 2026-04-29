@@ -68,7 +68,7 @@ public class RequestMetricsEntityMapper implements Codec<RequestMetricsEntity> {
                 case EntityField.IS_OTHERS: isOthers = reader.readBoolean(); break;
                 case EntityField.HTTP_STATUS: httpStatus = reader.readInt32(); break;
 
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                default: throw new IllegalArgumentException("RequestMetricsEntityMapper.decode~Unknown field name " + name);
             }
         }
 

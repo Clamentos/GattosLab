@@ -12,6 +12,7 @@ import io.github.clamentos.gattoslab.session.SessionController;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
 import io.github.clamentos.gattoslab.utils.ExceptionalConsumer;
 import io.github.clamentos.gattoslab.website.Apis;
+import io.github.clamentos.gattoslab.website.Website;
 import io.github.clamentos.gattoslab.website.WebsiteController;
 
 ///..
@@ -21,6 +22,7 @@ import io.undertow.server.HttpServerExchange;
 import java.util.Set;
 
 ///..
+import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -32,6 +34,7 @@ public final class RequestDispatcher {
     private final GlobalExceptionHandler exceptionHandler;
 
     ///..
+    private final Website website;
     private final SessionController sessionController;
     private final WebsiteController websiteController;
     private final ObservabilityController observabilityController;
@@ -44,6 +47,7 @@ public final class RequestDispatcher {
 
         final JsonMapper jsonMapper,
         final GlobalExceptionHandler exceptionHandler,
+        final Website website,
         final SessionController sessionController,
         final WebsiteController websiteController,
         final ObservabilityController observabilityController,
@@ -53,6 +57,7 @@ public final class RequestDispatcher {
         this.jsonMapper = jsonMapper;
         this.exceptionHandler = exceptionHandler;
 
+        this.website = website;
         this.sessionController = sessionController;
         this.websiteController = websiteController;
         this.observabilityController = observabilityController;
@@ -61,7 +66,7 @@ public final class RequestDispatcher {
     }
 
     ///
-    public boolean dispatch(final HttpServerExchange exchange) throws ApiSecurityException, IllegalHttpMethodException {
+    public boolean dispatch(final HttpServerExchange exchange) throws ApiSecurityException, IllegalHttpMethodException, JacksonException {
 
         final HttpMethod requestMethod = exchange.getAttachment(HttpUtils.DECODED_HTTP_METHOD);
 
@@ -75,7 +80,7 @@ public final class RequestDispatcher {
                     case PUT: sessionController.refreshSession(exchange); break;
                     case DELETE: sessionController.deleteSession(exchange); break;
 
-                    default: throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE));
+                    default: throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.AUTH_ENDPOINT).getSupportedMethods());
                 }
 
             return true;
@@ -83,42 +88,42 @@ public final class RequestDispatcher {
             case Apis.REQUEST_METRICS_ENDPOINT:
 
                 if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getRequestMetrics, exchange);
-                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
+                else throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.REQUEST_METRICS_ENDPOINT).getSupportedMethods());
 
             return false;
 
             case Apis.INVOCATION_METRICS_ENDPOINT:
 
                 if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getInvocationMetrics, exchange);
-                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
+                else throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.INVOCATION_METRICS_ENDPOINT).getSupportedMethods());
 
             return false;
 
             case Apis.SYSTEM_METRICS_ENDPOINT:
 
                 if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getSystemMetrics, exchange);
-                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
+                else throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.SYSTEM_METRICS_ENDPOINT).getSupportedMethods());
 
             return false;
 
             case Apis.SESSION_METADATA_ENDPOINT:
 
                 if(requestMethod == HttpMethod.GET) observabilityController.getSessionsMetadata(exchange);
-                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.GET));
+                else throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.SESSION_METADATA_ENDPOINT).getSupportedMethods());
 
             return true;
 
             case Apis.LOGS_ENDPOINT:
 
                 if(requestMethod == HttpMethod.POST) this.doDispatch(observabilityController::getLogs, exchange);
-                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.POST));
+                else throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.LOGS_ENDPOINT).getSupportedMethods());
 
             return false;
 
             case Apis.FALLBACK_LOGS_ENDPOINT:
 
                 if(requestMethod == HttpMethod.GET) this.doDispatch(observabilityController::getFallbackLogs, exchange);
-                else throw this.rejectInvalidHttpMethod(requestMethod, Set.of(HttpMethod.GET));
+                else throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.FALLBACK_LOGS_ENDPOINT).getSupportedMethods());
 
             return false;
 
@@ -133,7 +138,8 @@ public final class RequestDispatcher {
     ///.
     // NOTE: Try with resources breaks this implementation:
     // When an exception is triggered, "generator" is immediately closed before the catch, thus closing the underlying undertow stream.
-    // This makes it impossible to utilize the stream for sending an error response because the exchange will be in the "response already sent" state.
+    // This makes it impossible to utilize the stream for sending an error response because the exchange will be in the "response already sent" state
+    // even if no bytes were actually sent.
 
     @SuppressWarnings("squid:S2093")
     private void doDispatch(final ExceptionalConsumer<HttpServerExchange, JsonGenerator> serviceMethod, final HttpServerExchange exchange) {
@@ -141,6 +147,7 @@ public final class RequestDispatcher {
         exchange.dispatch(() -> {
 
             boolean skipUpdateMetrics = false;
+            boolean skipClose = false;
             JsonGenerator generator = null;
 
             exchange.startBlocking();
@@ -156,11 +163,12 @@ public final class RequestDispatcher {
             catch(final Exception exc) {
 
                 skipUpdateMetrics = exceptionHandler.handle(exc, exchange);
+                skipClose = true;
             }
 
             finally {
 
-                if(generator != null) {
+                if(generator != null && !skipClose) {
 
                     generator.flush();
                     generator.close();
@@ -174,7 +182,13 @@ public final class RequestDispatcher {
     ///..
     private IllegalHttpMethodException rejectInvalidHttpMethod(final HttpMethod method, final Set<HttpMethod> allowedMethods) {
 
-        return new IllegalHttpMethodException("Method " + method.name() + " is not supported for this endpoint. Supported methods are: " + allowedMethods);
+        return new IllegalHttpMethodException(
+
+            "RequestDispatcher.rejectInvalidHttpMethod~Method " +
+            method.name() +
+            " is not supported for this endpoint. Supported methods are: " +
+            allowedMethods
+        );
     }
 
     ///

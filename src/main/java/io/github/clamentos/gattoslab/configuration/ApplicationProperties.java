@@ -35,14 +35,14 @@ public abstract class ApplicationProperties {
     protected <T> T resolve(final String envName, final Class<T> clazz) throws IllegalArgumentException {
 
         final String envValue = System.getenv(envName);
-        if(envValue == null) throw new IllegalArgumentException("The environment variable: " + envName + " is not defined");
+        if(envValue == null) throw new IllegalArgumentException("ApplicationProperties.resolve~The environment variable: " + envName + " is not defined");
 
         if(clazz == String.class) return clazz.cast(envValue);
         if(clazz == Integer.class) return clazz.cast(Integer.parseInt(envValue));
         if(clazz == Long.class) return clazz.cast(Long.parseLong(envValue));
         if(clazz == Boolean.class) return clazz.cast(Boolean.parseBoolean(envValue));
 
-        throw new IllegalArgumentException("Unknown variable type: " + clazz.getSimpleName());
+        throw new IllegalArgumentException("ApplicationProperties.resolve~Unknown variable type: " + clazz.getSimpleName());
     }
 
     ///

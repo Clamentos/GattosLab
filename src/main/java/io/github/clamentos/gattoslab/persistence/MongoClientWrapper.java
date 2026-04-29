@@ -106,7 +106,7 @@ public final class MongoClientWrapper {
             collections.put(databaseCollection, database.getCollection(databaseCollection.getValue(), databaseCollection.getEntityClass()));
         }
 
-        log.info("Database connection complete");
+        log.info("Database connection successfull");
     }
 
     ///
@@ -119,7 +119,7 @@ public final class MongoClientWrapper {
     ///..
     public <E> void insertAll(final List<E> documents, final DatabaseCollection collection) throws MongoException {
 
-        if(!documents.isEmpty()) this.getCollection(collection).insertMany(documents);
+        if(documents != null && !documents.isEmpty()) this.getCollection(collection).insertMany(documents);
     }
 
     ///

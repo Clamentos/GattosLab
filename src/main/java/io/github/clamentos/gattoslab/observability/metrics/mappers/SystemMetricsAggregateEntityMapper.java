@@ -26,7 +26,7 @@ public final class SystemMetricsAggregateEntityMapper implements Codec<SystemMet
     @Override
     public void encode(final BsonWriter writer, final SystemMetricsAggregateEntity value, final EncoderContext encoderContext) {
 
-        throw new UnsupportedOperationException("Aggregations are read-only");
+        throw new UnsupportedOperationException("SystemMetricsAggregateEntityMapper.encode~Aggregations are read-only");
     }
 
     ///..
@@ -61,28 +61,28 @@ public final class SystemMetricsAggregateEntityMapper implements Codec<SystemMet
 
             switch(name) {
 
-                case EntityField.TIME_SLOT: timeSlot = reader.readInt64(); break;
-                case EntityField.VIRTUAL_THREADS: virtualThreads = reader.readInt64(); break;
-                case EntityField.PLATFORM_THREADS: platformThreads = reader.readInt64(); break;
-                case EntityField.CLASSES_LOADED: classesLoaded = reader.readInt64(); break;
-                case EntityField.FILE_READS: fileReads = reader.readInt64(); break;
-                case EntityField.FILE_WRITES: fileWrites = reader.readInt64(); break;
-                case EntityField.SOCKET_READS: socketReads = reader.readInt64(); break;
-                case EntityField.SOCKET_WRITES: socketWrites = reader.readInt64(); break;
-                case EntityField.GC_COUNTS: gcCounts = reader.readInt64(); break;
-                case EntityField.GC_PAUSE: gcPause = reader.readInt64(); break;
-                case EntityField.CPU_LOAD_JVM_USER: cpuLoadJvmUser = reader.readInt64(); break;
-                case EntityField.CPU_LOAD_JVM_SYSTEM: cpuLoadJvmSystem = reader.readInt64(); break;
-                case EntityField.CPU_LOAD_MACHINE_TOTAL: cpuLoadMachineTotal = reader.readInt64(); break;
-                case EntityField.SYSTEM_MEMORY_USED: systemMemoryUsed = reader.readInt64(); break;
-                case EntityField.META_SPACE_USED: metaSpaceUsed = reader.readInt64(); break;
-                case EntityField.DIRECT_BUFFERS_USED: directBuffersUsed = reader.readInt64(); break;
-                case EntityField.DIRECT_BUFFERS_MEMORY_USED: directBuffersMemoryUsed = reader.readInt64(); break;
-                case EntityField.HEAP_USED: heapUsed = reader.readInt64(); break;
-                case EntityField.STORAGE_USED: storageUsed = reader.readInt64(); break;
+                case EntityField.TIME_SLOT: timeSlot = this.readLong(reader); break;
+                case EntityField.VIRTUAL_THREADS: virtualThreads = this.readLong(reader); break;
+                case EntityField.PLATFORM_THREADS: platformThreads = this.readLong(reader); break;
+                case EntityField.CLASSES_LOADED: classesLoaded = this.readLong(reader); break;
+                case EntityField.FILE_READS: fileReads = this.readLong(reader); break;
+                case EntityField.FILE_WRITES: fileWrites = this.readLong(reader); break;
+                case EntityField.SOCKET_READS: socketReads = this.readLong(reader); break;
+                case EntityField.SOCKET_WRITES: socketWrites = this.readLong(reader); break;
+                case EntityField.GC_COUNTS: gcCounts = this.readLong(reader); break;
+                case EntityField.GC_PAUSE: gcPause = this.readLong(reader); break;
+                case EntityField.CPU_LOAD_JVM_USER: cpuLoadJvmUser = this.readLong(reader); break;
+                case EntityField.CPU_LOAD_JVM_SYSTEM: cpuLoadJvmSystem = this.readLong(reader); break;
+                case EntityField.CPU_LOAD_MACHINE_TOTAL: cpuLoadMachineTotal = this.readLong(reader); break;
+                case EntityField.SYSTEM_MEMORY_USED: systemMemoryUsed = this.readLong(reader); break;
+                case EntityField.META_SPACE_USED: metaSpaceUsed = this.readLong(reader); break;
+                case EntityField.DIRECT_BUFFERS_USED: directBuffersUsed = this.readLong(reader); break;
+                case EntityField.DIRECT_BUFFERS_MEMORY_USED: directBuffersMemoryUsed = this.readLong(reader); break;
+                case EntityField.HEAP_USED: heapUsed = this.readLong(reader); break;
+                case EntityField.STORAGE_USED: storageUsed = this.readLong(reader); break;
 
-                case EntityField.ID: break;
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                case EntityField.ID: reader.readObjectId(); break;
+                default: throw new IllegalArgumentException("SystemMetricsAggregateEntityMapper.decode~Unknown field name " + name);
             }
         }
 
@@ -110,6 +110,15 @@ public final class SystemMetricsAggregateEntityMapper implements Codec<SystemMet
             heapUsed,
             storageUsed
         );
+    }
+
+    ///.
+    private long readLong(final BsonReader reader) {
+
+        final BsonType type = reader.getCurrentBsonType();
+
+        if(type.equals(BsonType.DOUBLE)) return (long) reader.readDouble();
+        return reader.readInt64();
     }
 
     ///

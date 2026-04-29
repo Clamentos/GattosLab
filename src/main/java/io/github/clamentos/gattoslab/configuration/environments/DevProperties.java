@@ -47,7 +47,7 @@ public final class DevProperties extends ApplicationProperties {
     public DevProperties() {
 
         batchConfig = new BatchConfig(Duration.ofSeconds(10));
-        corsConfig = new CorsConfig(true, Set.of("http://localhost:8080", "https://localhost:8443"), Duration.ofHours(1));
+        corsConfig = new CorsConfig(true, Set.of("https://localhost:8443"), Duration.ofHours(1));
 
         databaseConfig = new DatabaseConfig(
 
@@ -61,10 +61,22 @@ public final class DevProperties extends ApplicationProperties {
 
         dynamicPropertiesConfig = new DynamicPropertiesConfig(CommonCrons.EVERY_MINUTE);
         logsConfig = new LogsConfig(Duration.ofDays(7), CommonCrons.EVERY_DAY, CommonCrons.EVERY_MINUTE);
-        metricsConfig = new MetricsConfig(CommonCrons.EVERY_MINUTE, true, Duration.ofDays(7), CommonCrons.EVERY_DAY, 1000, Duration.ofDays(7), CommonCrons.EVERY_10_SECONDS);
-        rateLimitConfig = new RateLimitConfig(true, /* 200 */ 9999999, CommonCrons.EVERY_10_SECONDS, Duration.ofMinutes(1));
+
+        metricsConfig = new MetricsConfig(
+
+            CommonCrons.EVERY_MINUTE,
+            true,
+            Duration.ofDays(7),
+            CommonCrons.EVERY_DAY,
+            1000,
+            Duration.ofDays(7),
+            CommonCrons.EVERY_5_SECONDS,
+            CommonCrons.EVERY_SECOND
+        );
+
+        rateLimitConfig = new RateLimitConfig(true, 200, CommonCrons.EVERY_10_SECONDS, Duration.ofMinutes(1));
         sessionAdminConfig = new SessionAdminConfig("test", 10, "=$; Path=/;");
-        sessionConfig = new SessionConfig(CommonCrons.EVERY_MINUTE, "GattosLabSessionId", Duration.ofHours(1), false, Duration.ofMillis(500));
+        sessionConfig = new SessionConfig(CommonCrons.EVERY_MINUTE, "GattosLabSessionId", Duration.ofHours(1), true, Duration.ofMillis(500));
         siteConfig = new SiteConfig(Duration.ofDays(7), "site");
         sslConfig = new SslConfig(true, "password");
         webserverConfig = new WebserverConfig(8443, "localhost");

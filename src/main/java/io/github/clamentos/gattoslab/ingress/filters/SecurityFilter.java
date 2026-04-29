@@ -8,6 +8,7 @@ import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.session.SessionRole;
 import io.github.clamentos.gattoslab.session.SessionService;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
+import io.github.clamentos.gattoslab.website.Apis;
 import io.github.clamentos.gattoslab.website.Website;
 
 ///..
@@ -53,7 +54,7 @@ public final class SecurityFilter {
         if(roleToCheck == SessionRole.ADMIN && !protectedPaths.contains(path)) return;
 
         final Cookie cookie = exchange.getRequestCookie(cookieName);
-        String errorMessage = "";
+        String errorMessage = "SecurityFilter.authorize~";
 
         if(cookie != null) {
 
@@ -63,16 +64,16 @@ public final class SecurityFilter {
                 HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING)
             );
 
-            if(sessionService.check(roleToCheck, cookie.getValue(), fingerprint) == null) errorMessage = "Invalid, expired or non existent session";
+            if(sessionService.check(roleToCheck, cookie.getValue(), fingerprint) == null) errorMessage += "Invalid, expired or non existent session";
             else return;
         }
 
         else {
 
-            errorMessage = "No " + roleToCheck + " session cookie found in the request";
+            errorMessage += "No " + roleToCheck + " session cookie found in the request";
         }
 
-        if(path.endsWith(".html") && roleToCheck == SessionRole.ADMIN) throw new RedirectException("/login.html");
+        if(path.endsWith(".html") && roleToCheck == SessionRole.ADMIN) throw new RedirectException(Apis.FE_LOGIN);
         else throw new ApiSecurityException(errorMessage);
     }
 

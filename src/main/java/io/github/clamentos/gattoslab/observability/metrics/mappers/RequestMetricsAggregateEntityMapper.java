@@ -30,7 +30,7 @@ public final class RequestMetricsAggregateEntityMapper implements Codec<RequestM
     @Override
     public void encode(final BsonWriter writer, final RequestMetricsAggregateEntity value, final EncoderContext encoderContext) {
 
-        throw new UnsupportedOperationException("Aggregations are read-only");
+        throw new UnsupportedOperationException("RequestMetricsAggregateEntityMapper.encode~Aggregations are read-only");
     }
 
     ///..
@@ -65,8 +65,8 @@ public final class RequestMetricsAggregateEntityMapper implements Codec<RequestM
                 case EntityField.IS_OTHERS: isOthers = reader.readBoolean(); break;
                 case EntityField.RATE: rate = reader.readInt32(); break;
 
-                case EntityField.ID: break;
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                case EntityField.ID: reader.readObjectId(); break;
+                default: throw new IllegalArgumentException("RequestMetricsAggregateEntityMapper.decode~Unknown field name " + name);
             }
         }
 

@@ -16,6 +16,7 @@ public final class PathInvocationAggregationEntity {
     private final long firstInvocation;
     private final long lastInvocation;
     private final long count;
+    private final boolean isOthers;
     private final short[] httpStatuses;
 
     ///

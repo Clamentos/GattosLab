@@ -75,6 +75,14 @@ public class EntityField {
     public static final String START_TIMESTAMP = "startTimestamp";
     public static final String END_TIMESTAMP = "endTimestamp";
     public static final String BUCKET_SIZE = "bucketSize";
+    public static final String SEVERITIES = "severities";
+    public static final String THREAD_PATTERN = "threadPattern";
+    public static final String LOGGER_PATTERN = "loggerPattern";
+    public static final String MESSAGE_PATTERN = "messagePattern";
+    public static final String EXCEPTION_CLASS_PATTERN = "exceptionClassPattern";
+    public static final String ONLY_OTHERS = "onlyOthers";
+    public static final String PATH_PATTERN = "pathPattern";
+    public static final String USER_AGENT_PATTERN = "userAgentPattern";
 
     ///..
     // Aggregation pipelines
@@ -90,17 +98,21 @@ public class EntityField {
 
     public static final List<String> LATENCIES = List.of(
 
-        "$latency_0",
-        "$latency_1",
-        "$latency_2",
-        "$latency_3",
-        "$latency_4",
-        "$latency_5",
-        "$latency_6",
-        "$latency_7",
-        "$latency_8",
-        "$latency_n"
+        "latency_0",
+        "latency_1",
+        "latency_2",
+        "latency_3",
+        "latency_4",
+        "latency_5",
+        "latency_6",
+        "latency_7",
+        "latency_8",
+        "latency_n"
     );
+
+    ///..
+    // Dynamic properties
+    public static final String ENABLED = "enabled";
 
     ///
 }

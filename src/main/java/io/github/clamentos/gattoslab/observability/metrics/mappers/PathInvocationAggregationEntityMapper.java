@@ -30,7 +30,7 @@ public final class PathInvocationAggregationEntityMapper implements Codec<PathIn
     @Override
     public void encode(final BsonWriter writer, final PathInvocationAggregationEntity value, final EncoderContext encoderContext) {
 
-        throw new UnsupportedOperationException("Aggregations are read-only");
+        throw new UnsupportedOperationException("PathInvocationAggregationEntityMapper.encode~Aggregations are read-only");
     }
 
     ///..
@@ -41,6 +41,7 @@ public final class PathInvocationAggregationEntityMapper implements Codec<PathIn
         long firstInvocation = 0;
         long lastInvocation = 0;
         long count = 0;
+        boolean isOther = false;
         Set<Short> httpStatuses = null;
 
         reader.readStartDocument();
@@ -51,22 +52,29 @@ public final class PathInvocationAggregationEntityMapper implements Codec<PathIn
 
             switch(name) {
 
-                case EntityField.PATH: path = reader.readString(); break;
+                case EntityField.ID:
+
+                    reader.readStartDocument();
+                    path = reader.readString(EntityField.PATH);
+                    reader.readEndDocument();
+
+                break;
+
                 case EntityField.FIRST_INVOCATION: firstInvocation = reader.readInt64(); break;
                 case EntityField.LAST_INVOCATION: lastInvocation = reader.readInt64(); break;
-                case EntityField.COUNT: count = reader.readInt64(); break;
+                case EntityField.COUNT: count = reader.readInt32(); break;
+                case EntityField.IS_OTHERS: isOther = reader.readBoolean(); break;
 
                 case EntityField.HTTP_STATUSES:
 
                     reader.readStartArray();
                     httpStatuses = new HashSet<>();
-                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) httpStatuses.add((short)reader.readInt64());
+                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) httpStatuses.add((short)reader.readInt32());
                     reader.readEndArray();
 
                 break;
 
-                case EntityField.ID: break;
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                default: throw new IllegalArgumentException("PathInvocationAggregationEntityMapper.decode~Unknown field name " + name);
             }
         }
 
@@ -80,7 +88,7 @@ public final class PathInvocationAggregationEntityMapper implements Codec<PathIn
             for(final Short status : httpStatuses) httpStatusesArray[i++] = status;
         }
 
-        return new PathInvocationAggregationEntity(path, firstInvocation, lastInvocation, count, httpStatusesArray);
+        return new PathInvocationAggregationEntity(path, firstInvocation, lastInvocation, count, isOther, httpStatusesArray);
     }
 
     ///

@@ -140,6 +140,7 @@ public class Application {
 
             jsonMapper,
             globalExceptionHandler,
+            website,
             sessionController,
             websiteController,
             observabilityController,

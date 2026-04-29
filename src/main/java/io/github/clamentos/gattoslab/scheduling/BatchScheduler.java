@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.scheduling;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.pojos.BatchConfig;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
 ///..
@@ -27,8 +28,11 @@ public final class BatchScheduler implements Closeable {
 
     ///..
     private final Thread scheduler;
+
     private final List<SimpleCron> jobs;
     private final Map<Long, Thread> workers;
+
+    private volatile boolean halt = false;
 
     ///
     public BatchScheduler(final ApplicationProperties applicationProperties) {
@@ -36,8 +40,10 @@ public final class BatchScheduler implements Closeable {
         final BatchConfig batchConfig = applicationProperties.getBatchConfig();
 
         shutdownTimeout = batchConfig.getShutdownTimeout();
+
         scheduler = ThreadSpawner.spawnVirtualThread("gattos-lab-bs-scheduler", this::triggerJobs);
         jobs = new CopyOnWriteArrayList<>();
+
         workers = new ConcurrentHashMap<>();
     }
 
@@ -59,13 +65,13 @@ public final class BatchScheduler implements Closeable {
 
         try {
 
-            scheduler.interrupt();
-            scheduler.join(shutdownTimeout);
+            halt = true;
+            if(!scheduler.join(shutdownTimeout)) log.warn("Timed-out while joining");
         }
 
         catch(final InterruptedException _) {
 
-            log.warn("Interrupted wile joining");
+            log.error("Interrupted wile joining, force quitting");
             Thread.currentThread().interrupt();
         }
 
@@ -77,35 +83,29 @@ public final class BatchScheduler implements Closeable {
 
         final long[] idRef = new long[]{0};
 
-        while(true) {
+        while(!halt) {
 
             final long now = System.currentTimeMillis();
             for(final SimpleCron job : jobs) job.trigger(now, idRef, workers);
 
+            GenericUtils.silentSleep(200L);
+        }
+
+        log.info("Exiting, joining {} workers", workers.size());
+        final Duration waitFor = shutdownTimeout.dividedBy(Math.max(workers.size(), 1)).minusMillis(100L);
+
+        for(final Thread worker : workers.values()) {
+
             try {
 
-                Thread.sleep(500L);
+                log.info("Joining {}", worker.getName());
+                if(!worker.join(waitFor)) log.warn("Timed-out while joining {}", worker.getName());
             }
 
             catch(final InterruptedException _) {
 
-                for(final Thread worker : workers.values()) worker.interrupt();
-
-                for(final Thread worker : workers.values()) {
-
-                    try {
-
-                        worker.join(shutdownTimeout);
-                    }
-
-                    catch(final InterruptedException _) {
-
-                        log.error("Interrupted wile joining, force quitting");
-                        Thread.currentThread().interrupt();
-
-                        break;
-                    }
-                }
+                log.error("Interrupted wile joining, force quitting");
+                Thread.currentThread().interrupt();
 
                 break;
             }

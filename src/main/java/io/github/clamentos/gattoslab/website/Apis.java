@@ -19,5 +19,11 @@ public final class Apis {
     public static final String LOGS_ENDPOINT = "/admin/api/observability/logs";
     public static final String FALLBACK_LOGS_ENDPOINT = "/admin/api/observability/fallback-logs";
 
+    ///..
+    public static final String FE_ROOT = "/";
+    public static final String FE_INDEX = "/index.html";
+    public static final String FE_NOT_FOUND = "/errors/not-found.html";
+    public static final String FE_LOGIN = "/login.html";
+
     ///
 }

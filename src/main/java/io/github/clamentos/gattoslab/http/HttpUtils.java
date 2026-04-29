@@ -9,8 +9,6 @@ import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
 
 ///..
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -48,9 +46,9 @@ public final class HttpUtils {
     }
 
     ///..
-    public static HeaderMap addCache(final HeaderMap headerMap, final long duration) {
+    public static HeaderMap addCache(final HeaderMap headerMap, final String duration) {
 
-        return headerMap.add(HttpString.tryFromString(Headers.CACHE_CONTROL_STRING), "max-age=" + Long.toString(duration) + ", public");
+        return headerMap.add(HttpString.tryFromString(Headers.CACHE_CONTROL_STRING), "max-age=" + duration + ", public");
     }
 
     ///..
@@ -60,15 +58,15 @@ public final class HttpUtils {
     }
 
     ///..
-    public static HeaderMap addLastModified(final HeaderMap headerMap, final OffsetDateTime lastModified) {
+    public static HeaderMap addLastModified(final HeaderMap headerMap, final String lastModified) {
 
-        return headerMap.add(HttpString.tryFromString(Headers.LAST_MODIFIED_STRING), DateTimeFormatter.RFC_1123_DATE_TIME.format(lastModified));
+        return headerMap.add(HttpString.tryFromString(Headers.LAST_MODIFIED_STRING), lastModified);
     }
 
     ///..
-    public static HeaderMap addRetryAfter(final HeaderMap headerMap, final long retryAfter) {
+    public static HeaderMap addRetryAfter(final HeaderMap headerMap, final String retryAfterStr) {
 
-        return headerMap.add(HttpString.tryFromString(Headers.RETRY_AFTER_STRING), Long.toString(retryAfter));
+        return headerMap.add(HttpString.tryFromString(Headers.RETRY_AFTER_STRING), retryAfterStr);
     }
 
     ///..
@@ -100,9 +98,9 @@ public final class HttpUtils {
     }
 
     ///..
-    public static HeaderMap addCorsMaxAge(final HeaderMap headerMap, final int age) {
+    public static HeaderMap addCorsMaxAge(final HeaderMap headerMap, final String age) {
 
-        return headerMap.add(HttpString.tryFromString("Access-Control-Max-Age"), Integer.toString(age));
+        return headerMap.add(HttpString.tryFromString("Access-Control-Max-Age"), age);
     }
 
     ///..
@@ -130,7 +128,7 @@ public final class HttpUtils {
     }
 
     ///..
-    public static void respondRest(final HttpServerExchange exchange, final int statusCode, final String json, final HeaderMap extraHeaders) throws IllegalStateException {
+    public static void respondRest(final HttpServerExchange exchange, final int statusCode, final String json, final HeaderMap extraHeaders) {
 
         final HeaderMap headers = clearHeaders(exchange);
 

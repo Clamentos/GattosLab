@@ -114,7 +114,7 @@ public final class BlacklistFilter {
     private ApiSecurityException createException(final InetAddress ip, final String userAgent) {
 
         squashedLogContainer.squash(SquashLogEventType.BLACKLISTED, GenericUtils.composeFingerprint(ip, userAgent));
-        return new ApiSecurityException("Blacklisted");
+        return new ApiSecurityException("BlacklistFilter.createException~Blacklisted");
     }
 
     ///

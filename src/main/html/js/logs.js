@@ -1,10 +1,10 @@
-const timestampMax = 999999999999999;
 const today = new Date();
-
 today.setUTCHours(0, 0, 0, 0);
-document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 
-fetchAndRenderLogs(today.getTime(), timestampMax, null, null, null);
+document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
+document.getElementById("end-timestamp").value = new Date(today.getTime() + 86400000).toISOString().slice(0, 16);
+
+fetchAndRenderLogs(today.getTime(), today.getTime() + 86400000, null, null, null);
 
 function onSubmitEvent(event) {
 
@@ -18,10 +18,12 @@ function onSubmitEvent(event) {
     const formMessagePattern = event.target.messagePattern.value;
     const formExceptionClassPattern = event.target.exceptionClassPattern.value;
 
+    const range = normalizeTimeRange(formStartTimestamp, formEndTimestamp, today);
+
     fetchAndRenderLogs(
 
-        formStartTimestamp === "" ? 0 : Date.parse(formStartTimestamp),
-        formEndTimestamp === "" ? timestampMax : Date.parse(formEndTimestamp),
+        range.start,
+        range.end,
         formSeverities === "" ? null : formSeverities.split(","),
         formThreadPattern === "" ? null : formThreadPattern,
         formLoggerPattern === "" ? null : formLoggerPattern,

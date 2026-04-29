@@ -8,8 +8,10 @@ import com.mongodb.client.model.Filters;
 ///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
+import io.github.clamentos.gattoslab.persistence.EntityField;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.utils.Hashable;
 
 ///..
 import java.util.Map;
@@ -32,7 +34,7 @@ public final class DynamicProperties {
     private final MongoClientWrapper mongoClientWrapper;
 
     ///..
-    private final Map<DynamicPropertyType, DynamicPropertyEntity<?>> dynamicPropertyMap;
+    private final Map<DynamicPropertyType, DynamicPropertyEntity<? extends Hashable>> dynamicPropertyMap;
 
     ///
     public DynamicProperties(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final MongoClientWrapper mongoClientWrapper)
@@ -40,14 +42,14 @@ public final class DynamicProperties {
 
         batchScheduler.schedule(this::refresh, "DynamicProperties::refresh", applicationProperties.getDynamicPropertiesConfig().getSchedule());
 
-        filterByEnabled = Filters.eq("enabled", true);
+        filterByEnabled = Filters.eq(EntityField.ENABLED, true);
         this.mongoClientWrapper = mongoClientWrapper;
         dynamicPropertyMap = new ConcurrentHashMap<>();
     }
 
     ///
     @SuppressWarnings("unchecked")
-    public <T> DynamicPropertyEntity<T> get(final DynamicPropertyType type) throws ClassCastException {
+    public <T extends Hashable> DynamicPropertyEntity<T> get(final DynamicPropertyType type) throws ClassCastException {
 
         return (DynamicPropertyEntity<T>) dynamicPropertyMap.get(type);
     }
@@ -55,17 +57,20 @@ public final class DynamicProperties {
     ///.
     private void refresh() {
 
-        final MongoCollection<DynamicPropertyEntity<?>> collection = mongoClientWrapper.getCollection(DatabaseCollection.PROPERTIES);
+        final MongoCollection<DynamicPropertyEntity<? extends Hashable>> collection = mongoClientWrapper.getCollection(DatabaseCollection.PROPERTIES);
 
-        try(final MongoCursor<DynamicPropertyEntity<?>> properties = collection.find(filterByEnabled).iterator()) {
+        try(final MongoCursor<DynamicPropertyEntity<? extends Hashable>> properties = collection.find(filterByEnabled).iterator()) {
 
+            final int originalHashCode = dynamicPropertyMap.hashCode();
             dynamicPropertyMap.clear();
 
             while(properties.hasNext()) {
 
-                final DynamicPropertyEntity<?> property = properties.next();
+                final DynamicPropertyEntity<? extends Hashable> property = properties.next();
                 dynamicPropertyMap.put(property.getKey(), property);
             }
+
+            if(dynamicPropertyMap.hashCode() != originalHashCode) log.info("Dynamic property changes applied");
         }
 
         catch(final RuntimeException exc) {

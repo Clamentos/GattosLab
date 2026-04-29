@@ -10,8 +10,10 @@ import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientProvider;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
+import java.io.Closeable;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j(topic = "console_logger")
 
 ///
-public final class FallbackFile implements Runnable {
+public final class FallbackFile implements Closeable, Runnable {
 
     ///
     private final long scheduleDelay;
@@ -41,6 +43,9 @@ public final class FallbackFile implements Runnable {
     private final AtomicReference<MongoClientWrapper> mongoClientReference;
     private final Path fallbackFilePath;
     private final Lock fileLock;
+
+    ///..
+    private volatile boolean halt;
 
     ///
     public FallbackFile(final AtomicReference<MongoClientWrapper> mongoClientReference, final long scheduleDelay, final String filePath) throws IOException {
@@ -54,13 +59,14 @@ public final class FallbackFile implements Runnable {
         fileLock = new ReentrantLock();
 
         if(!Files.exists(fallbackFilePath)) Files.createFile(fallbackFilePath);
+        halt = false;
     }
 
     ///
     @Override
     public void run() {
 
-        while(true) {
+        while(!halt) {
 
             try {
 
@@ -75,15 +81,7 @@ public final class FallbackFile implements Runnable {
                     this.dump();
                 }
 
-                Thread.sleep(scheduleDelay);
-            }
-
-            catch(final InterruptedException _) {
-
-                this.dump();
-                Thread.currentThread().interrupt();
-
-                break;
+                GenericUtils.silentSleep(scheduleDelay);
             }
 
             catch(final Exception exc) {
@@ -92,6 +90,12 @@ public final class FallbackFile implements Runnable {
                 this.dump();
             }
         }
+    }
+
+    ///..
+    public void close() {
+
+        halt = true;
     }
 
     ///..

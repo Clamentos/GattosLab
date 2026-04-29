@@ -14,18 +14,18 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class SystemMetricsSearchFilter extends TemporalSearchFilter {
+public class AggregatedSearchFilter extends TemporalSearchFilter {
 
     ///
-    private final long bucketSize;
+    private final Long bucketSize;
 
     ///
     @JsonCreator
-    public SystemMetricsSearchFilter(
+    public AggregatedSearchFilter(
 
         @JsonProperty(EntityField.START_TIMESTAMP) final long startTimestamp,
         @JsonProperty(EntityField.END_TIMESTAMP) final long endTimestamp,
-        @JsonProperty(EntityField.BUCKET_SIZE) final long bucketSize
+        @JsonProperty(EntityField.BUCKET_SIZE) final Long bucketSize
     ) {
 
         super(startTimestamp, endTimestamp);

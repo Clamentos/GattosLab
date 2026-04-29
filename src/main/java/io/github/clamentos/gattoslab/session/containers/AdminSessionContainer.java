@@ -61,8 +61,15 @@ public final class AdminSessionContainer implements SessionContainer {
     @Override
     public Entry<String, SessionMetadata> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException {
 
-        if(!forceCreate && !this.apiKey.equals(authorization)) throw new ApiSecurityException("Invalid api key for fingerprint: " + fingerprint);
-        if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) throw new ApiSecurityException("Too many sessions");
+        if(!forceCreate && !this.apiKey.equals(authorization)) {
+
+            throw new ApiSecurityException("AdminSessionContainer.createSession~Invalid api key for fingerprint: " + fingerprint);
+        }
+
+        if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) {
+
+            throw new ApiSecurityException("AdminSessionContainer.createSession~Too many sessions");
+        }
 
         final byte[] sessionId = new byte[32];
         random.nextBytes(sessionId);

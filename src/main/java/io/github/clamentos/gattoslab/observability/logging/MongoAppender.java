@@ -14,6 +14,7 @@ import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
 ///..
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 
 ///..
@@ -41,7 +42,7 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
         super();
 
         mongoClientReference = new AtomicReference<>();
-        fallbackFile = new FallbackFile(mongoClientReference, 2500L, FALLBACK_FILE_PATH);
+        fallbackFile = new FallbackFile(mongoClientReference, 1000L, FALLBACK_FILE_PATH);
 
         dumper = ThreadSpawner.spawnVirtualThread("gattos-lab-ff-dumper", fallbackFile);
     }
@@ -74,8 +75,8 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
         try {
 
-            dumper.interrupt();
-            dumper.join(10000L);
+            fallbackFile.close();
+            if(!dumper.join(Duration.ofSeconds(5))) log.warn("Timed-out while joining");
 
             final MongoClientWrapper client = mongoClientReference.get();
             if(client != null) client.getClient().close();
@@ -148,18 +149,18 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
     ///..
     private String formatStacktraceForFile(final StackTraceElementProxy[] stacktrace) {
 
-        final StringBuilder sb = new StringBuilder();
+        final StringBuilder traceString = new StringBuilder();
 
         for(final StackTraceElementProxy element : stacktrace) {
 
-            sb
+            traceString
                 .append(this.normalize(element).replace("\n", LogEntity.MESSAGE_LINE_SEPARATOR))
                 .append(LogEntity.SECTION_SEPARATOR)
             ;
         }
 
-        if(!sb.isEmpty()) sb.deleteCharAt(sb.length() - 1);
-        return this.normalize(sb.toString());
+        if(!traceString.isEmpty()) traceString.deleteCharAt(traceString.length() - 1);
+        return this.normalize(traceString.toString());
     }
 
     ///

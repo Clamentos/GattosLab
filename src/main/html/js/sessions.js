@@ -47,11 +47,11 @@ function appendRow(entry, table) {
     fingerprint.innerText = entry.fingerprint;
 
     createdAt.className = "table-data-elem";
-    createdAt.style = "width: 25%";
+    createdAt.style = "width: 25%; text-align: center";
     createdAt.innerText = formatDate(new Date(entry.createdAt));
 
     expiresAt.className = "table-data-elem";
-    expiresAt.style = "width: 25%";
+    expiresAt.style = "width: 25%; text-align: center";
     expiresAt.innerText = formatDate(new Date(entry.expiresAt));
 
     tr.appendChild(role);

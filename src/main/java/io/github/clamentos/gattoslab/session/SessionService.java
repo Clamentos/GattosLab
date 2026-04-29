@@ -66,11 +66,9 @@ public final class SessionService {
         if(session == null || !session.isValid(System.currentTimeMillis(), fingerprint)) {
 
             lock.lock();
-
-            try { Thread.sleep(loginDelay); }
-            catch(final InterruptedException _) { Thread.currentThread().interrupt(); }
-
+            GenericUtils.silentSleep(loginDelay);
             lock.unlock();
+
             return null;
         }
 
@@ -78,9 +76,20 @@ public final class SessionService {
     }
 
     ///..
-    public final Entry<String, SessionMetadata> createSession(final String authorization, final SessionRole role, final InetAddress ip, final String userAgent)
-    throws ApiSecurityException {
+    public final Entry<String, SessionMetadata> createSession(
 
+        final String authorization,
+        final SessionRole role,
+        final String sessionId,
+        final InetAddress ip,
+        final String userAgent
+
+    ) throws ApiSecurityException {
+
+        final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
+        final SessionMetadata existingSessionMaybe = this.check(role, sessionId, fingerprint);
+
+        if(existingSessionMaybe != null) return Map.entry(sessionId, existingSessionMaybe);
         return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent), false);
     }
 
@@ -91,7 +100,7 @@ public final class SessionService {
         final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
         final SessionMetadata session = this.check(role, sessionId, fingerprint);
 
-        if(session == null) throw new ApiSecurityException("Invalid, expired or non existent session");
+        if(session == null) throw new ApiSecurityException("SessionService.refreshSession~Invalid, expired or non existent session");
 
         final SessionContainer container = sessionContainers.get(role);
         container.deleteSession(sessionId);

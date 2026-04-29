@@ -25,6 +25,7 @@ public final class WebsiteResource {
     private final MimeType mimeType;
     private final byte[] content;
     private final Set<HttpMethod> supportedMethods;
+    private final boolean cacheable;
 
     ///
     public WebsiteResource(final String path, final WebsiteResource from) {
@@ -34,6 +35,7 @@ public final class WebsiteResource {
         mimeType = from.getMimeType();
         content = from.getContent();
         supportedMethods = from.getSupportedMethods();
+        cacheable = from.isCacheable();
     }
 
     ///

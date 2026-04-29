@@ -107,7 +107,7 @@ public final class SystemMetricsEntityMapper implements Codec<SystemMetricsEntit
                 case EntityField.HEAP_USED: heapUsed = reader.readInt64(); break;
                 case EntityField.STORAGE_USED: storageUsed = reader.readInt64(); break;
 
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                default: throw new IllegalArgumentException("SystemMetricsEntityMapper.decode~Unknown field name " + name);
             }
         }
 

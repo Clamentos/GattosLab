@@ -7,7 +7,7 @@ function pushError(error) {
 
     errorDiv.id = `error-toast-${toastCounter++}`;
     errorDiv.className = "error-toast";
-    errorDiv.innerText = error.type === "about:custom_error" ? `${error.status} ${error.title}` : `Error: ${error}`;
+    errorDiv.innerText = `${error.title}: ${error.details}`;
 
     errorContainer.insertBefore(errorDiv, errorContainer.firstChild);
     setTimeout(function() { errorDiv.remove(); }, 5000);

@@ -37,36 +37,18 @@ public final class SimpleCron {
                 s -> seconds
                 m -> minutes
                 h -> hours
+
+            scheduling uncertainty: +- 200ms (depends how fast the scheduler thread spins)
         */
 
-        if(simpleCron.length() >= 2) {
+        if(task == null || name == null) throw new IllegalArgumentException("SimpleCron.<init>~Parameters task and name cannot be null");
 
-            final char unit = simpleCron.charAt(0);
+        period = decodePeriod(simpleCron);
+        this.task = task;
+        this.name = name;
 
-            final long amount = Long.parseLong(simpleCron.substring(1));
-            if(amount <= 0) throw new IllegalArgumentException("Amount must be greater than 0");
-
-            final long now = System.currentTimeMillis();
-
-            switch(unit) {
-
-                case 's': period = amount * 1000; break;
-                case 'm': period = amount * 1000 * 60; break;
-                case 'h': period = amount * 1000 * 60 * 60; break;
-
-                default: throw new IllegalArgumentException("Unknown time unit: " + unit);
-            }
-
-            this.task = task;
-            this.name = name;
-
-            nextTrigger = System.currentTimeMillis() + period - (now % period);
-        }
-
-        else {
-
-            throw new IllegalArgumentException("Malformed cron expression: " + simpleCron);
-        }
+        final long now = System.currentTimeMillis();
+        nextTrigger = now + period - (now % period);
     }
 
     ///..
@@ -77,7 +59,7 @@ public final class SimpleCron {
             final long id = idRef[0];
             nextTrigger += period;
 
-            final Thread worker = ThreadSpawner.createVirtualThread("gattos-lab-bsw-" + id, () -> {
+            final Thread worker = ThreadSpawner.createVirtualThread("gattos-lab-bsw-" + id + ">>" + name, () -> {
 
                 try { task.run(); }
                 catch(final RuntimeException exc) { log.error("Uncaught exception in scheduled task {}", name, exc); }
@@ -93,6 +75,34 @@ public final class SimpleCron {
         }
 
         return null;
+    }
+
+    ///.
+    public static long decodePeriod(final String simpleCron) throws IllegalArgumentException {
+
+        if(simpleCron == null) throw new IllegalArgumentException("SimpleCron.decodePeriod~Cron expression cannot be null");
+
+        if(simpleCron.length() >= 2) {
+
+            final char unit = simpleCron.charAt(0);
+
+            final long amount = Long.parseLong(simpleCron.substring(1));
+            if(amount <= 0) throw new IllegalArgumentException("SimpleCron.decodePeriod~Amount must be greater than 0");
+
+            switch(unit) {
+
+                case 's': return amount * 1000;
+                case 'm': return amount * 1000 * 60;
+                case 'h': return amount * 1000 * 60 * 60;
+
+                default: throw new IllegalArgumentException("SimpleCron.decodePeriod~Unknown time unit: " + unit);
+            }
+        }
+
+        else {
+
+            throw new IllegalArgumentException("SimpleCron.decodePeriod~Malformed cron expression: " + simpleCron);
+        }
     }
 
     ///

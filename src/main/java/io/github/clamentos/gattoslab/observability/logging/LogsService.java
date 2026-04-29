@@ -60,20 +60,13 @@ public final class LogsService {
     ///
     public ResponseSender getLogs(final JsonGenerator generator, final LogSearchFilter logSearchFilter) throws JacksonException, MongoException, ValidationException {
 
-        if(logSearchFilter.getStartTimestamp() < logSearchFilter.getEndTimestamp()) {
+        if(logSearchFilter.getStartTimestamp() > logSearchFilter.getEndTimestamp()) {
 
-            throw new ValidationException(EntityField.START_TIMESTAMP + " cannot be smaller than " + EntityField.END_TIMESTAMP);
+            throw new ValidationException("LogsService.getLogs~" + EntityField.END_TIMESTAMP + " cannot be smaller than " + EntityField.START_TIMESTAMP);
         }
 
         final MongoCollection<Document> logsCollection = mongoClientWrapper.getCollection(DatabaseCollection.LOGS);
-
-        final MongoCursor<Document> cursor = logsCollection
-
-            .find(logSearchFilter.toBsonFilter())
-            .sort(Sorts.ascending(EntityField.TIMESTAMP))
-            .batchSize(500)
-            .iterator()
-        ;
+        final MongoCursor<Document> cursor = logsCollection.find(logSearchFilter.toBsonFilter()).sort(Sorts.descending(EntityField.TIMESTAMP)).iterator();
 
         return () -> {
 
@@ -111,11 +104,12 @@ public final class LogsService {
         try {
 
             final long now = System.currentTimeMillis();
-            final TemporalSearchFilter filter = new TemporalSearchFilter(now - logsRetention, now);
 
             session.startTransaction();
-            deleted = mongoClientWrapper.getCollection(DatabaseCollection.LOGS).deleteMany(filter.toBsonFilter()).getDeletedCount();
+            deleted = mongoClientWrapper.getCollection(DatabaseCollection.LOGS).deleteMany(new TemporalSearchFilter(now - logsRetention, now).toBsonFilter()).getDeletedCount();
             session.commitTransaction();
+
+            log.info("End delete metrics by retention, deleted {} logs", deleted);
         }
 
         catch(final Exception exc) {
@@ -124,7 +118,6 @@ public final class LogsService {
             session.abortTransaction();
         }
 
-        log.info("End delete metrics by retention, deleted {} logs", deleted);
         session.close();
     }
 

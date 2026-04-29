@@ -22,6 +22,7 @@ public final class MetricsConfig {
     private final int siphonCapacity;
     private final Duration systemMetricsRetention;
     private final String systemMetricsSampling;
+    private final String systemMetricsPolling;
 
     ///
 }

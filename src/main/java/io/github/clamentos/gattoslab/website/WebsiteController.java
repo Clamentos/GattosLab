@@ -41,7 +41,7 @@ public final class WebsiteController {
         this.website = staticSite;
         this.squashedLogsContainer = squashedLogsContainer;
 
-        notFoundResource = staticSite.getContent("/errors/not-found.html");
+        notFoundResource = staticSite.getContent(Apis.FE_NOT_FOUND);
     }
 
     ///
@@ -55,27 +55,30 @@ public final class WebsiteController {
 
             if(requestMethod != HttpMethod.GET) {
 
-                throw new IllegalHttpMethodException("Method " + requestMethod + " is not supported for this endpoint. Supported methods are: GET");
+                throw new IllegalHttpMethodException("WebsiteController.serveContent~Method " + requestMethod + " is not supported for this endpoint. Supported methods are: GET");
             }
 
-            final String ifModifiedSince = HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.IF_MODIFIED_SINCE_STRING);
+            if(content.isCacheable()) {
 
-            if(ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
+                final String ifModifiedSince = HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.IF_MODIFIED_SINCE_STRING);
 
-                try {
+                if(ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
 
-                    final OffsetDateTime date = OffsetDateTime.parse(ifModifiedSince, DateTimeFormatter.RFC_1123_DATE_TIME);
+                    try {
 
-                    if(date.compareTo(website.getTimeAtStartup()) > 0) {
+                        final OffsetDateTime date = OffsetDateTime.parse(ifModifiedSince, DateTimeFormatter.RFC_1123_DATE_TIME);
 
-                        exchange.setStatusCode(StatusCodes.NOT_MODIFIED);
-                        return;
+                        if(date.compareTo(website.getTimeAtStartup()) > 0) {
+
+                            exchange.setStatusCode(StatusCodes.NOT_MODIFIED);
+                            return;
+                        }
                     }
-                }
 
-                catch(final DateTimeParseException _) {
+                    catch(final DateTimeParseException _) {
 
-                    squashedLogsContainer.squash(SquashLogEventType.IF_MODIFIED_SINCE_HEADER_MALFORMED, null);
+                        squashedLogsContainer.squash(SquashLogEventType.IF_MODIFIED_SINCE_HEADER_MALFORMED, null);
+                    }
                 }
             }
 
@@ -97,7 +100,7 @@ public final class WebsiteController {
 
         HttpUtils.addContentType(headers, resource.getMimeType());
         HttpUtils.addCache(headers, website.getCacheDuration());
-        HttpUtils.addLastModified(headers, website.getTimeAtStartup());
+        HttpUtils.addLastModified(headers, website.getTimeAtStartupStr());
         HttpUtils.addGzipEncoding(headers);
 
         exchange.getResponseSender().send(ByteBuffer.wrap(resource.getContent()));

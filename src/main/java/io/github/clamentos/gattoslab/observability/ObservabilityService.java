@@ -14,9 +14,9 @@ import io.github.clamentos.gattoslab.eventbus.EventBus;
 import io.github.clamentos.gattoslab.exceptions.ValidationException;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.http.ResponseSender;
+import io.github.clamentos.gattoslab.observability.filters.AggregatedSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.AggregationPipelines;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.SystemMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
@@ -36,6 +36,8 @@ import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.EntityField;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.scheduling.SimpleCron;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.website.Website;
 
 ///..
@@ -74,6 +76,9 @@ import tools.jackson.core.JsonGenerator;
 public class ObservabilityService implements Closeable {
 
     ///
+    private static final int MAX_TIMESTAMPS = 10000;
+
+    ///..
     private final int siphonCapacity;
     private final long requestMetricsRetention;
     private final long systemMetricsRetention;
@@ -106,18 +111,11 @@ public class ObservabilityService implements Closeable {
         eventBus = new EventBus(this::dumpMetrics);
         final MetricsConfig metricsConfig = applicationProperties.getMetricsConfig();
 
-        final long systemMetricsSamplingPeriod = batchScheduler.schedule(
-
-            this::sampleSystemMetrics,
-            "ObservabilityService::sampleSystemMetrics",
-            metricsConfig.getSystemMetricsSampling()
-
-        );
-
+        batchScheduler.schedule(this::sampleSystemMetrics, "ObservabilityService::sampleSystemMetrics", metricsConfig.getSystemMetricsPolling());
         batchScheduler.schedule(eventBus::trigger, "ObservabilityService::trigger", metricsConfig.getDumpToDbSchedule());
         batchScheduler.schedule(this::deleteOldMetrics, "ObservabilityService::deleteOldMetrics", metricsConfig.getRetentionSchedule());
 
-        systemMetrics = new SystemMetrics(systemMetricsSamplingPeriod);
+        systemMetrics = new SystemMetrics(SimpleCron.decodePeriod(metricsConfig.getSystemMetricsSampling()));
 
         siphonCapacity = metricsConfig.getSiphonCapacity();
         requestMetricsRetention = metricsConfig.getRequestMetricsRetention().toMillis();
@@ -139,21 +137,19 @@ public class ObservabilityService implements Closeable {
     public ResponseSender getRequestMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter)
     throws JacksonException, MongoException, ValidationException {
 
-        this.validateTemporalFilter(searchFilter);
+        this.validateSearchFilter(searchFilter, true);
 
-        final long bucketSize = searchFilter.getBucketSize();
         final MongoCollection<RequestMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
-        final Map<String, Map<Long, RequestMetricsAggregateEntity>> metricsMap = new HashMap<>();
+        final long bucketSize = searchFilter.getBucketSize();
 
         final MongoCursor<RequestMetricsAggregateEntity> entityCursor = collection.aggregate(
 
-            AggregationPipelines.performanceMetricsPipeline(searchFilter, bucketSize), 
+            AggregationPipelines.performanceMetricsPipeline(searchFilter), 
             RequestMetricsAggregateEntity.class
 
         ).iterator();
 
-        long minSlot = Long.MAX_VALUE;
-        long maxSlot = Long.MIN_VALUE;
+        final Map<String, Map<Long, RequestMetricsAggregateEntity>> metricsMap = new HashMap<>();
 
         try(entityCursor) {
 
@@ -163,23 +159,21 @@ public class ObservabilityService implements Closeable {
                 final long timeSlot = entity.getTimeSlot();
 
                 metricsMap.computeIfAbsent(entity.getKey(), _ -> new TreeMap<>()).put(timeSlot * bucketSize, entity);
-                minSlot = Math.min(minSlot, timeSlot);
-                maxSlot = Math.max(maxSlot, timeSlot);
             }
         }
 
-        final long startTimestampAligned = minSlot * bucketSize;
-        final long endTimestampAligned = maxSlot * bucketSize;
-        final long[] labels = new long[(int)((endTimestampAligned - startTimestampAligned) / bucketSize) + 1];
+        final long[] labels = new long[(int)((searchFilter.getEndTimestamp() - searchFilter.getStartTimestamp()) / bucketSize) + 1];
+
+        for(int i = 0; i < labels.length; i++) {
+
+            labels[i] = (i * bucketSize) + searchFilter.getStartTimestamp();
+        }
 
         for(final Map<Long, RequestMetricsAggregateEntity> metricsMapInner : metricsMap.values()) {
 
             for(int i = 0; i < labels.length; i++) {
 
-                final long timestamp = (i * bucketSize) + startTimestampAligned;
-
-                labels[i] = timestamp;
-                metricsMapInner.putIfAbsent(timestamp, null);
+                metricsMapInner.putIfAbsent(labels[i], null);
             }
         }
 
@@ -188,10 +182,9 @@ public class ObservabilityService implements Closeable {
 
         for(final Map.Entry<String, Map<Long, RequestMetricsAggregateEntity>> metricsMapEntry : metricsMap.entrySet()) {
 
-            final String key = metricsMapEntry.getKey();
+            final List<BubbleChartDataEntry> latencyData = new ArrayList<>();
             final Collection<RequestMetricsAggregateEntity> innerEntities = metricsMapEntry.getValue().values();
             final long[] rateData = new long[innerEntities.size()];
-            final List<BubbleChartDataEntry> latencyData = new ArrayList<>();
 
             int index = 0;
 
@@ -204,7 +197,7 @@ public class ObservabilityService implements Closeable {
 
                     for(int i = 0; i < latencyDistribution.length; i++) {
 
-                        latencyData.add(new BubbleChartDataEntry(entity.getTimeSlot(), i, latencyDistribution[i]));
+                        latencyData.add(new BubbleChartDataEntry(entity.getTimeSlot() * bucketSize, i, latencyDistribution[i]));
                     }
                 }
 
@@ -215,6 +208,8 @@ public class ObservabilityService implements Closeable {
 
                 index++;
             }
+
+            final String key = metricsMapEntry.getKey();
 
             rateDatasets.add(new ChartDataset<>(key, rateData));
             latencyDatasets.add(new ChartDataset<>(key, latencyData));
@@ -227,10 +222,10 @@ public class ObservabilityService implements Closeable {
     public ResponseSender getInvocationMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter)
     throws JacksonException, MongoException, ValidationException {
 
-        this.validateTemporalFilter(searchFilter);
+        this.validateSearchFilter(searchFilter, false);
 
         final MongoCollection<RequestMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
-        final List<Bson> pathsAggregation = AggregationPipelines.pathMetricsPipeline(searchFilter);
+        final List<Bson> pathsAggregation = AggregationPipelines.invocationMetricsPipeline(searchFilter);
         final List<Bson> userAgentsAggregation = AggregationPipelines.userAgentMetricsPipeline(searchFilter);
 
         return () -> {
@@ -256,24 +251,22 @@ public class ObservabilityService implements Closeable {
     }
 
     ///..
-    public ResponseSender getSystemMetrics(final JsonGenerator generator, final SystemMetricsSearchFilter searchFilter)
+    public ResponseSender getSystemMetrics(final JsonGenerator generator, final AggregatedSearchFilter searchFilter)
     throws JacksonException, MongoException, ValidationException {
 
-        this.validateTemporalFilter(searchFilter);
+        this.validateSearchFilter(searchFilter, true);
 
         final long bucketSize = searchFilter.getBucketSize();
         final MongoCollection<SystemMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS);
-        final Map<Long, SystemMetricsAggregateEntity> metricsMap = new TreeMap<>();
 
         final MongoCursor<SystemMetricsAggregateEntity> metrics = collection.aggregate(
 
-            AggregationPipelines.systemMetricsPipeline(searchFilter, bucketSize),
+            AggregationPipelines.systemMetricsPipeline(searchFilter),
             SystemMetricsAggregateEntity.class
 
         ).iterator();
 
-        long minSlot = Long.MAX_VALUE;
-        long maxSlot = Long.MIN_VALUE;
+        final Map<Long, SystemMetricsAggregateEntity> metricsMap = new TreeMap<>();
 
         try(metrics) {
 
@@ -282,42 +275,38 @@ public class ObservabilityService implements Closeable {
                 final SystemMetricsAggregateEntity metric = metrics.next();
                 final long timeSlot = metric.getTimeSlot();
 
-                metricsMap.put(timeSlot, metric);
-                maxSlot = Math.max(maxSlot, timeSlot);
-                minSlot = Math.min(minSlot, timeSlot);
+                metricsMap.put(timeSlot * bucketSize, metric);
             }
         }
 
-        final long startTimestampAligned = minSlot * bucketSize;
-        final long endTimestampAligned = maxSlot * bucketSize;
-        final long[] labels = new long[(int)((endTimestampAligned - startTimestampAligned) / bucketSize)];
+        final long[] labels = new long[(int)((searchFilter.getEndTimestamp() - searchFilter.getStartTimestamp()) / bucketSize) + 1];
 
         for(int i = 0; i < labels.length; i++) {
 
-            final long timestamp = (i * bucketSize) + startTimestampAligned;
-
-            labels[i] = timestamp;
-            metricsMap.putIfAbsent(timestamp, null);
+            labels[i] = (i * bucketSize) + searchFilter.getStartTimestamp();
+            metricsMap.putIfAbsent(labels[i], null);
         }
 
-        final long[] virtualThreads = new long[labels.length];
-        final long[] platformThreads = new long[labels.length];
-        final long[] classes = new long[labels.length];
-        final long[] fileReads = new long[labels.length];
-        final long[] fileWrites = new long[labels.length];
-        final long[] socketReads = new long[labels.length];
-        final long[] socketWrites = new long[labels.length];
-        final long[] gcCounts = new long[labels.length];
-        final long[] gcPause = new long[labels.length];
-        final long[] cpuUser = new long[labels.length];
-        final long[] cpuSystem = new long[labels.length];
-        final long[] cpuMachine = new long[labels.length];
-        final long[] systemMemoryUsed = new long[labels.length];
-        final long[] metaSpaceUsed = new long[labels.length];
-        final long[] directBuffersUsed = new long[labels.length];
-        final long[] directBuffersMemoryUsed = new long[labels.length];
-        final long[] heapUsed = new long[labels.length];
-        final long[] storageUsed = new long[labels.length];
+        final int actualSize = metricsMap.size();
+
+        final long[] virtualThreads = new long[actualSize];
+        final long[] platformThreads = new long[actualSize];
+        final long[] classes = new long[actualSize];
+        final long[] fileReads = new long[actualSize];
+        final long[] fileWrites = new long[actualSize];
+        final long[] socketReads = new long[actualSize];
+        final long[] socketWrites = new long[actualSize];
+        final long[] gcCounts = new long[actualSize];
+        final long[] gcPause = new long[actualSize];
+        final long[] cpuUser = new long[actualSize];
+        final long[] cpuSystem = new long[actualSize];
+        final long[] cpuMachine = new long[actualSize];
+        final long[] systemMemoryUsed = new long[actualSize];
+        final long[] metaSpaceUsed = new long[actualSize];
+        final long[] directBuffersUsed = new long[actualSize];
+        final long[] directBuffersMemoryUsed = new long[actualSize];
+        final long[] heapUsed = new long[actualSize];
+        final long[] storageUsed = new long[actualSize];
 
         int index = 0;
 
@@ -372,36 +361,36 @@ public class ObservabilityService implements Closeable {
 
         return () -> generator.writePOJO(new SystemMetricsCharts(
 
-            new LineChart(labels, List.of(new ChartDataset<>(EntityField.VIRTUAL_THREADS, virtualThreads), new ChartDataset<>(EntityField.PLATFORM_THREADS, platformThreads))),
-            new LineChart(labels, List.of(new ChartDataset<>(EntityField.CLASSES_LOADED, classes))),
+            new LineChart(labels, List.of(new ChartDataset<>("Virtual", virtualThreads), new ChartDataset<>("Platform", platformThreads))),
+            new LineChart(labels, List.of(new ChartDataset<>("Loaded classes", classes))),
 
             new LineChart(labels, List.of(
 
-                new ChartDataset<>(EntityField.FILE_READS, fileReads),
-                new ChartDataset<>(EntityField.FILE_WRITES, fileWrites),
-                new ChartDataset<>(EntityField.SOCKET_READS, socketReads),
-                new ChartDataset<>(EntityField.SOCKET_WRITES, socketWrites)
+                new ChartDataset<>("File reads", fileReads),
+                new ChartDataset<>("File writes", fileWrites),
+                new ChartDataset<>("Socket reads", socketReads),
+                new ChartDataset<>("Socket writes", socketWrites)
             )),
 
-            new LineChart(labels, List.of(new ChartDataset<>(EntityField.GC_COUNTS, gcCounts), new ChartDataset<>(EntityField.GC_PAUSE, gcPause))),
+            new LineChart(labels, List.of(new ChartDataset<>("GC count", gcCounts), new ChartDataset<>("GC pause (ms)", gcPause))),
 
             new LineChart(labels, List.of(
 
-                new ChartDataset<>(EntityField.CPU_LOAD_JVM_USER, cpuUser),
-                new ChartDataset<>(EntityField.CPU_LOAD_JVM_SYSTEM, cpuSystem),
-                new ChartDataset<>(EntityField.CPU_LOAD_MACHINE_TOTAL, cpuMachine)
+                new ChartDataset<>("JVM user", cpuUser),
+                new ChartDataset<>("JVM system", cpuSystem),
+                new ChartDataset<>("Machine total", cpuMachine)
             )),
 
             new LineChart(labels, List.of(
 
-                new ChartDataset<>(EntityField.SYSTEM_MEMORY_USED, systemMemoryUsed),
-                new ChartDataset<>(EntityField.META_SPACE_USED, metaSpaceUsed),
-                new ChartDataset<>(EntityField.DIRECT_BUFFERS_USED, directBuffersUsed),
-                new ChartDataset<>(EntityField.DIRECT_BUFFERS_MEMORY_USED, directBuffersMemoryUsed),
-                new ChartDataset<>(EntityField.HEAP_USED, heapUsed)
+                new ChartDataset<>("System memory total", systemMemoryUsed),
+                new ChartDataset<>("Metaspace used", metaSpaceUsed),
+                new ChartDataset<>("Direct buffers count", directBuffersUsed),
+                new ChartDataset<>("Direct buffers used", directBuffersMemoryUsed),
+                new ChartDataset<>("Heap used", heapUsed)
             )),
 
-            new LineChart(labels, List.of(new ChartDataset<>(EntityField.STORAGE_USED, storageUsed)))
+            new LineChart(labels, List.of(new ChartDataset<>("Storage used", storageUsed)))
         ));
     }
 
@@ -456,29 +445,33 @@ public class ObservabilityService implements Closeable {
     ///.
     private void sampleSystemMetrics() {
 
-        final ClientSession session = mongoClientWrapper.getClient().startSession();
         SystemMetricsEntity toSave = systemMetrics.toEntity();
 
-        try {
+        if(toSave != null) {
 
-            session.startTransaction();
-            mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
+            final ClientSession session = mongoClientWrapper.getClient().startSession();
 
-            toSave = systemMetricsDumpFailures.poll();
-            if(toSave != null) mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
+            try {
 
-            session.commitTransaction();
+                session.startTransaction();
+                mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
+
+                toSave = systemMetricsDumpFailures.poll();
+                if(toSave != null) mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
+
+                session.commitTransaction();
+            }
+
+            catch(final Exception exc) {
+
+                log.error("Could not write metrics to DB", exc);
+
+                session.abortTransaction();
+                systemMetricsDumpFailures.add(toSave);
+            }
+
+            session.close();
         }
-
-        catch(final Exception exc) {
-
-            log.error("Could not write metrics to DB", exc);
-
-            session.abortTransaction();
-            systemMetricsDumpFailures.add(toSave);
-        }
-
-        session.close();
     }
 
     ///..
@@ -502,6 +495,7 @@ public class ObservabilityService implements Closeable {
             systemsDeleted = mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).deleteMany(systemDeleteFilter).getDeletedCount();
 
             session.commitTransaction();
+            log.info("End delete metrics by retention, deleted {} request metrics and {} system metrics", requestsDeleted, systemsDeleted);
         }
 
         catch(final Exception exc) {
@@ -510,7 +504,6 @@ public class ObservabilityService implements Closeable {
             session.abortTransaction();
         }
 
-        log.info("End delete metrics by retention, deleted {} request metrics and {} system metrics", requestsDeleted, systemsDeleted);
         session.close();
     }
 
@@ -563,16 +556,7 @@ public class ObservabilityService implements Closeable {
 
         while(!context.isNoOneThere()) {
 
-            try {
-
-                Thread.sleep(1L);
-            }
-
-            catch(final InterruptedException _) {
-
-                Thread.currentThread().interrupt();
-                break;
-            }
+            GenericUtils.silentSleep(1L);
         }
 
         mongoClientWrapper.insertAll(context.drainSiphon(), DatabaseCollection.REQUEST_METRICS);
@@ -580,12 +564,20 @@ public class ObservabilityService implements Closeable {
     }
 
     ///..
-    private void validateTemporalFilter(final TemporalSearchFilter temporalSearchFilter) throws ValidationException {
+    private void validateSearchFilter(final TemporalSearchFilter temporalSearchFilter, final boolean isBucketRequired) throws ValidationException {
 
         final long startTimestamp = temporalSearchFilter.getStartTimestamp();
         final long endTimestamp = temporalSearchFilter.getEndTimestamp();
 
-        if(startTimestamp > endTimestamp) throw new ValidationException("endTimestamp cannot be smaller than startTimestamp");
+        if(startTimestamp > endTimestamp) throw new ValidationException("ObservabilityService.validateSearchFilter~endTimestamp cannot be smaller than startTimestamp");
+
+        if((temporalSearchFilter instanceof final AggregatedSearchFilter casted) && isBucketRequired) {
+
+            if(casted.getBucketSize() <= 0) throw new ValidationException("ObservabilityService.validateSearchFilter~bucketSize must be greater than 0");
+
+            final long numTimestamps = ((casted.getEndTimestamp() - casted.getStartTimestamp()) / casted.getBucketSize()) + 1;
+            if(numTimestamps > MAX_TIMESTAMPS) throw new ValidationException("ObservabilityService.validateSearchFilter~Too many timestamps: " + numTimestamps);
+        }
     }
 
     ///

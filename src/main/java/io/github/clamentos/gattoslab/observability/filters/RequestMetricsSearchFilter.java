@@ -25,10 +25,9 @@ import org.bson.conversions.Bson;
 @Getter
 
 ///
-public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
+public final class RequestMetricsSearchFilter extends AggregatedSearchFilter {
 
     ///
-    private final long bucketSize;
     private final Boolean onlyOthers;
     private final String pathPattern;
     private final Set<Integer> httpStatuses;
@@ -40,16 +39,15 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
 
         @JsonProperty(EntityField.START_TIMESTAMP) final long startTimestamp,
         @JsonProperty(EntityField.END_TIMESTAMP) final long endTimestamp,
-        @JsonProperty(EntityField.BUCKET_SIZE) final long bucketSize,
-        @JsonProperty("onlyOthers") final Boolean onlyOthers,
-        @JsonProperty("pathPattern") final String pathPattern,
-        @JsonProperty("httpStatuses") final Set<Integer> httpStatuses,
-        @JsonProperty("userAgentPattern") final String userAgentPattern
+        @JsonProperty(EntityField.BUCKET_SIZE) final Long bucketSize,
+        @JsonProperty(EntityField.ONLY_OTHERS) final Boolean onlyOthers,
+        @JsonProperty(EntityField.PATH_PATTERN) final String pathPattern,
+        @JsonProperty(EntityField.HTTP_STATUSES) final Set<Integer> httpStatuses,
+        @JsonProperty(EntityField.USER_AGENT_PATTERN) final String userAgentPattern
     ) {
 
-        super(startTimestamp, endTimestamp);
+        super(startTimestamp, endTimestamp, bucketSize);
 
-        this.bucketSize = bucketSize;
         this.onlyOthers = onlyOthers;
         this.pathPattern = pathPattern;
         this.httpStatuses = httpStatuses;
@@ -61,9 +59,10 @@ public final class RequestMetricsSearchFilter extends TemporalSearchFilter {
     public Bson toBsonFilter() {
 
         final List<Bson> filters = new ArrayList<>();
+        final String temporalFieldname = super.getTemporalField();
 
-        filters.add(Filters.gte(super.getTemporalField(), super.getStartTimestamp()));
-        filters.add(Filters.lte(super.getTemporalField(), super.getEndTimestamp()));
+        filters.add(Filters.gte(temporalFieldname, super.getStartTimestamp()));
+        filters.add(Filters.lte(temporalFieldname, super.getEndTimestamp()));
 
         if(onlyOthers != null) filters.add(Filters.eq(EntityField.IS_OTHERS, onlyOthers));
         if(pathPattern != null && !pathPattern.isEmpty()) filters.add(Filters.regex(EntityField.PATH, pathPattern));

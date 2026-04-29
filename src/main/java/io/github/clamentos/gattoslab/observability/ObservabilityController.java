@@ -3,9 +3,9 @@ package io.github.clamentos.gattoslab.observability;
 ///
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.http.ResponseSender;
+import io.github.clamentos.gattoslab.observability.filters.AggregatedSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.SystemMetricsSearchFilter;
 import io.github.clamentos.gattoslab.observability.logging.LogsService;
 import io.github.clamentos.gattoslab.session.SessionService;
 
@@ -51,7 +51,7 @@ public final class ObservabilityController {
     ///..
     public void getSystemMetrics(final HttpServerExchange exchange, final JsonGenerator generator) throws Exception {
 
-        final ResponseSender sender = observabilityService.getSystemMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), SystemMetricsSearchFilter.class));
+        final ResponseSender sender = observabilityService.getSystemMetrics(generator, jsonMapper.readValue(exchange.getInputStream(), AggregatedSearchFilter.class));
         this.finalizeCompressedResponse(exchange, sender);
     }
 

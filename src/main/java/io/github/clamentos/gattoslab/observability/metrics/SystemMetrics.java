@@ -122,55 +122,49 @@ public final class SystemMetrics implements Closeable {
     ///
     public SystemMetricsEntity toEntity() {
 
-        final long currentDump = dumpCounter.incrementAndGet();
+        final long sampleCounterValue = sampleCounter.get();
 
-        while(currentDump != sampleCounter.get()) {
+        if(dumpCounter.get() < sampleCounterValue) {
 
-            try {
+            final SystemMetricsEntity entity = new SystemMetricsEntity(
 
-                Thread.sleep(100L);
-            }
+                virtualThreads.get(),
+                platformThreads.get(),
+                classesLoaded.get(),
+                fileReads.get(),
+                fileWrites.get(),
+                socketReads.get(),
+                socketWrites.get(),
+                gcCounts.get(),
+                gcPause.get(),
+                cpuLoadJvmUser.get(),
+                cpuLoadJvmSystem.get(),
+                cpuLoadMachineTotal.get(),
+                systemMemoryUsed.get(),
+                memoryMXBean.getNonHeapMemoryUsage().getUsed(),
+                directBuffers.get(),
+                directBuffersMemoryUsed.get(),
+                memoryMXBean.getHeapMemoryUsage().getUsed()
+            );
 
-            catch(final InterruptedException _) {
+            fileReads.set(0);
+            fileWrites.set(0);
+            socketReads.set(0);
+            socketWrites.set(0);
+            gcCounts.set(0);
+            gcPause.set(0);
+            cpuLoadJvmUser.set(0);
+            cpuLoadJvmSystem.set(0);
+            cpuLoadMachineTotal.set(0);
+            systemMemoryUsed.set(0);
+            directBuffers.set(0);
+            directBuffersMemoryUsed.set(0);
+            dumpCounter.set(sampleCounterValue);
 
-                Thread.currentThread().interrupt();
-                break;
-            }
+            return entity;
         }
 
-        final SystemMetricsEntity entity = new SystemMetricsEntity(
-
-            virtualThreads.get(),
-            platformThreads.get(),
-            classesLoaded.get(),
-            fileReads.get(),
-            fileWrites.get(),
-            socketReads.get(),
-            socketWrites.get(),
-            gcCounts.get(),
-            gcPause.get(),
-            cpuLoadJvmUser.get(),
-            cpuLoadJvmSystem.get(),
-            cpuLoadMachineTotal.get(),
-            systemMemoryUsed.get(),
-            memoryMXBean.getNonHeapMemoryUsage().getUsed(),
-            directBuffers.get(),
-            directBuffersMemoryUsed.get(),
-            memoryMXBean.getHeapMemoryUsage().getUsed()
-        );
-
-        fileReads.set(0);
-        fileWrites.set(0);
-        socketReads.set(0);
-        socketWrites.set(0);
-        cpuLoadJvmUser.set(0);
-        cpuLoadJvmSystem.set(0);
-        cpuLoadMachineTotal.set(0);
-        systemMemoryUsed.set(0);
-        directBuffers.set(0);
-        directBuffersMemoryUsed.set(0);
-
-        return entity;
+        return null;
     }
 
     ///..

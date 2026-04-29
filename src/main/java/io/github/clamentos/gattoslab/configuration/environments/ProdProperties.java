@@ -61,7 +61,19 @@ public final class ProdProperties extends ApplicationProperties {
 
         dynamicPropertiesConfig = new DynamicPropertiesConfig(CommonCrons.EVERY_MINUTE);
         logsConfig = new LogsConfig(Duration.ofDays(7), CommonCrons.EVERY_DAY, CommonCrons.EVERY_MINUTE);
-        metricsConfig = new MetricsConfig(CommonCrons.EVERY_MINUTE, true, Duration.ofDays(7), CommonCrons.EVERY_DAY, 100000, Duration.ofDays(7), CommonCrons.EVERY_10_SECONDS);
+
+        metricsConfig = new MetricsConfig(
+
+            CommonCrons.EVERY_MINUTE,
+            true,
+            Duration.ofDays(7),
+            CommonCrons.EVERY_DAY,
+            10000,
+            Duration.ofDays(7),
+            CommonCrons.EVERY_5_SECONDS,
+            CommonCrons.EVERY_SECOND
+        );
+
         rateLimitConfig = new RateLimitConfig(true, 200, CommonCrons.EVERY_10_SECONDS, Duration.ofMinutes(1));
 
         sessionAdminConfig = new SessionAdminConfig(

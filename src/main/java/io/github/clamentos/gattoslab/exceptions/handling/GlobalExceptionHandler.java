@@ -14,7 +14,6 @@ import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 
 ///..
-import io.undertow.io.UndertowOutputStream;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.StatusCodes;
@@ -33,7 +32,7 @@ import tools.jackson.databind.json.JsonMapper;
 public final class GlobalExceptionHandler {
 
     ///
-    private final long retryAfter;
+    private final String retryAfterStr;
 
     ///..
     private final JsonMapper jsonMapper;
@@ -42,7 +41,7 @@ public final class GlobalExceptionHandler {
     ///
     public GlobalExceptionHandler(final ApplicationProperties applicationProperties, final JsonMapper jsonMapper, final ObservabilityService observabilityService) {
 
-        retryAfter = applicationProperties.getRateLimitConfig().getRetryAfter().toSeconds();
+        retryAfterStr = Long.toString(applicationProperties.getRateLimitConfig().getRetryAfter().toSeconds());
 
         this.jsonMapper = jsonMapper;
         this.observabilityService = observabilityService;
@@ -59,6 +58,7 @@ public final class GlobalExceptionHandler {
 
                     case final ApiSecurityException ex -> this.respond(exchange, StatusCodes.FORBIDDEN, ex, "Forbidden");
                     case final IllegalHttpMethodException ex -> this.respond(exchange, StatusCodes.METHOD_NOT_ALLOWED, ex, "Method not allowed");
+                    case final JacksonException ex -> this.respond(exchange, StatusCodes.BAD_REQUEST, ex, "Nonsensical body");
                     case final MongoException ex -> this.respond(exchange, StatusCodes.INTERNAL_SERVER_ERROR, ex, "Database error");
 
                     case final RedirectException ex -> {
@@ -69,7 +69,7 @@ public final class GlobalExceptionHandler {
 
                     case final TooManyRequestsException ex -> {
 
-                        final HeaderMap retryAfterHeader = HttpUtils.addRetryAfter(new HeaderMap(), retryAfter);
+                        final HeaderMap retryAfterHeader = HttpUtils.addRetryAfter(new HeaderMap(), retryAfterStr);
                         this.respond(exchange, StatusCodes.TOO_MANY_REQUESTS, ex, "Rate limit triggered", retryAfterHeader);
                     }
 
@@ -109,7 +109,6 @@ public final class GlobalExceptionHandler {
     ///.
     private void respond(final HttpServerExchange exchange, final int statusCode, final Throwable exception, final String title) throws JacksonException {
 
-        ((UndertowOutputStream)exchange.getOutputStream()).resetBuffer();
         HttpUtils.respondRest(exchange, statusCode, jsonMapper.writeValueAsString(new ErrorBody(title, exception, exchange)), null);
     }
 
@@ -117,7 +116,6 @@ public final class GlobalExceptionHandler {
     private void respond(final HttpServerExchange exchange, final int statusCode, final Throwable exception, final String title, final HeaderMap extraHeaders)
     throws JacksonException {
 
-        ((UndertowOutputStream)exchange.getOutputStream()).resetBuffer();
         HttpUtils.respondRest(exchange, statusCode, jsonMapper.writeValueAsString(new ErrorBody(title, exception, exchange)), extraHeaders);
     }
 

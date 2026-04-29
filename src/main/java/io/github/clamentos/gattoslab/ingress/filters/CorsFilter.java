@@ -22,7 +22,7 @@ public final class CorsFilter {
     ///
     private final Set<HttpMethod> allowedMethods;
     private final Set<String> allowedOrigins;
-    private final int maxAge;
+    private final String maxAge;
 
     ///
     public CorsFilter(final ApplicationProperties applicationProperties) {
@@ -31,7 +31,7 @@ public final class CorsFilter {
 
         allowedMethods = Arrays.stream(HttpMethod.values()).collect(Collectors.toSet());
         allowedOrigins = corsConfig.getAllowedOrigins();
-        maxAge = corsConfig.getMaxAge().toSecondsPart();
+        maxAge = Integer.toString(corsConfig.getMaxAge().toSecondsPart());
     }
 
     ///

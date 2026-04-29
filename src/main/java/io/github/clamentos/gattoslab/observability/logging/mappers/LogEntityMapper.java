@@ -67,7 +67,7 @@ public final class LogEntityMapper implements Codec<LogEntity> {
 
     ///..
     @Override
-    public LogEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
+    public LogEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws IllegalStateException {
 
         ObjectId id = null;
         long timestamp = 0;
@@ -118,7 +118,7 @@ public final class LogEntityMapper implements Codec<LogEntity> {
 
                             break;
 
-                            default: throw new IllegalArgumentException("Unknown field name " + name);
+                            default: throw new IllegalStateException("LogEntitymapper.decode~Unknown field name " + name);
                         }
                     }
 
@@ -127,7 +127,7 @@ public final class LogEntityMapper implements Codec<LogEntity> {
 
                 break;
 
-                default: throw new IllegalArgumentException("Unknown field name " + name);
+                default: throw new IllegalStateException("LogEntitymapper.decode~Unknown field name " + name);
             }
         }
 
