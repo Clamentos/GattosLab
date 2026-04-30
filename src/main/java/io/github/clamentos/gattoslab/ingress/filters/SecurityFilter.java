@@ -41,7 +41,7 @@ public final class SecurityFilter {
     public SecurityFilter(final ApplicationProperties applicationProperties, final SessionRole roleToCheck, final SessionService sessionService, final Website website) {
 
         this.roleToCheck = roleToCheck;
-        cookieName = applicationProperties.getSessionConfig().getCookieName() + roleToCheck.name();
+        cookieName = applicationProperties.getSessionsCookieName() + roleToCheck.name();
         protectedPaths = website.getPaths().stream().filter(p -> p.startsWith("/admin")).collect(Collectors.toSet());
 
         this.sessionService = sessionService;

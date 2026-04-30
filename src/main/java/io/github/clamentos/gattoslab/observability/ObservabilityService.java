@@ -9,7 +9,6 @@ import com.mongodb.client.model.Filters;
 
 ///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.MetricsConfig;
 import io.github.clamentos.gattoslab.eventbus.EventBus;
 import io.github.clamentos.gattoslab.exceptions.ValidationException;
 import io.github.clamentos.gattoslab.http.HttpUtils;
@@ -109,17 +108,16 @@ public class ObservabilityService implements Closeable {
     ) throws IllegalArgumentException {
 
         eventBus = new EventBus(this::dumpMetrics);
-        final MetricsConfig metricsConfig = applicationProperties.getMetricsConfig();
 
-        batchScheduler.schedule(this::sampleSystemMetrics, "ObservabilityService::sampleSystemMetrics", metricsConfig.getSystemMetricsPolling());
-        batchScheduler.schedule(eventBus::trigger, "ObservabilityService::trigger", metricsConfig.getDumpToDbSchedule());
-        batchScheduler.schedule(this::deleteOldMetrics, "ObservabilityService::deleteOldMetrics", metricsConfig.getRetentionSchedule());
+        batchScheduler.schedule(this::sampleSystemMetrics, "ObservabilityService::sampleSystemMetrics", applicationProperties.getSystemMetricsPolling());
+        batchScheduler.schedule(eventBus::trigger, "ObservabilityService::trigger", applicationProperties.getMetricsDumpToDbSchedule());
+        batchScheduler.schedule(this::deleteOldMetrics, "ObservabilityService::deleteOldMetrics", applicationProperties.getMetricsRetentionSchedule());
 
-        systemMetrics = new SystemMetrics(SimpleCron.decodePeriod(metricsConfig.getSystemMetricsSampling()));
+        systemMetrics = new SystemMetrics(SimpleCron.decodePeriod(applicationProperties.getSystemMetricsSampling()));
 
-        siphonCapacity = metricsConfig.getSiphonCapacity();
-        requestMetricsRetention = metricsConfig.getRequestMetricsRetention().toMillis();
-        systemMetricsRetention = metricsConfig.getSystemMetricsRetention().toMillis();
+        siphonCapacity = applicationProperties.getMetricsSiphonCapacity();
+        requestMetricsRetention = applicationProperties.getRequestMetricsRetention().toMillis();
+        systemMetricsRetention = applicationProperties.getSystemMetricsRetention().toMillis();
         monitoredPaths = website.getPaths();
 
         this.mongoClientWrapper = mongoClientWrapper;

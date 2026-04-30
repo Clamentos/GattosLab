@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.session;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.SessionConfig;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.session.containers.AdminSessionContainer;
@@ -40,10 +39,8 @@ public final class SessionService {
     ///
     public SessionService(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler) throws IllegalArgumentException {
 
-        final SessionConfig sessionConfig = applicationProperties.getSessionConfig();
-
-        loginDelay = sessionConfig.getLoginDelay().toMillis();
-        batchScheduler.schedule(this::cleanExpired, "SessionService::cleanExpired", sessionConfig.getCleanSchedule());
+        loginDelay = applicationProperties.getSessionsLoginDelay().toMillis();
+        batchScheduler.schedule(this::cleanExpired, "SessionService::cleanExpired", applicationProperties.getSessionsCleanSchedule());
 
         sessionContainers = new EnumMap<>(SessionRole.class);
         for(final SessionRole role : SessionRole.values()) sessionContainers.put(role, new AdminSessionContainer(applicationProperties));

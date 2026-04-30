@@ -16,7 +16,6 @@ import com.mongodb.connection.ClusterConnectionMode;
 ///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.dynamic.mappers.DynamicPropertyMapper;
-import io.github.clamentos.gattoslab.configuration.pojos.DatabaseConfig;
 import io.github.clamentos.gattoslab.observability.logging.mappers.LogEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.PathInvocationAggregationEntityMapper;
 import io.github.clamentos.gattoslab.observability.metrics.mappers.RequestMetricsAggregateEntityMapper;
@@ -55,24 +54,22 @@ public final class MongoClientWrapper {
     public MongoClientWrapper(final ApplicationProperties applicationProperties) throws IllegalArgumentException, MongoException {
 
         log.info("Connecting to database...");
-
-        final DatabaseConfig databaseConfig = applicationProperties.getDatabaseConfig();
-        final ConnectionString connectionString = new ConnectionString(databaseConfig.getConnectionString());
+        final ConnectionString connectionString = new ConnectionString(applicationProperties.getDbConnectionString());
 
         final MongoClientSettings config = MongoClientSettings.builder()
 
             .applyConnectionString(connectionString)
             .applyToConnectionPoolSettings(pool -> {
 
-                pool.minSize(databaseConfig.getMinPoolSize());
-                pool.maxSize(databaseConfig.getMaxPoolSize());
-                pool.maintenanceFrequency(databaseConfig.getMaintenanceFrequency().toMillis(), TimeUnit.MILLISECONDS);
-                pool.maxConnectionIdleTime(databaseConfig.getMaxConnectionIdleTime().toMillis(), TimeUnit.MILLISECONDS);
+                pool.minSize(applicationProperties.getDbMinPoolSize());
+                pool.maxSize(applicationProperties.getDbMaxPoolSize());
+                pool.maintenanceFrequency(applicationProperties.getDbMaintenanceFrequency().toMillis(), TimeUnit.MILLISECONDS);
+                pool.maxConnectionIdleTime(applicationProperties.getDbMaxConnectionIdleTime().toMillis(), TimeUnit.MILLISECONDS);
             })
             .applyToSocketSettings(socket -> {
 
-                socket.connectTimeout(databaseConfig.getConnectTimeout().toMillis(), TimeUnit.MILLISECONDS);
-                socket.readTimeout(databaseConfig.getReadTimeout().toMillis(), TimeUnit.MILLISECONDS);
+                socket.connectTimeout(applicationProperties.getDbConnectTimeout().toMillis(), TimeUnit.MILLISECONDS);
+                socket.readTimeout(applicationProperties.getDbReadTimeout().toMillis(), TimeUnit.MILLISECONDS);
             })
             .applyToClusterSettings(cluster -> cluster.mode(ClusterConnectionMode.SINGLE))
             .readConcern(ReadConcern.LOCAL)

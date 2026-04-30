@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.ingress.filters.ratelimit;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.RateLimitConfig;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
@@ -43,11 +42,10 @@ public final class RateLimitFilter {
     public RateLimitFilter(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final SquashedLogsContainer squashedLogsContainer)
     throws IllegalArgumentException {
 
-        final RateLimitConfig rateLimitConfig = applicationProperties.getRateLimitConfig();
-        final int schedule = (int) batchScheduler.schedule(this::replenish, "RateLimitFilter::replenish", rateLimitConfig.getReplenishRate());
+        final int schedule = (int)batchScheduler.schedule(this::replenish, "RateLimitFilter::replenish", applicationProperties.getRateLimitReplenishRate());
 
-        maxTokensPerIp = rateLimitConfig.getMaxTokensPerIp();
-        blockCounterStart = (int) (rateLimitConfig.getRetryAfter().toMillis() / schedule);
+        maxTokensPerIp = applicationProperties.getRateLimitMaxTokensPerIp();
+        blockCounterStart = (int)(applicationProperties.getRateLimitRetryAfter().toMillis() / schedule);
 
         this.squashedLogsContainer = squashedLogsContainer;
 

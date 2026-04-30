@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.website;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.SiteConfig;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.utils.CompressingOutputStream;
@@ -39,13 +38,11 @@ public final class Website {
     ///
     public Website(final ApplicationProperties applicationProperties) throws IOException {
 
-        final SiteConfig siteConfig = applicationProperties.getSiteConfig();
-
-        cacheDuration = Long.toString(siteConfig.getCacheDuration().toSeconds());
+        cacheDuration = Long.toString(applicationProperties.getSiteCacheDuration().toSeconds());
         timeAtStartup = OffsetDateTime.now();
         timeAtStartupStr = DateTimeFormatter.RFC_1123_DATE_TIME.format(timeAtStartup);
 
-        final String siteRoot = siteConfig.getRoot();
+        final String siteRoot = applicationProperties.getSiteRoot();
         final Set<HttpMethod> supportedGetMethod = Set.of(HttpMethod.GET);
         final Set<HttpMethod> supportedPostMethod = Set.of(HttpMethod.POST);
 

@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.session;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.SessionConfig;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.http.MimeType;
@@ -32,14 +31,12 @@ public final class SessionController {
     ///..
     public SessionController(final ApplicationProperties applicationProperties, final SessionService sessionService) {
 
-        final SessionConfig sessionConfig = applicationProperties.getSessionConfig();
-
-        cookieName = sessionConfig.getCookieName();
+        cookieName = applicationProperties.getSessionsCookieName();
         cookieAttributes = new EnumMap<>(SessionRole.class);
 
         for(final SessionRole role : SessionRole.values()) {
 
-            cookieAttributes.put(role, sessionService.getCookieAttributes(role) + " Max-Age=" + sessionConfig.getDuration() + ";");
+            cookieAttributes.put(role, sessionService.getCookieAttributes(role) + " Max-Age=" + applicationProperties.getSessionsDuration() + ";");
         }
 
         this.sessionService = sessionService;

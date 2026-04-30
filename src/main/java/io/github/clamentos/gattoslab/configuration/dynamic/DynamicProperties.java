@@ -40,7 +40,7 @@ public final class DynamicProperties {
     public DynamicProperties(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final MongoClientWrapper mongoClientWrapper)
     throws IllegalArgumentException {
 
-        batchScheduler.schedule(this::refresh, "DynamicProperties::refresh", applicationProperties.getDynamicPropertiesConfig().getSchedule());
+        batchScheduler.schedule(this::refresh, "DynamicProperties::refresh", applicationProperties.getDynamicPropertiesRefreshSchedule());
 
         filterByEnabled = Filters.eq(EntityField.ENABLED, true);
         this.mongoClientWrapper = mongoClientWrapper;

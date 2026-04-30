@@ -28,7 +28,7 @@ public final class SquashedLogsContainer implements Closeable {
     public SquashedLogsContainer(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final List<SquashLogEvent> squashEvents)
     throws IllegalArgumentException {
 
-        batchScheduler.schedule(this::log, "SquashedLogContainer::log", applicationProperties.getLogsConfig().getSquashSchedule());
+        batchScheduler.schedule(this::log, "SquashedLogContainer::log", applicationProperties.getLogsSquashSchedule());
 
         this.squashEvents = new EnumMap<>(SquashLogEventType.class);
         for(final SquashLogEvent squashEvent : squashEvents) this.squashEvents.put(squashEvent.getType(), squashEvent);

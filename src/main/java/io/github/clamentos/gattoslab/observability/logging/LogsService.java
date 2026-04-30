@@ -9,7 +9,6 @@ import com.mongodb.client.model.Sorts;
 
 ///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.LogsConfig;
 import io.github.clamentos.gattoslab.exceptions.ValidationException;
 import io.github.clamentos.gattoslab.http.ResponseSender;
 import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
@@ -49,10 +48,8 @@ public final class LogsService {
     public LogsService(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final MongoClientWrapper mongoClientWrapper)
     throws IllegalArgumentException {
 
-        final LogsConfig logsConfig = applicationProperties.getLogsConfig();
-
-        logsRetention = logsConfig.getRetention().toMillis();
-        batchScheduler.schedule(this::deleteOldLogs, "LogsService::deleteOldLogs", logsConfig.getRetentionSchedule());
+        logsRetention = applicationProperties.getLogsRetention().toMillis();
+        batchScheduler.schedule(this::deleteOldLogs, "LogsService::deleteOldLogs", applicationProperties.getLogsRetentionSchedule());
 
         this.mongoClientWrapper = mongoClientWrapper;
     }

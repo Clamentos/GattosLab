@@ -7,8 +7,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.ProfileResolver;
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.SslConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.WebserverConfig;
 import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.ingress.IngressHandler;
 import io.github.clamentos.gattoslab.ingress.RequestDispatcher;
@@ -180,9 +178,8 @@ public class Application {
             .setAsyncExecutor(new VirtualThreadExecutor("gattos-lab-wsa-worker"))
         ;
 
-        final WebserverConfig webserverConfig = applicationProperties.getWebserverConfig();
         final Builder serverBuilder = Undertow.builder().setHandler(ingressHandler);
-        final SSLContext sslContext = createSSLContext(applicationProperties.getSslConfig());
+        final SSLContext sslContext = createSSLContext(applicationProperties.isSslEnabled(), applicationProperties.getSslKeystorePassword());
 
         serverBuilder.setServerOption(UndertowOptions.MAX_HEADER_SIZE, 8192);
         serverBuilder.setServerOption(UndertowOptions.MAX_ENTITY_SIZE, 4096L);
@@ -213,12 +210,12 @@ public class Application {
             serverBuilder.setServerOption(UndertowOptions.MAX_QUEUED_READ_BUFFERS, 4);
             serverBuilder.setServerOption(UndertowOptions.RST_FRAMES_TIME_WINDOW, 10000);
             serverBuilder.setServerOption(UndertowOptions.MAX_RST_FRAMES_PER_WINDOW, 128);
-            serverBuilder.addHttpsListener(webserverConfig.getServerPort(), webserverConfig.getHost(), sslContext);
+            serverBuilder.addHttpsListener(applicationProperties.getServerPort(), applicationProperties.getServerHost(), sslContext);
         }
 
         else {
 
-            serverBuilder.addHttpListener(webserverConfig.getServerPort(), webserverConfig.getHost());
+            serverBuilder.addHttpListener(applicationProperties.getServerPort(), applicationProperties.getServerHost());
         }
 
         return serverBuilder.build();
@@ -231,14 +228,12 @@ public class Application {
     }
 
     ///..
-    private static SSLContext createSSLContext(final SslConfig sslConfig)
+    private static SSLContext createSSLContext(final boolean isEnabled, final String password)
     throws CertificateException, IOException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
 
-        if(sslConfig.isEnabled()) {
+        if(isEnabled) {
 
             log.info("Loading SSL certificate start...");
-
-            final String password = sslConfig.getKeystorePassword();
             final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 
             keyManagerFactory.init(loadKeyStore("keystore.p12", password), password.toCharArray());

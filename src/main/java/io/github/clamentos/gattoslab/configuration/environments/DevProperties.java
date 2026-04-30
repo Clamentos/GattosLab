@@ -2,18 +2,6 @@ package io.github.clamentos.gattoslab.configuration.environments;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.BatchConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.CorsConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.DatabaseConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.DynamicPropertiesConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.LogsConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.MetricsConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.RateLimitConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SessionAdminConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SessionConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SiteConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SslConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.WebserverConfig;
 import io.github.clamentos.gattoslab.scheduling.CommonCrons;
 
 ///..
@@ -30,56 +18,125 @@ import lombok.Getter;
 public final class DevProperties extends ApplicationProperties {
 
     ///
-    private final BatchConfig batchConfig;
-    private final CorsConfig corsConfig;
-    private final DatabaseConfig databaseConfig;
-    private final DynamicPropertiesConfig dynamicPropertiesConfig;
-    private final LogsConfig logsConfig;
-    private final MetricsConfig metricsConfig;
-    private final RateLimitConfig rateLimitConfig;
-    private final SessionAdminConfig sessionAdminConfig;
-    private final SessionConfig sessionConfig;
-    private final SiteConfig siteConfig;
-    private final SslConfig sslConfig;
-    private final WebserverConfig webserverConfig;
+    private final Duration batchSchedulerShutdownTimeout;
+
+    ///..
+    private final boolean isCorsEnabled;
+    private final Set<String> corsAllowedOrigins;
+    private final Duration corsMaxAge;
+
+    ///..
+    private final String dbConnectionString;
+    private final int dbMinPoolSize;
+    private final int dbMaxPoolSize;
+    private final Duration dbMaintenanceFrequency;
+    private final Duration dbMaxConnectionIdleTime;
+    private final Duration dbConnectTimeout;
+    private final Duration dbReadTimeout;
+
+    ///..
+    private final String dynamicPropertiesRefreshSchedule;
+
+    ///..
+    private final Duration logsRetention;
+    private final String logsRetentionSchedule;
+    private final String logsSquashSchedule;
+
+    ///..
+    private final String metricsDumpToDbSchedule;
+    private final boolean isRequestMetricsEnabled;
+    private final Duration requestMetricsRetention;
+    private final String metricsRetentionSchedule;
+    private final int metricsSiphonCapacity;
+    private final Duration systemMetricsRetention;
+    private final String systemMetricsSampling;
+    private final String systemMetricsPolling;
+
+    ///..
+    private final boolean isRateLimitEnabled;
+    private final int rateLimitMaxTokensPerIp;
+    private final String rateLimitReplenishRate;
+    private final Duration rateLimitRetryAfter;
+
+    ///..
+    private final String adminSessionsApiKey;
+    private final int adminMaxSessions;
+    private final String adminSessionsCookieAttributes;
+
+    ///..
+    private final String sessionsCleanSchedule;
+    private final String sessionsCookieName;
+    private final Duration sessionsDuration;
+    private final boolean isSessionsEnabled;
+    private final Duration sessionsLoginDelay;
+
+    ///..
+    private final Duration siteCacheDuration;
+    private final String siteRoot;
+
+    ///..
+    private final boolean isSslEnabled;
+    private final String sslKeystorePassword;
+
+    ///..
+    private final int serverPort;
+    private final String serverHost;
 
     ///
     public DevProperties() {
 
-        batchConfig = new BatchConfig(Duration.ofSeconds(10));
-        corsConfig = new CorsConfig(true, Set.of("https://localhost:8443"), Duration.ofHours(1));
+        batchSchedulerShutdownTimeout = Duration.ofSeconds(10);
 
-        databaseConfig = new DatabaseConfig(
+        isCorsEnabled = true;
+        corsAllowedOrigins = Set.of("https://localhost:8443");
+        corsMaxAge = Duration.ofHours(1);
 
-            "mongodb://localhost:27017/GattosLabMongoDB",
-            4, 16,
-            Duration.ofSeconds(30),
-            Duration.ofMinutes(5),
-            Duration.ofSeconds(20),
-            Duration.ofSeconds(15)
-        );
+        dbConnectionString = "mongodb://localhost:27017/GattosLabMongoDB";
+        dbMinPoolSize = 4;
+        dbMaxPoolSize = 16;
+        dbMaintenanceFrequency = Duration.ofSeconds(30);
+        dbMaxConnectionIdleTime = Duration.ofMinutes(5);
+        dbConnectTimeout = Duration.ofSeconds(20);
+        dbReadTimeout = Duration.ofSeconds(15);
 
-        dynamicPropertiesConfig = new DynamicPropertiesConfig(CommonCrons.EVERY_MINUTE);
-        logsConfig = new LogsConfig(Duration.ofDays(7), CommonCrons.EVERY_DAY, CommonCrons.EVERY_MINUTE);
+        dynamicPropertiesRefreshSchedule = CommonCrons.EVERY_MINUTE;
 
-        metricsConfig = new MetricsConfig(
+        logsRetention = Duration.ofDays(7);
+        logsRetentionSchedule = CommonCrons.EVERY_DAY;
+        logsSquashSchedule = CommonCrons.EVERY_MINUTE;
 
-            CommonCrons.EVERY_MINUTE,
-            true,
-            Duration.ofDays(7),
-            CommonCrons.EVERY_DAY,
-            1000,
-            Duration.ofDays(7),
-            CommonCrons.EVERY_5_SECONDS,
-            CommonCrons.EVERY_SECOND
-        );
+        metricsDumpToDbSchedule = CommonCrons.EVERY_MINUTE;
+        isRequestMetricsEnabled = true;
+        requestMetricsRetention = Duration.ofDays(7);
+        metricsRetentionSchedule = CommonCrons.EVERY_DAY;
+        metricsSiphonCapacity = 1000;
+        systemMetricsRetention = Duration.ofDays(7);
+        systemMetricsSampling = CommonCrons.EVERY_5_SECONDS;
+        systemMetricsPolling = CommonCrons.EVERY_SECOND;
 
-        rateLimitConfig = new RateLimitConfig(true, 200, CommonCrons.EVERY_10_SECONDS, Duration.ofMinutes(1));
-        sessionAdminConfig = new SessionAdminConfig("test", 10, "=$; Path=/;");
-        sessionConfig = new SessionConfig(CommonCrons.EVERY_MINUTE, "GattosLabSessionId", Duration.ofHours(1), true, Duration.ofMillis(500));
-        siteConfig = new SiteConfig(Duration.ofDays(7), "site");
-        sslConfig = new SslConfig(true, "password");
-        webserverConfig = new WebserverConfig(8443, "localhost");
+        isRateLimitEnabled = true;
+        rateLimitMaxTokensPerIp = 200;
+        rateLimitReplenishRate = CommonCrons.EVERY_10_SECONDS;
+        rateLimitRetryAfter = Duration.ofMinutes(1);
+
+        adminSessionsApiKey = "test";
+        adminMaxSessions = 10;
+        adminSessionsCookieAttributes = "=$; Path=/;";
+
+        sessionsCleanSchedule = CommonCrons.EVERY_MINUTE;
+        sessionsCookieName = "GattosLabSessionId";
+        sessionsDuration = Duration.ofHours(1);
+        isSessionsEnabled = true;
+        sessionsLoginDelay = Duration.ofMillis(500);
+
+        siteCacheDuration = Duration.ofDays(7);
+        siteRoot = "site";
+
+        isSslEnabled = true;
+        sslKeystorePassword = "password";
+
+        serverPort = 8443;
+        serverHost = "localhost";
     }
 
     ///

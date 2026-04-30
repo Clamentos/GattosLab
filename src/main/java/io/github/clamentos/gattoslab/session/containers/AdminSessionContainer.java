@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.session.containers;
 
 ///.
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.SessionAdminConfig;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.session.SessionMetadata;
 import io.github.clamentos.gattoslab.session.SessionRole;
@@ -43,12 +42,10 @@ public final class AdminSessionContainer implements SessionContainer {
     ///
     public AdminSessionContainer(final ApplicationProperties applicationProperties) {
 
-        final SessionAdminConfig sessionAdminConfig = applicationProperties.getSessionAdminConfig();
-
-        apiKey = sessionAdminConfig.getApiKey();
-        sessionDuration = applicationProperties.getSessionConfig().getDuration().toMillis();
-        maxSessions = sessionAdminConfig.getMaxSessions();
-        cookieAttributes = sessionAdminConfig.getCookieAttributes();
+        apiKey = applicationProperties.getAdminSessionsApiKey();
+        sessionDuration = applicationProperties.getSessionsDuration().toMillis();
+        maxSessions = applicationProperties.getAdminMaxSessions();
+        cookieAttributes = applicationProperties.getAdminSessionsCookieAttributes();
 
         sessions = new ConcurrentHashMap<>();
         sizeCounter = new AtomicInteger();

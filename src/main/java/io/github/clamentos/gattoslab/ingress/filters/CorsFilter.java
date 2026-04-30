@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.ingress.filters;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.CorsConfig;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 
@@ -27,11 +26,9 @@ public final class CorsFilter {
     ///
     public CorsFilter(final ApplicationProperties applicationProperties) {
 
-        final CorsConfig corsConfig = applicationProperties.getCorsConfig();
-
         allowedMethods = Arrays.stream(HttpMethod.values()).collect(Collectors.toSet());
-        allowedOrigins = corsConfig.getAllowedOrigins();
-        maxAge = Integer.toString(corsConfig.getMaxAge().toSecondsPart());
+        allowedOrigins = applicationProperties.getCorsAllowedOrigins();
+        maxAge = Integer.toString(applicationProperties.getCorsMaxAge().toSecondsPart());
     }
 
     ///

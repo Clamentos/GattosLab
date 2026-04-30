@@ -41,7 +41,7 @@ public final class GlobalExceptionHandler {
     ///
     public GlobalExceptionHandler(final ApplicationProperties applicationProperties, final JsonMapper jsonMapper, final ObservabilityService observabilityService) {
 
-        retryAfterStr = Long.toString(applicationProperties.getRateLimitConfig().getRetryAfter().toSeconds());
+        retryAfterStr = Long.toString(applicationProperties.getRateLimitRetryAfter().toSeconds());
 
         this.jsonMapper = jsonMapper;
         this.observabilityService = observabilityService;

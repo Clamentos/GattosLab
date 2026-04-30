@@ -54,9 +54,9 @@ public final class IngressHandler implements HttpHandler {
         final Website website
     ) {
 
-        final boolean isCorsEnabled = applicationProperties.getCorsConfig().isEnabled();
-        final boolean isRateLimitEnabled = applicationProperties.getRateLimitConfig().isEnabled();
-        final boolean isSecurityEnabled = applicationProperties.getSessionConfig().isEnabled();
+        final boolean isCorsEnabled = applicationProperties.isCorsEnabled();
+        final boolean isRateLimitEnabled = applicationProperties.isRateLimitEnabled();
+        final boolean isSecurityEnabled = applicationProperties.isSessionsEnabled();
 
         this.blacklistFilter = blacklistFilter;
         corsFilter = isCorsEnabled ? new CorsFilter(applicationProperties) : null;

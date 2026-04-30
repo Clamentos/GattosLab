@@ -1,35 +1,76 @@
 package io.github.clamentos.gattoslab.configuration;
 
 ///
-import io.github.clamentos.gattoslab.configuration.pojos.BatchConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.CorsConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.DatabaseConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.DynamicPropertiesConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.LogsConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.MetricsConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.RateLimitConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SessionAdminConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SessionConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SiteConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.SslConfig;
-import io.github.clamentos.gattoslab.configuration.pojos.WebserverConfig;
+import java.time.Duration;
+import java.util.Set;
 
 ///
 public abstract class ApplicationProperties {
 
     ///
-    public abstract BatchConfig getBatchConfig();
-    public abstract CorsConfig getCorsConfig();
-    public abstract DatabaseConfig getDatabaseConfig();
-    public abstract DynamicPropertiesConfig getDynamicPropertiesConfig();
-    public abstract LogsConfig getLogsConfig();
-    public abstract MetricsConfig getMetricsConfig();
-    public abstract RateLimitConfig getRateLimitConfig();
-    public abstract SessionAdminConfig getSessionAdminConfig();
-    public abstract SessionConfig getSessionConfig();
-    public abstract SiteConfig getSiteConfig();
-    public abstract SslConfig getSslConfig();
-    public abstract WebserverConfig getWebserverConfig();
+    public abstract Duration getBatchSchedulerShutdownTimeout();
+
+    ///..
+    public abstract boolean isCorsEnabled();
+    public abstract Set<String> getCorsAllowedOrigins();
+    public abstract Duration getCorsMaxAge();
+
+    ///..
+    public abstract String getDbConnectionString();
+    public abstract int getDbMinPoolSize();
+    public abstract int getDbMaxPoolSize();
+    public abstract Duration getDbMaintenanceFrequency();
+    public abstract Duration getDbMaxConnectionIdleTime();
+    public abstract Duration getDbConnectTimeout();
+    public abstract Duration getDbReadTimeout();
+
+    ///..
+    public abstract String getDynamicPropertiesRefreshSchedule();
+
+    ///..
+    public abstract Duration getLogsRetention();
+    public abstract String getLogsRetentionSchedule();
+    public abstract String getLogsSquashSchedule();
+
+    ///..
+    public abstract String getMetricsDumpToDbSchedule();
+    public abstract boolean isRequestMetricsEnabled();
+    public abstract Duration getRequestMetricsRetention();
+    public abstract String getMetricsRetentionSchedule();
+    public abstract int getMetricsSiphonCapacity();
+    public abstract Duration getSystemMetricsRetention();
+    public abstract String getSystemMetricsSampling();
+    public abstract String getSystemMetricsPolling();
+
+    ///..
+    public abstract boolean isRateLimitEnabled();
+    public abstract int getRateLimitMaxTokensPerIp();
+    public abstract String getRateLimitReplenishRate();
+    public abstract Duration getRateLimitRetryAfter();
+
+    ///..
+    public abstract String getAdminSessionsApiKey();
+    public abstract int getAdminMaxSessions();
+    public abstract String getAdminSessionsCookieAttributes();
+
+    ///..
+    public abstract String getSessionsCleanSchedule();
+    public abstract String getSessionsCookieName();
+    public abstract Duration getSessionsDuration();
+    public abstract boolean isSessionsEnabled();
+    public abstract Duration getSessionsLoginDelay();
+
+    ///..
+    public abstract Duration getSiteCacheDuration();
+    public abstract String getSiteRoot();
+
+    ///..
+    public abstract boolean isSslEnabled();
+    public abstract String getSslKeystorePassword();
+
+    ///..
+    public abstract int getServerPort();
+    public abstract String getServerHost();
 
     ///
     protected <T> T resolve(final String envName, final Class<T> clazz) throws IllegalArgumentException {

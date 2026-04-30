@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.scheduling;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.configuration.pojos.BatchConfig;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
@@ -37,9 +36,7 @@ public final class BatchScheduler implements Closeable {
     ///
     public BatchScheduler(final ApplicationProperties applicationProperties) {
 
-        final BatchConfig batchConfig = applicationProperties.getBatchConfig();
-
-        shutdownTimeout = batchConfig.getShutdownTimeout();
+        shutdownTimeout = applicationProperties.getBatchSchedulerShutdownTimeout();
 
         scheduler = ThreadSpawner.spawnVirtualThread("gattos-lab-bs-scheduler", this::triggerJobs);
         jobs = new CopyOnWriteArrayList<>();
