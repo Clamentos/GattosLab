@@ -12,7 +12,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class LogEntityStackTrace {
+public final class LogEntityExceptionEntry {
 
     ///
     private final String className;

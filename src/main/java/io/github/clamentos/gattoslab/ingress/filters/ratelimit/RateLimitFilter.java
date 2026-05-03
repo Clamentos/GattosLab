@@ -63,7 +63,7 @@ public final class RateLimitFilter {
             final String fingerprint = GenericUtils.composeFingerprint(ip, HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING));
             squashedLogsContainer.squash(SquashLogEventType.RATE_LIMIT, fingerprint);
 
-            throw new TooManyRequestsException("RateLimitFilter.rateLimit~Rate limit reached for fingerprint: " + fingerprint);
+            throw new TooManyRequestsException("Rate limit reached", "RateLimitFilter.rateLimit");
         }
     }
 

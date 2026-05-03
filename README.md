@@ -4,7 +4,7 @@
 
 Simple, *mostly static*, website about my personal projects that uses the following technologies:
 
-- Java 25 with Spring Boot and MongoDB for the backend.
+- Java 26 with Spring Boot and MongoDB for the backend.
 - Vanilla HTML, CSS and JavaScript for the frontend.
 - Jenkins for building and deploying the application into a Hetzner VPS.
 

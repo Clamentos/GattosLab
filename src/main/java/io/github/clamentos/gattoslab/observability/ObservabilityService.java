@@ -76,6 +76,7 @@ public class ObservabilityService implements Closeable {
 
     ///
     private static final int MAX_TIMESTAMPS = 10000;
+    private static final String SOURCE_VALIDATE = "ObservabilityService.validateSearchFilter";
 
     ///..
     private final int siphonCapacity;
@@ -408,24 +409,8 @@ public class ObservabilityService implements Closeable {
                 exchange.getStatusCode()
             );
 
-            if(!success) {
-
-                try {
-
-                    Thread.sleep(1L);
-                }
-
-                catch(final InterruptedException _) {
-
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-
-            else {
-
-                break;
-            }
+            if(!success) GenericUtils.silentSleep(1L);
+            else break;
         }
 	}
 
@@ -552,10 +537,7 @@ public class ObservabilityService implements Closeable {
     ///..
     private void insertMetrics(final ObservabilityContext context) throws MongoException {
 
-        while(!context.isNoOneThere()) {
-
-            GenericUtils.silentSleep(1L);
-        }
+        while(!context.isNoOneThere()) GenericUtils.silentSleep(1L);
 
         mongoClientWrapper.insertAll(context.drainSiphon(), DatabaseCollection.REQUEST_METRICS);
         context.reset();
@@ -567,14 +549,14 @@ public class ObservabilityService implements Closeable {
         final long startTimestamp = temporalSearchFilter.getStartTimestamp();
         final long endTimestamp = temporalSearchFilter.getEndTimestamp();
 
-        if(startTimestamp > endTimestamp) throw new ValidationException("ObservabilityService.validateSearchFilter~endTimestamp cannot be smaller than startTimestamp");
+        if(startTimestamp > endTimestamp) throw new ValidationException("Field 'endTimestamp' cannot be smaller than 'startTimestamp'", SOURCE_VALIDATE);
 
         if((temporalSearchFilter instanceof final AggregatedSearchFilter casted) && isBucketRequired) {
 
-            if(casted.getBucketSize() <= 0) throw new ValidationException("ObservabilityService.validateSearchFilter~bucketSize must be greater than 0");
+            if(casted.getBucketSize() <= 0) throw new ValidationException("Field 'bucketSize' must be greater than 0", SOURCE_VALIDATE);
 
             final long numTimestamps = ((casted.getEndTimestamp() - casted.getStartTimestamp()) / casted.getBucketSize()) + 1;
-            if(numTimestamps > MAX_TIMESTAMPS) throw new ValidationException("ObservabilityService.validateSearchFilter~Too many timestamps: " + numTimestamps);
+            if(numTimestamps > MAX_TIMESTAMPS) throw new ValidationException("Too many timestamps: " + numTimestamps, SOURCE_VALIDATE);
         }
     }
 

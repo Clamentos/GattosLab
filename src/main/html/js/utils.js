@@ -40,21 +40,6 @@ function isOk(value) {
     return value !== "" && value !== null && value !== undefined;
 }
 
-function mapComputeIfAbsent(map, key, func) {
-
-    const current = map.get(key);
-
-    if(current == null) {
-
-        const newValue = func();
-        map.set(key, newValue);
-
-        return newValue;
-    }
-
-    return current;
-}
-
 function getChartOptions(title, xCallback, yCallback, tooltipTitleCallback, tooltipCallback) {
 
     const options = {

@@ -23,7 +23,7 @@ public final class EventBus {
     ///
     public void trigger() {
 
-        ThreadSpawner.spawnVirtualThread("gattos-lab-eb-worker-" + workerIndex.getAndIncrement(), command);
+        ThreadSpawner.spawnVirtualThread("gattos-lab-eb-" + workerIndex.getAndIncrement(), command);
     }
 
     ///

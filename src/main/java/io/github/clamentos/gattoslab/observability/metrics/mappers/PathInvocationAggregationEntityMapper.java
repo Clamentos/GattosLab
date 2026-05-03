@@ -1,11 +1,13 @@
 package io.github.clamentos.gattoslab.observability.metrics.mappers;
 
 ///
+import io.github.clamentos.gattoslab.exceptions.CauseContainer;
+import io.github.clamentos.gattoslab.exceptions.CodecException;
 import io.github.clamentos.gattoslab.observability.metrics.entities.PathInvocationAggregationEntity;
 import io.github.clamentos.gattoslab.persistence.EntityField;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
-import java.util.HashSet;
 import java.util.Set;
 
 ///..
@@ -20,6 +22,9 @@ import org.bson.codecs.EncoderContext;
 public final class PathInvocationAggregationEntityMapper implements Codec<PathInvocationAggregationEntity> {
 
     ///
+    private static final String SOURCE_DECODE = "PathInvocationAggregationEntityMapper.decode";
+
+    ///
     @Override
     public Class<PathInvocationAggregationEntity> getEncoderClass() {
 
@@ -28,67 +33,67 @@ public final class PathInvocationAggregationEntityMapper implements Codec<PathIn
 
     ///..
     @Override
-    public void encode(final BsonWriter writer, final PathInvocationAggregationEntity value, final EncoderContext encoderContext) {
+    public void encode(final BsonWriter writer, final PathInvocationAggregationEntity value, final EncoderContext encoderContext) throws UnsupportedOperationException {
 
-        throw new UnsupportedOperationException("PathInvocationAggregationEntityMapper.encode~Aggregations are read-only");
+        throw new UnsupportedOperationException("Aggregations are read-only", new CauseContainer("PathInvocationAggregationEntityMapper.encode"));
     }
 
     ///..
     @Override
-    public PathInvocationAggregationEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
+    public PathInvocationAggregationEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws CodecException {
 
-        String path = null;
-        long firstInvocation = 0;
-        long lastInvocation = 0;
-        long count = 0;
-        boolean isOther = false;
-        Set<Short> httpStatuses = null;
+        try {
 
-        reader.readStartDocument();
+            String path = null;
+            long firstInvocation = 0;
+            long lastInvocation = 0;
+            long count = 0;
+            boolean isOther = false;
+            Set<Short> httpStatuses = null;
 
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            reader.readStartDocument();
 
-            final String name = reader.readName();
+            while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            switch(name) {
+                final String name = reader.readName();
 
-                case EntityField.ID:
+                switch(name) {
 
-                    reader.readStartDocument();
-                    path = reader.readString(EntityField.PATH);
-                    reader.readEndDocument();
+                    case EntityField.ID:
 
-                break;
+                        reader.readStartDocument();
+                        path = reader.readString(EntityField.PATH);
+                        reader.readEndDocument();
 
-                case EntityField.FIRST_INVOCATION: firstInvocation = reader.readInt64(); break;
-                case EntityField.LAST_INVOCATION: lastInvocation = reader.readInt64(); break;
-                case EntityField.COUNT: count = reader.readInt32(); break;
-                case EntityField.IS_OTHERS: isOther = reader.readBoolean(); break;
+                    break;
 
-                case EntityField.HTTP_STATUSES:
+                    case EntityField.FIRST_INVOCATION: firstInvocation = reader.readInt64(); break;
+                    case EntityField.LAST_INVOCATION: lastInvocation = reader.readInt64(); break;
+                    case EntityField.COUNT: count = reader.readInt32(); break;
+                    case EntityField.IS_OTHERS: isOther = reader.readBoolean(); break;
+                    case EntityField.HTTP_STATUSES: httpStatuses = GenericUtils.readSet(reader, Short.class); break;
 
-                    reader.readStartArray();
-                    httpStatuses = new HashSet<>();
-                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) httpStatuses.add((short)reader.readInt32());
-                    reader.readEndArray();
-
-                break;
-
-                default: throw new IllegalArgumentException("PathInvocationAggregationEntityMapper.decode~Unknown field name " + name);
+                    default: throw new CodecException("Unknown field '" + name + "'", SOURCE_DECODE);
+                }
             }
+
+            reader.readEndDocument();
+            short[] httpStatusesArray = null;
+
+            if(httpStatuses != null) {
+
+                int i = 0;
+                httpStatusesArray = new short[httpStatuses.size()];
+                for(final Short status : httpStatuses) httpStatusesArray[i++] = status;
+            }
+
+            return new PathInvocationAggregationEntity(path, firstInvocation, lastInvocation, count, isOther, httpStatusesArray);
         }
 
-        reader.readEndDocument();
-        short[] httpStatusesArray = null;
+        catch(final IllegalStateException exc) {
 
-        if(httpStatuses != null) {
-
-            int i = 0;
-            httpStatusesArray = new short[httpStatuses.size()];
-            for(final Short status : httpStatuses) httpStatusesArray[i++] = status;
+            throw new CodecException(GenericUtils.WRAPPED_EXCEPTION_MSG, SOURCE_DECODE, exc);
         }
-
-        return new PathInvocationAggregationEntity(path, firstInvocation, lastInvocation, count, isOther, httpStatusesArray);
     }
 
     ///

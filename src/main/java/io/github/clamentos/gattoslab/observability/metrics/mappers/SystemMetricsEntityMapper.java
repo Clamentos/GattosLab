@@ -1,8 +1,10 @@
 package io.github.clamentos.gattoslab.observability.metrics.mappers;
 
 ///
+import io.github.clamentos.gattoslab.exceptions.CodecException;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 import io.github.clamentos.gattoslab.persistence.EntityField;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import org.bson.BsonReader;
@@ -15,6 +17,9 @@ import org.bson.types.ObjectId;
 
 ///
 public final class SystemMetricsEntityMapper implements Codec<SystemMetricsEntity> {
+
+    ///
+    private static final String SOURCE_DECODE = "SystemMetricsEntityMapper.decode";
 
     ///
     @Override
@@ -55,87 +60,95 @@ public final class SystemMetricsEntityMapper implements Codec<SystemMetricsEntit
 
     ///..
     @Override
-    public SystemMetricsEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
+    public SystemMetricsEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws CodecException {
 
-        ObjectId id = null;
-        long timestamp = 0;
-        long virtualThreads = 0;
-        long platformThreads = 0;
-        long classesLoaded = 0;
-        long fileReads = 0;
-        long fileWrites = 0;
-        long socketReads = 0;
-        long socketWrites = 0;
-        long gcCounts = 0;
-        long gcPause = 0;
-        long cpuLoadJvmUser = 0;
-        long cpuLoadJvmSystem = 0;
-        long cpuLoadMachineTotal = 0;
-        long systemMemoryUsed = 0;
-        long metaSpaceUsed = 0;
-        long directBuffersUsed = 0;
-        long directBuffersMemoryUsed = 0;
-        long heapUsed = 0;
-        long storageUsed = 0;
+        try {
 
-        reader.readStartDocument();
+            ObjectId id = null;
+            long timestamp = 0;
+            long virtualThreads = 0;
+            long platformThreads = 0;
+            long classesLoaded = 0;
+            long fileReads = 0;
+            long fileWrites = 0;
+            long socketReads = 0;
+            long socketWrites = 0;
+            long gcCounts = 0;
+            long gcPause = 0;
+            long cpuLoadJvmUser = 0;
+            long cpuLoadJvmSystem = 0;
+            long cpuLoadMachineTotal = 0;
+            long systemMemoryUsed = 0;
+            long metaSpaceUsed = 0;
+            long directBuffersUsed = 0;
+            long directBuffersMemoryUsed = 0;
+            long heapUsed = 0;
+            long storageUsed = 0;
 
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            reader.readStartDocument();
 
-            final String name = reader.readName();
+            while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            switch(name) {
+                final String name = reader.readName();
 
-                case EntityField.ID: id = reader.readObjectId(); break;
-                case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
-                case EntityField.VIRTUAL_THREADS: virtualThreads = reader.readInt64(); break;
-                case EntityField.PLATFORM_THREADS: platformThreads = reader.readInt64(); break;
-                case EntityField.CLASSES_LOADED: classesLoaded = reader.readInt64(); break;
-                case EntityField.FILE_READS: fileReads = reader.readInt64(); break;
-                case EntityField.FILE_WRITES: fileWrites = reader.readInt64(); break;
-                case EntityField.SOCKET_READS: socketReads = reader.readInt64(); break;
-                case EntityField.SOCKET_WRITES: socketWrites = reader.readInt64(); break;
-                case EntityField.GC_COUNTS: gcCounts = reader.readInt64(); break;
-                case EntityField.GC_PAUSE: gcPause = reader.readInt64(); break;
-                case EntityField.CPU_LOAD_JVM_USER: cpuLoadJvmUser = reader.readInt64(); break;
-                case EntityField.CPU_LOAD_JVM_SYSTEM: cpuLoadJvmSystem = reader.readInt64(); break;
-                case EntityField.CPU_LOAD_MACHINE_TOTAL: cpuLoadMachineTotal = reader.readInt64(); break;
-                case EntityField.SYSTEM_MEMORY_USED: systemMemoryUsed = reader.readInt64(); break;
-                case EntityField.META_SPACE_USED: metaSpaceUsed = reader.readInt64(); break;
-                case EntityField.DIRECT_BUFFERS_USED: directBuffersUsed = reader.readInt64(); break;
-                case EntityField.DIRECT_BUFFERS_MEMORY_USED: directBuffersMemoryUsed = reader.readInt64(); break;
-                case EntityField.HEAP_USED: heapUsed = reader.readInt64(); break;
-                case EntityField.STORAGE_USED: storageUsed = reader.readInt64(); break;
+                switch(name) {
 
-                default: throw new IllegalArgumentException("SystemMetricsEntityMapper.decode~Unknown field name " + name);
+                    case EntityField.ID: id = reader.readObjectId(); break;
+                    case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
+                    case EntityField.VIRTUAL_THREADS: virtualThreads = reader.readInt64(); break;
+                    case EntityField.PLATFORM_THREADS: platformThreads = reader.readInt64(); break;
+                    case EntityField.CLASSES_LOADED: classesLoaded = reader.readInt64(); break;
+                    case EntityField.FILE_READS: fileReads = reader.readInt64(); break;
+                    case EntityField.FILE_WRITES: fileWrites = reader.readInt64(); break;
+                    case EntityField.SOCKET_READS: socketReads = reader.readInt64(); break;
+                    case EntityField.SOCKET_WRITES: socketWrites = reader.readInt64(); break;
+                    case EntityField.GC_COUNTS: gcCounts = reader.readInt64(); break;
+                    case EntityField.GC_PAUSE: gcPause = reader.readInt64(); break;
+                    case EntityField.CPU_LOAD_JVM_USER: cpuLoadJvmUser = reader.readInt64(); break;
+                    case EntityField.CPU_LOAD_JVM_SYSTEM: cpuLoadJvmSystem = reader.readInt64(); break;
+                    case EntityField.CPU_LOAD_MACHINE_TOTAL: cpuLoadMachineTotal = reader.readInt64(); break;
+                    case EntityField.SYSTEM_MEMORY_USED: systemMemoryUsed = reader.readInt64(); break;
+                    case EntityField.META_SPACE_USED: metaSpaceUsed = reader.readInt64(); break;
+                    case EntityField.DIRECT_BUFFERS_USED: directBuffersUsed = reader.readInt64(); break;
+                    case EntityField.DIRECT_BUFFERS_MEMORY_USED: directBuffersMemoryUsed = reader.readInt64(); break;
+                    case EntityField.HEAP_USED: heapUsed = reader.readInt64(); break;
+                    case EntityField.STORAGE_USED: storageUsed = reader.readInt64(); break;
+
+                    default: throw new CodecException("Unknown field '" + name + "'", SOURCE_DECODE);
+                }
             }
+
+            reader.readEndDocument();
+
+            return new SystemMetricsEntity(
+
+                id,
+                timestamp,
+                virtualThreads,
+                platformThreads,
+                classesLoaded,
+                fileReads,
+                fileWrites,
+                socketReads,
+                socketWrites,
+                gcCounts,
+                gcPause,
+                cpuLoadJvmUser,
+                cpuLoadJvmSystem,
+                cpuLoadMachineTotal,
+                systemMemoryUsed,
+                metaSpaceUsed,
+                directBuffersUsed,
+                directBuffersMemoryUsed,
+                heapUsed,
+                storageUsed
+            );
         }
 
-        reader.readEndDocument();
+        catch(final IllegalStateException exc) {
 
-        return new SystemMetricsEntity(
-
-            id,
-            timestamp,
-            virtualThreads,
-            platformThreads,
-            classesLoaded,
-            fileReads,
-            fileWrites,
-            socketReads,
-            socketWrites,
-            gcCounts,
-            gcPause,
-            cpuLoadJvmUser,
-            cpuLoadJvmSystem,
-            cpuLoadMachineTotal,
-            systemMemoryUsed,
-            metaSpaceUsed,
-            directBuffersUsed,
-            directBuffersMemoryUsed,
-            heapUsed,
-            storageUsed
-        );
+            throw new CodecException(GenericUtils.WRAPPED_EXCEPTION_MSG, SOURCE_DECODE, exc);
+        }
     }
 
     ///

@@ -15,8 +15,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 ///..
 import lombok.extern.slf4j.Slf4j;
@@ -33,9 +31,6 @@ public final class SessionService {
     ///..
     private final Map<SessionRole, SessionContainer> sessionContainers;
 
-    ///..
-    private final Lock lock;
-
     ///
     public SessionService(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler) throws IllegalArgumentException {
 
@@ -44,8 +39,6 @@ public final class SessionService {
 
         sessionContainers = new EnumMap<>(SessionRole.class);
         for(final SessionRole role : SessionRole.values()) sessionContainers.put(role, new AdminSessionContainer(applicationProperties));
-
-        lock = new ReentrantLock();
     }
 
     ///
@@ -62,10 +55,7 @@ public final class SessionService {
 
         if(session == null || !session.isValid(System.currentTimeMillis(), fingerprint)) {
 
-            lock.lock();
             GenericUtils.silentSleep(loginDelay);
-            lock.unlock();
-
             return null;
         }
 
@@ -76,17 +66,21 @@ public final class SessionService {
     public final Entry<String, SessionMetadata> createSession(
 
         final String authorization,
-        final SessionRole role,
         final String sessionId,
+        final SessionRole role,
         final InetAddress ip,
         final String userAgent
 
     ) throws ApiSecurityException {
 
         final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
-        final SessionMetadata existingSessionMaybe = this.check(role, sessionId, fingerprint);
 
-        if(existingSessionMaybe != null) return Map.entry(sessionId, existingSessionMaybe);
+        if(sessionId != null) {
+
+            final SessionMetadata existingSessionMaybe = this.check(role, sessionId, fingerprint);
+            if(existingSessionMaybe != null) return Map.entry(sessionId, existingSessionMaybe);
+        }
+
         return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent), false);
     }
 
@@ -97,7 +91,7 @@ public final class SessionService {
         final String fingerprint = GenericUtils.composeFingerprint(ip, userAgent);
         final SessionMetadata session = this.check(role, sessionId, fingerprint);
 
-        if(session == null) throw new ApiSecurityException("SessionService.refreshSession~Invalid, expired or non existent session");
+        if(session == null) throw new ApiSecurityException("Invalid, expired or non existent session", "SessionService.refreshSession");
 
         final SessionContainer container = sessionContainers.get(role);
         container.deleteSession(sessionId);

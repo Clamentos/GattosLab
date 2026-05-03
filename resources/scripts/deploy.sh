@@ -16,7 +16,6 @@
 
 # Other worthy notes:
 # 1) since the app runs with the gattoslab user, which is a minimal system user, some extra steps are needed:
-#     - port 443 is privileged and the java executable needs permissions: sudo setcap 'cap_net_bind_service=+ep' /path/to/java/executable
 #     - the keystore.p12:
 #         -- must be readable by gattoslab (ownership with read only)
 #         -- certbot renewal hook that regenerates and moves the keystore.p12 when certificate is renewed successfully
@@ -28,7 +27,7 @@ function await_process_termination () {
         if ! ps -p "$1" > /dev/null; then return 0; fi
 
         echo "$2"
-        sleep 1s
+        sleep 5s
 
     done
 
@@ -125,15 +124,15 @@ echo "--> Copying $NEW_JAR_NAME into run directory"
 cp "$NEW_JAR_FILE" "$RUN_DIR"
 chown "$APP_USER:$APP_USER_GROUP" "$RUN_DIR/$NEW_JAR_NAME"
 
-# Launch the new application and wait for a successful start
 echo "--> Starting the new application"
 cd "$RUN_DIR"
+setcap cap_net_bind_service=+ep "$(readlink -f /usr/bin/java)"
 
 runuser -u "$APP_USER" -- bash -c "
 
     set -a
     source "$SECRETS_FILE"
-    exec java -jar "$RUN_DIR/$NEW_JAR_NAME" --spring.profiles.active=prod -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError -XX:-FlightRecorder
+    exec java -jar -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError "$RUN_DIR/$NEW_JAR_NAME" prod
 " &
 
 echo "--> Waiting for the app to start"
@@ -149,7 +148,7 @@ for i in {1..4}; do
         break
     fi
 
-    sleep 1s
+    sleep 2s
 
 done
 
@@ -168,7 +167,7 @@ if [ "$PID_FILE_EXISTS" -eq 1 ]; then
             fi
         fi
 
-        sleep 1s
+        sleep 2s
 
     done
 fi

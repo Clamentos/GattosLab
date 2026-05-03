@@ -43,7 +43,7 @@ public class RateLimitSquash implements SquashLogEvent {
 
         for(final Map.Entry<String, AtomicInteger> rateLimitSquashEntry : squashesMap.entrySet()) {
 
-            log.warn("Rate limit reached {} times for ip: {}", rateLimitSquashEntry.getValue(), rateLimitSquashEntry.getKey());
+            log.warn("Rate limit reached {} times for fingerprint: {}", rateLimitSquashEntry.getValue(), rateLimitSquashEntry.getKey());
         }
     }
 

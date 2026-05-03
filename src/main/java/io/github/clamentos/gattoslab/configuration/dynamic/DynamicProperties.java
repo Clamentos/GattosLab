@@ -44,6 +44,7 @@ public final class DynamicProperties {
 
         filterByEnabled = Filters.eq(EntityField.ENABLED, true);
         this.mongoClientWrapper = mongoClientWrapper;
+
         dynamicPropertyMap = new ConcurrentHashMap<>();
     }
 
@@ -70,7 +71,7 @@ public final class DynamicProperties {
                 dynamicPropertyMap.put(property.getKey(), property);
             }
 
-            if(dynamicPropertyMap.hashCode() != originalHashCode) log.info("Dynamic property changes applied");
+            if(dynamicPropertyMap.hashCode() != originalHashCode) log.info("Dynamic properties have changed");
         }
 
         catch(final RuntimeException exc) {

@@ -6,6 +6,9 @@ import ch.qos.logback.classic.spi.IThrowableProxy;
 import ch.qos.logback.classic.spi.StackTraceElementProxy;
 
 ///..
+import io.github.clamentos.gattoslab.exceptions.CauseContainer;
+
+///..
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -36,7 +39,7 @@ public final class LogEntity {
     private final String thread;
     private final String logger;
     private final String message;
-    private final LogEntityStackTrace exception;
+    private final LogEntityExceptionEntry exception;
 
     ///
     public LogEntity(final ILoggingEvent logEvent) {
@@ -54,12 +57,10 @@ public final class LogEntity {
 
         if(throwableProxy != null) {
 
-            exception = new LogEntityStackTrace(
+            final List<String> stacktrace = this.formatStacktraceForDb(throwableProxy.getStackTraceElementProxyArray());
 
-                throwableProxy.getClassName(),
-                throwableProxy.getMessage(),
-                this.formatStacktraceForDb(throwableProxy.getStackTraceElementProxyArray())
-            );
+            this.formatStacktraceForDb(throwableProxy, stacktrace);
+            exception = new LogEntityExceptionEntry(throwableProxy.getClassName(), throwableProxy.getMessage(), stacktrace);
         }
 
         else {
@@ -92,7 +93,7 @@ public final class LogEntity {
                 for(int i = 7; i < splits.length; i++) excStacktrace.add(this.undoNormalization(splits[i].replace(MESSAGE_LINE_SEPARATOR, "\n")));
             }
 
-            exception = new LogEntityStackTrace(excClassName, excMessage, excStacktrace);
+            exception = new LogEntityExceptionEntry(excClassName, excMessage, excStacktrace);
         }
 
         else {
@@ -104,7 +105,7 @@ public final class LogEntity {
     ///
     private List<String> formatStacktraceForDb(final StackTraceElementProxy[] stacktrace) {
 
-        if(stacktrace == null) return List.of();
+        if(stacktrace == null) return new ArrayList<>();
         final List<String> formattedStacktrace = new ArrayList<>(stacktrace.length);
 
         for(int i = 0; i < stacktrace.length; i++) {
@@ -114,6 +115,30 @@ public final class LogEntity {
         }
 
         return formattedStacktrace;
+    }
+
+    ///..
+    private void formatStacktraceForDb(final IThrowableProxy exception, final List<String> stacktrace) {
+
+        if(exception != null) {
+
+            final String className = exception.getClassName();
+            final String msg = exception.getMessage();
+            final IThrowableProxy cause = exception.getCause();
+
+            if(cause != null) {
+
+                if(cause.getClassName().equals(CauseContainer.class.getName())) stacktrace.add("$" + className + ": (" + cause.getMessage() + ") ~ " + msg);
+                else stacktrace.add("$" + className + ": " + msg);
+
+                this.formatStacktraceForDb(cause.getCause(), stacktrace);
+            }
+
+            else {
+
+                stacktrace.add("$" + className + ": " + msg);
+            }
+        }
     }
 
     ///..

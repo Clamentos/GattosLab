@@ -45,15 +45,15 @@ public final class SessionController {
     ///
     public void createSession(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        final SessionRole role = SessionRole.fromParam(exchange);
+        final SessionRole role = SessionRole.decode(exchange);
         final Cookie cookie = exchange.getRequestCookie(cookieName + role.name());
         final HeaderMap headers = exchange.getRequestHeaders();
 
         final Entry<String, SessionMetadata> session = sessionService.createSession(
 
             HttpUtils.getHeaderValue(headers, Headers.AUTHORIZATION_STRING),
-            role,
             cookie != null ? cookie.getValue() : null,
+            role,
             exchange.getSourceAddress().getAddress(),
             HttpUtils.getHeaderValue(headers, Headers.USER_AGENT_STRING)
         );
@@ -64,7 +64,7 @@ public final class SessionController {
     ///..
     public void refreshSession(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        final SessionRole role = SessionRole.fromParam(exchange);
+        final SessionRole role = SessionRole.decode(exchange);
         final Cookie cookie = exchange.getRequestCookie(cookieName + role.name());
 
         final Entry<String, SessionMetadata> session = sessionService.refreshSession(
@@ -81,7 +81,7 @@ public final class SessionController {
     ///..
     public void deleteSession(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        final SessionRole role = SessionRole.fromParam(exchange);
+        final SessionRole role = SessionRole.decode(exchange);
         final Cookie cookie = exchange.getRequestCookie(cookieName + role.name());
 
         sessionService.deleteSession(cookie != null ? cookie.getValue() : null, role);

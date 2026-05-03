@@ -1,12 +1,13 @@
 package io.github.clamentos.gattoslab.observability.logging.mappers;
 
 ///
+import io.github.clamentos.gattoslab.exceptions.CodecException;
 import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
-import io.github.clamentos.gattoslab.observability.logging.entities.LogEntityStackTrace;
+import io.github.clamentos.gattoslab.observability.logging.entities.LogEntityExceptionEntry;
 import io.github.clamentos.gattoslab.persistence.EntityField;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
-import java.util.ArrayList;
 import java.util.List;
 
 ///..
@@ -20,6 +21,9 @@ import org.bson.types.ObjectId;
 
 ///
 public final class LogEntityMapper implements Codec<LogEntity> {
+
+    ///
+    private static final String SOURCE_DECODE = "LogEntitymapper.decode";
 
     ///
     @Override
@@ -44,7 +48,7 @@ public final class LogEntityMapper implements Codec<LogEntity> {
 
         if(entity.getException() != null) {
 
-            final LogEntityStackTrace exception = entity.getException();
+            final LogEntityExceptionEntry exception = entity.getException();
 
             writer.writeName(EntityField.EXCEPTION);
             writer.writeStartDocument();
@@ -67,72 +71,72 @@ public final class LogEntityMapper implements Codec<LogEntity> {
 
     ///..
     @Override
-    public LogEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws IllegalStateException {
+    public LogEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws CodecException {
 
-        ObjectId id = null;
-        long timestamp = 0;
-        String severity = null;
-        String thread = null;
-        String logger = null;
-        String message = null;
-        LogEntityStackTrace exception = null;
+        try {
 
-        reader.readStartDocument();
+            ObjectId id = null;
+            long timestamp = 0;
+            String severity = null;
+            String thread = null;
+            String logger = null;
+            String message = null;
+            LogEntityExceptionEntry exception = null;
 
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            reader.readStartDocument();
 
-            final String name = reader.readName();
+            while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            switch(name) {
+                final String name = reader.readName();
 
-                case EntityField.ID: id = reader.readObjectId(); break;
-                case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
-                case EntityField.SEVERITY: severity = reader.readString(); break;
-                case EntityField.THREAD: thread = reader.readString(); break;
-                case EntityField.LOGGER: logger = reader.readString(); break;
-                case EntityField.MESSAGE: message = reader.readString(); break;
+                switch(name) {
 
-                case EntityField.EXCEPTION:
+                    case EntityField.ID: id = reader.readObjectId(); break;
+                    case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
+                    case EntityField.SEVERITY: severity = reader.readString(); break;
+                    case EntityField.THREAD: thread = reader.readString(); break;
+                    case EntityField.LOGGER: logger = reader.readString(); break;
+                    case EntityField.MESSAGE: message = reader.readString(); break;
 
-                    String className = null;
-                    String excMessage = null;
-                    List<String> stacktrace = null;
+                    case EntityField.EXCEPTION:
 
-                    reader.readStartDocument();
+                        String className = null;
+                        String excMessage = null;
+                        List<String> stacktrace = null;
 
-                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                        reader.readStartDocument();
 
-                        final String innerName = reader.readName();
+                        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-                        switch(innerName) {
+                            final String innerName = reader.readName();
 
-                            case EntityField.CLASS_NAME: className = reader.readString(); break;
-                            case EntityField.MESSAGE: excMessage = reader.readString(); break;
+                            switch(innerName) {
 
-                            case EntityField.STACKTRACE:
+                                case EntityField.CLASS_NAME: className = reader.readString(); break;
+                                case EntityField.MESSAGE: excMessage = reader.readString(); break;
+                                case EntityField.STACKTRACE: stacktrace = GenericUtils.readList(reader, String.class); break;
 
-                                reader.readStartArray();
-                                stacktrace = new ArrayList<>();
-                                while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) stacktrace.add(reader.readString());
-                                reader.readEndArray();
-
-                            break;
-
-                            default: throw new IllegalStateException("LogEntitymapper.decode~Unknown field name " + name);
+                                default: throw new CodecException("Unknown field '" + name + "'", SOURCE_DECODE);
+                            }
                         }
-                    }
 
-                    reader.readEndDocument();
-                    exception = new LogEntityStackTrace(className, excMessage, stacktrace);
+                        reader.readEndDocument();
+                        exception = new LogEntityExceptionEntry(className, excMessage, stacktrace);
 
-                break;
+                    break;
 
-                default: throw new IllegalStateException("LogEntitymapper.decode~Unknown field name " + name);
+                    default: throw new CodecException("Unknown field '" + name + "'", SOURCE_DECODE);
+                }
             }
+
+            reader.readEndDocument();
+            return new LogEntity(id, timestamp, severity, thread, logger, message, exception);
         }
 
-        reader.readEndDocument();
-        return new LogEntity(id, timestamp, severity, thread, logger, message, exception);
+        catch(final IllegalStateException exc) {
+
+            throw new CodecException(GenericUtils.WRAPPED_EXCEPTION_MSG, SOURCE_DECODE, exc);
+        }
     }
 
     ///

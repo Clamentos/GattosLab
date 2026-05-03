@@ -162,7 +162,7 @@ public final class RequestDispatcher {
 
             catch(final Exception exc) {
 
-                skipUpdateMetrics = exceptionHandler.handle(exc, exchange);
+                skipUpdateMetrics = exceptionHandler.handleWithReset(exc, exchange);
                 skipClose = true;
             }
 
@@ -184,10 +184,8 @@ public final class RequestDispatcher {
 
         return new IllegalHttpMethodException(
 
-            "RequestDispatcher.rejectInvalidHttpMethod~Method " +
-            method.name() +
-            " is not supported for this endpoint. Supported methods are: " +
-            allowedMethods
+            "Method '" + method.name() + "' is not supported for this endpoint. Supported methods are: " + allowedMethods,
+            "RequestDispatcher.rejectInvalidHttpMethod"
         );
     }
 

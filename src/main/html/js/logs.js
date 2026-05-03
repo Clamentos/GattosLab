@@ -94,7 +94,7 @@ function appendRow(log, table) {
     const exception = document.createElement("div");
 
     timestamp.className = "table-data-elem";
-    timestamp.style = "width: 6%";
+    timestamp.style = "text-align: center; width: 6%";
     timestamp.innerText = formatDate(new Date(log.timestamp));
 
     severity.className = "table-data-elem";

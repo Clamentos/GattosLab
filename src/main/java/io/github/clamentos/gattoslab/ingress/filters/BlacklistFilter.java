@@ -18,6 +18,7 @@ import io.undertow.util.Headers;
 
 ///..
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -48,7 +49,7 @@ public final class BlacklistFilter {
         this.isIpAllowed(ip, property.getIpv6s(), userAgent);
 
         final Set<String> userAgentContains = property.getUserAgentContains();
-        if(userAgentContains.isEmpty() || userAgent == null) return;
+        if(userAgentContains.isEmpty()) return;
 
         for(final String piece : userAgentContains) {
 
@@ -78,7 +79,7 @@ public final class BlacklistFilter {
 
         else {
 
-            return !(this.compareIpv6(address, start) == -1 || this.compareIpv6(address, end) == 1);
+            return !(Arrays.compareUnsigned(address, start) < 0 || Arrays.compareUnsigned(address, end) > 0);
         }
     }
 
@@ -96,25 +97,10 @@ public final class BlacklistFilter {
     }
 
     ///..
-    private int compareIpv6(final byte[] octetsA, final byte[] octetsB) {
-
-        for(int i = 0; i < octetsA.length; i++) {
-
-            final int a = (octetsA[i] & 0x0FF);
-            final int b = (octetsB[i] & 0x0FF);
-
-            if(a < b) return -1;
-            else if(a > b) return 1;
-        }
-
-        return 0;
-    }
-
-    ///..
     private ApiSecurityException createException(final InetAddress ip, final String userAgent) {
 
         squashedLogContainer.squash(SquashLogEventType.BLACKLISTED, GenericUtils.composeFingerprint(ip, userAgent));
-        return new ApiSecurityException("BlacklistFilter.createException~Blacklisted");
+        return new ApiSecurityException("Blacklisted", "BlacklistFilter.createException");
     }
 
     ///

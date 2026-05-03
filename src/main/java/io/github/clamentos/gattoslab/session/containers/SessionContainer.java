@@ -12,7 +12,7 @@ import java.util.Map.Entry;
 public interface SessionContainer {
 
     ///
-    Entry<String, SessionMetadata> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException;
+    Entry<String, SessionMetadata> createSession(final String authorization, final String fingerprint, final boolean isRefresh) throws ApiSecurityException;
 
     ///..
     SessionMetadata getSession(final String sessionId);

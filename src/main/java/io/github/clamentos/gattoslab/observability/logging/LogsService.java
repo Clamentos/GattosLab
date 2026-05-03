@@ -59,7 +59,7 @@ public final class LogsService {
 
         if(logSearchFilter.getStartTimestamp() > logSearchFilter.getEndTimestamp()) {
 
-            throw new ValidationException("LogsService.getLogs~" + EntityField.END_TIMESTAMP + " cannot be smaller than " + EntityField.START_TIMESTAMP);
+            throw new ValidationException("Field '" + EntityField.END_TIMESTAMP + "' cannot be smaller than '" + EntityField.START_TIMESTAMP + "'", "LogsService.getLogs");
         }
 
         final MongoCollection<Document> logsCollection = mongoClientWrapper.getCollection(DatabaseCollection.LOGS);

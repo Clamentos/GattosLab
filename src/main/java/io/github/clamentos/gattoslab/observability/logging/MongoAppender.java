@@ -7,6 +7,7 @@ import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.AppenderBase;
 
 ///..
+import io.github.clamentos.gattoslab.exceptions.CauseContainer;
 import io.github.clamentos.gattoslab.observability.logging.entities.LogEntity;
 import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
@@ -42,9 +43,9 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
         super();
 
         mongoClientReference = new AtomicReference<>();
-        fallbackFile = new FallbackFile(mongoClientReference, 1000L, FALLBACK_FILE_PATH);
+        fallbackFile = new FallbackFile(mongoClientReference, 2000L, FALLBACK_FILE_PATH);
 
-        dumper = ThreadSpawner.spawnVirtualThread("gattos-lab-ff-dumper", fallbackFile);
+        dumper = ThreadSpawner.spawnVirtualThread("gattos-lab-ff", fallbackFile);
     }
 
     ///
@@ -117,12 +118,17 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
             if(throwableProxy != null) {
 
-                final StackTraceElementProxy[] stacktrace = throwableProxy.getStackTraceElementProxyArray();
-
                 sb.append(LogEntity.SECTION_SEPARATOR).append(throwableProxy.getClassName()).append(LogEntity.SECTION_SEPARATOR);
                 sb.append(this.normalize(throwableProxy.getMessage()).replace("\n", LogEntity.MESSAGE_LINE_SEPARATOR));
 
-                if(stacktrace != null) sb.append(LogEntity.SECTION_SEPARATOR).append(this.formatStacktraceForFile(stacktrace));
+                final StackTraceElementProxy[] stacktrace = throwableProxy.getStackTraceElementProxyArray();
+
+                if(stacktrace != null) {
+
+                    sb.append(LogEntity.SECTION_SEPARATOR).append(this.formatStacktraceForFile(stacktrace)).append(LogEntity.SECTION_SEPARATOR);
+                    this.formatStacktraceForFile(throwableProxy, sb);
+                    sb.deleteCharAt(sb.length() - 1);
+                }
             }
 
             fallbackFile.write(sb.toString() + "\n");
@@ -161,6 +167,34 @@ public final class MongoAppender extends AppenderBase<ILoggingEvent> {
 
         if(!traceString.isEmpty()) traceString.deleteCharAt(traceString.length() - 1);
         return this.normalize(traceString.toString());
+    }
+
+    ///..
+    private void formatStacktraceForFile(final IThrowableProxy exception, final StringBuilder traceString) {
+
+        if(exception != null) {
+
+            final String className = exception.getClassName();
+            final String msg = exception.getMessage().replace("\n", LogEntity.MESSAGE_LINE_SEPARATOR);
+            final IThrowableProxy cause = exception.getCause();
+
+            if(cause != null) {
+
+                final String causeMsg = cause.getMessage().replace("\n", LogEntity.MESSAGE_LINE_SEPARATOR);
+
+                if(cause.getClassName().equals(CauseContainer.class.getName())) traceString.append("$" + className + ": (" + causeMsg + ") ~ " + msg);
+                else traceString.append("$" + className + ": " + msg);
+
+                traceString.append(LogEntity.SECTION_SEPARATOR);
+                this.formatStacktraceForFile(cause.getCause(), traceString);
+            }
+
+            else {
+
+                traceString.append("$" + className + ": " + msg);
+                traceString.append(LogEntity.SECTION_SEPARATOR);
+            }
+        }
     }
 
     ///

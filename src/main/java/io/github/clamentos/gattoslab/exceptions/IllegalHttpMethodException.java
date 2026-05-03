@@ -4,9 +4,9 @@ package io.github.clamentos.gattoslab.exceptions;
 public final class IllegalHttpMethodException extends Exception {
 
     ///
-    public IllegalHttpMethodException(final String message) {
+    public IllegalHttpMethodException(final String message, final String source) {
 
-        super(message, null, false, false);
+        super(message, new CauseContainer(source), false, false);
     }
 
     ///

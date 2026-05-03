@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
+import io.github.clamentos.gattoslab.exceptions.CauseContainer;
+
+///..
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -27,6 +30,9 @@ import lombok.NoArgsConstructor;
 public final class ResourceWalker {
 
     ///
+    private static final String SOURCE_LIST = "ResourceWalker.listSiteResourcePaths";
+
+    ///
     public static InputStream getResource(final String path) {
 
         return Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
@@ -36,7 +42,7 @@ public final class ResourceWalker {
     public static List<String> listSiteResourcePaths(final String rootPath) throws IOException {
 
         final URL url = Thread.currentThread().getContextClassLoader().getResource(rootPath);
-        if(url == null) throw new IOException("Could not find the resource at: " + rootPath);
+        if(url == null) throw new IOException("Could not find the resource at '" + rootPath + "'", new CauseContainer(SOURCE_LIST));
 
         try {
 
@@ -48,7 +54,7 @@ public final class ResourceWalker {
 
         catch(final URISyntaxException exc) {
 
-            throw new IOException(exc);
+            throw new IOException(GenericUtils.WRAPPED_EXCEPTION_MSG, new CauseContainer(SOURCE_LIST, exc));
         }
     }
 

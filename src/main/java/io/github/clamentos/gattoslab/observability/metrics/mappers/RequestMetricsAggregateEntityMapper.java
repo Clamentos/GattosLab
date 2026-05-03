@@ -1,12 +1,11 @@
 package io.github.clamentos.gattoslab.observability.metrics.mappers;
 
 ///
+import io.github.clamentos.gattoslab.exceptions.CauseContainer;
+import io.github.clamentos.gattoslab.exceptions.CodecException;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsAggregateEntity;
 import io.github.clamentos.gattoslab.persistence.EntityField;
-
-///..
-import java.util.ArrayList;
-import java.util.List;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import org.bson.BsonReader;
@@ -20,6 +19,9 @@ import org.bson.codecs.EncoderContext;
 public final class RequestMetricsAggregateEntityMapper implements Codec<RequestMetricsAggregateEntity> {
 
     ///
+    private static final String SOURCE_DECODE = "RequestMetricsAggregateEntityMapper.decode";
+
+    ///
     @Override
     public Class<RequestMetricsAggregateEntity> getEncoderClass() {
 
@@ -28,59 +30,59 @@ public final class RequestMetricsAggregateEntityMapper implements Codec<RequestM
 
     ///..
     @Override
-    public void encode(final BsonWriter writer, final RequestMetricsAggregateEntity value, final EncoderContext encoderContext) {
+    public void encode(final BsonWriter writer, final RequestMetricsAggregateEntity value, final EncoderContext encoderContext) throws UnsupportedOperationException {
 
-        throw new UnsupportedOperationException("RequestMetricsAggregateEntityMapper.encode~Aggregations are read-only");
+        throw new UnsupportedOperationException("Aggregations are read-only", new CauseContainer("RequestMetricsAggregateEntityMapper.encode"));
     }
 
     ///..
     @Override
-    public RequestMetricsAggregateEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws IllegalArgumentException {
+    public RequestMetricsAggregateEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws CodecException {
 
-        String key = null;
-        long timeSlot = 0;
-        boolean isOthers = false;
-        int rate = 0;
-        List<Integer> latencyDistribution = null;
+        try {
 
-        reader.readStartDocument();
+            String key = null;
+            long timeSlot = 0;
+            boolean isOthers = false;
+            int rate = 0;
+            int[] latencyDistribution = null;
 
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            reader.readStartDocument();
 
-            final String name = reader.readName();
+            while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            switch(name) {
+                final String name = reader.readName();
 
-                case EntityField.LATENCY_DISTRIBUTION:
+                switch(name) {
 
-                    reader.readStartArray();
-                    latencyDistribution = new ArrayList<>();
-                    while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) latencyDistribution.add(reader.readInt32());
-                    reader.readEndArray();
+                    case EntityField.KEY: key = reader.readString(); break;
+                    case EntityField.TIME_SLOT: timeSlot = (long)reader.readDouble(); break;
+                    case EntityField.IS_OTHERS: isOthers = reader.readBoolean(); break;
+                    case EntityField.RATE: rate = reader.readInt32(); break;
 
-                break;
+                    case EntityField.LATENCY_DISTRIBUTION:
 
-                case EntityField.KEY: key = reader.readString(); break;
-                case EntityField.TIME_SLOT: timeSlot = (long)reader.readDouble(); break;
-                case EntityField.IS_OTHERS: isOthers = reader.readBoolean(); break;
-                case EntityField.RATE: rate = reader.readInt32(); break;
+                        latencyDistribution = new int[EntityField.LATENCIES.size()];
 
-                case EntityField.ID: reader.readObjectId(); break;
-                default: throw new IllegalArgumentException("RequestMetricsAggregateEntityMapper.decode~Unknown field name " + name);
+                        reader.readStartArray();
+                        for(int i = 0; i < latencyDistribution.length; i++) latencyDistribution[i] = reader.readInt32();
+                        reader.readEndArray();
+
+                    break;
+
+                    case EntityField.ID: reader.readObjectId(); break;
+                    default: throw new CodecException("Unknown field '" + name + "'", SOURCE_DECODE);
+                }
             }
+
+            reader.readEndDocument();
+            return new RequestMetricsAggregateEntity(key, timeSlot, isOthers, rate, latencyDistribution);
         }
 
-        reader.readEndDocument();
-        int[] latencyDistributionArray = null;
+        catch(final IllegalStateException exc) {
 
-        if(latencyDistribution != null) {
-
-            int i = 0;
-            latencyDistributionArray = new int[latencyDistribution.size()];
-            for(final Integer latency : latencyDistribution) latencyDistributionArray[i++] = latency;
+            throw new CodecException(GenericUtils.WRAPPED_EXCEPTION_MSG, SOURCE_DECODE, exc);
         }
-
-        return new RequestMetricsAggregateEntity(key, timeSlot, isOthers, rate, latencyDistributionArray);
     }
 
     ///

@@ -27,6 +27,9 @@ import lombok.extern.slf4j.Slf4j;
 public final class AdminSessionContainer implements SessionContainer {
 
     ///
+    private static final String SOURCE_CREATE_SESSION = "AdminSessionContainer.createSession";
+
+    ///
     private final String apiKey;
     private final int maxSessions;
     private final long sessionDuration;
@@ -56,17 +59,10 @@ public final class AdminSessionContainer implements SessionContainer {
 
     ///
     @Override
-    public Entry<String, SessionMetadata> createSession(final String authorization, final String fingerprint, final boolean forceCreate) throws ApiSecurityException {
+    public Entry<String, SessionMetadata> createSession(final String authorization, final String fingerprint, final boolean isRefresh) throws ApiSecurityException {
 
-        if(!forceCreate && !this.apiKey.equals(authorization)) {
-
-            throw new ApiSecurityException("AdminSessionContainer.createSession~Invalid api key for fingerprint: " + fingerprint);
-        }
-
-        if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) {
-
-            throw new ApiSecurityException("AdminSessionContainer.createSession~Too many sessions");
-        }
+        if(!isRefresh && !this.apiKey.equals(authorization)) throw new ApiSecurityException("Invalid api key", SOURCE_CREATE_SESSION);
+        if(sizeCounter.getAndUpdate(val -> val < maxSessions ? val + 1 : maxSessions) == maxSessions) throw new ApiSecurityException("Too many sessions", SOURCE_CREATE_SESSION);
 
         final byte[] sessionId = new byte[32];
         random.nextBytes(sessionId);
@@ -85,8 +81,7 @@ public final class AdminSessionContainer implements SessionContainer {
     @Override
     public SessionMetadata getSession(final String sessionId) {
 
-        if(sessionId == null) return null;
-        return sessions.get(sessionId);
+        return sessions.getOrDefault(sessionId, null);
     }
 
     ///..

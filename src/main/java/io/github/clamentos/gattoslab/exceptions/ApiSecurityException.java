@@ -4,9 +4,9 @@ package io.github.clamentos.gattoslab.exceptions;
 public final class ApiSecurityException extends Exception {
 
     ///
-    public ApiSecurityException(final String message) {
+    public ApiSecurityException(final String message, final String source) {
 
-        super(message, null, false, false);
+        super(message, new CauseContainer(source), false, false);
     }
 
     ///

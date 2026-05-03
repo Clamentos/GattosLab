@@ -30,6 +30,9 @@ import lombok.extern.slf4j.Slf4j;
 public final class SecurityFilter {
 
     ///
+    private static final String SOURCE_AUTHORIZE = "SecurityFilter.authorize";
+
+    ///
     private final String cookieName;
     private final SessionRole roleToCheck;
     private final Set<String> protectedPaths;
@@ -54,7 +57,7 @@ public final class SecurityFilter {
         if(roleToCheck == SessionRole.ADMIN && !protectedPaths.contains(path)) return;
 
         final Cookie cookie = exchange.getRequestCookie(cookieName);
-        String errorMessage = "SecurityFilter.authorize~";
+        String errorMessage = "";
 
         if(cookie != null) {
 
@@ -73,8 +76,8 @@ public final class SecurityFilter {
             errorMessage += "No " + roleToCheck + " session cookie found in the request";
         }
 
-        if(path.endsWith(".html") && roleToCheck == SessionRole.ADMIN) throw new RedirectException(Apis.FE_LOGIN);
-        else throw new ApiSecurityException(errorMessage);
+        if(path.endsWith(".html") && roleToCheck == SessionRole.ADMIN) throw new RedirectException(Apis.FE_LOGIN, SOURCE_AUTHORIZE);
+        else throw new ApiSecurityException(errorMessage, SOURCE_AUTHORIZE);
     }
 
     ///

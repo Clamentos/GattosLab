@@ -14,6 +14,7 @@ import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 
 ///..
+import io.undertow.io.UndertowOutputStream;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.StatusCodes;
@@ -50,9 +51,23 @@ public final class GlobalExceptionHandler {
     ///
     public boolean handle(final Exception exception, final HttpServerExchange exchange) {
 
+        return this.handleInternal(exception, exchange, false);
+    }
+
+    ///..
+    public boolean handleWithReset(final Exception exception, final HttpServerExchange exchange) {
+
+        return this.handleInternal(exception, exchange, true);
+    }
+
+    ///
+    private boolean handleInternal(final Exception exception, final HttpServerExchange exchange, final boolean resetStream) {
+
         if(!exchange.isResponseStarted()) {
 
             try {
+
+                if(resetStream) ((UndertowOutputStream)exchange.getOutputStream()).resetBuffer();
 
                 switch(exception) {
 
@@ -80,7 +95,9 @@ public final class GlobalExceptionHandler {
 
             catch(final RuntimeException exc) {
 
-                log.error("Could not handle exception, will respond with a basic 500", exc);
+                log.error("Could not handle exception, will respond with a basic 500. RID: {}", exchange.getRequestId(), exc);
+                log.error("Original exception for RID: {}", exchange.getRequestId(), exception);
+
                 exchange.setStatusCode(StatusCodes.INTERNAL_SERVER_ERROR);
             }
         }
@@ -99,7 +116,7 @@ public final class GlobalExceptionHandler {
 
             else {
 
-                log.warn("Response already started. Exception to be handled is", exception);
+                log.warn("Response already started. Exception to be handled for RID: {} is", exchange.getRequestId(), exception);
             }
         }
 

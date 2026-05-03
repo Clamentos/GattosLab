@@ -12,7 +12,7 @@ PRIVKEY="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
 CHAIN="/etc/letsencrypt/live/$DOMAIN/chain.pem"
 
 mkdir -p "$TARGET_DIR"
-openssl pkcs12 -export -in "$FULLCHAIN" -inkey "$PRIVKEY" -out "$TARGET_DIR/$KEYSTORE_NAME" -name tomcat  -CAfile "$CHAIN"  -caname root  -password "pass:$KEYSTORE_PASSWORD"
+openssl pkcs12 -export -in "$FULLCHAIN" -inkey "$PRIVKEY" -out "$TARGET_DIR/$KEYSTORE_NAME" -name tomcat -CAfile "$CHAIN" -caname root -password "pass:$KEYSTORE_PASSWORD"
 
 chown $OWNER_USER:$OWNER_GROUP "$TARGET_DIR/$KEYSTORE_NAME"
 chmod 400 "$TARGET_DIR/$KEYSTORE_NAME"

@@ -37,7 +37,7 @@ public enum HttpMethod {
         if(HttpMethod.DELETE.method.equals(method)) return HttpMethod.DELETE;
         if(HttpMethod.OPTIONS.method.equals(method)) return HttpMethod.OPTIONS;
 
-        throw new ValidationException("HttpMethod.decode~Unknown method " + method);
+        throw new ValidationException("Unknown method '" + method + "'", "HttpMethod.decode");
     }
 
     ///

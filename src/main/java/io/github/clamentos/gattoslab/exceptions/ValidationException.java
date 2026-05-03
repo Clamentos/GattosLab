@@ -4,9 +4,9 @@ package io.github.clamentos.gattoslab.exceptions;
 public final class ValidationException extends Exception {
 
     ///
-    public ValidationException(final String message) {
+    public ValidationException(final String message, final String source) {
 
-        super(message, null, false, false);
+        super(message, new CauseContainer(source), false, false);
     }
 
     ///

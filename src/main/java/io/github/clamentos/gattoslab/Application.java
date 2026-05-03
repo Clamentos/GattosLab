@@ -19,6 +19,7 @@ import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer
 import io.github.clamentos.gattoslab.observability.logging.squash.BlacklistSquash;
 import io.github.clamentos.gattoslab.observability.logging.squash.IfModifiedSinceMalformedSquash;
 import io.github.clamentos.gattoslab.observability.logging.squash.RateLimitSquash;
+import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEvent;
 import io.github.clamentos.gattoslab.persistence.MongoClientProvider;
 import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
@@ -80,7 +81,7 @@ public class Application {
         log.info("Webserver started");
 
         beansContainer.set(beansContainer.size() - 1, server);
-        prepareShutdownHook(beansContainer);
+        Runtime.getRuntime().addShutdownHook(ThreadSpawner.createVirtualThread("gattos-lab-sh", new ShutdownHook(beansContainer)));
     }
 
     ///.
@@ -109,14 +110,10 @@ public class Application {
         final MongoClientWrapper mongoClientWrapper = new MongoClientWrapper(applicationProperties);
 
         MongoClientProvider.setWrapper(mongoClientWrapper);
+        final List<SquashLogEvent> squashes = List.of(new IfModifiedSinceMalformedSquash(), new RateLimitSquash(), new BlacklistSquash());
 
         @SuppressWarnings("squid:S2095") // Closed by shutdown hook
-        final SquashedLogsContainer squashedLogsContainer = new SquashedLogsContainer(
-
-            applicationProperties,
-            batchScheduler,
-            List.of(new IfModifiedSinceMalformedSquash(), new RateLimitSquash(), new BlacklistSquash())
-        );
+        final SquashedLogsContainer squashedLogsContainer = new SquashedLogsContainer(applicationProperties, batchScheduler, squashes);
 
         final JsonMapper jsonMapper = JsonMapper.builder()
 
@@ -174,8 +171,8 @@ public class Application {
 
         Servlets.deployment()
 
-            .setExecutor(new VirtualThreadExecutor("gattos-lab-ws-worker"))
-            .setAsyncExecutor(new VirtualThreadExecutor("gattos-lab-wsa-worker"))
+            .setExecutor(new VirtualThreadExecutor("gattos-lab-ws"))
+            .setAsyncExecutor(new VirtualThreadExecutor("gattos-lab-wsa"))
         ;
 
         final Builder serverBuilder = Undertow.builder().setHandler(ingressHandler);
@@ -219,12 +216,6 @@ public class Application {
         }
 
         return serverBuilder.build();
-    }
-
-    ///..
-    private static void prepareShutdownHook(final List<Object> beansContainer) {
-
-        Runtime.getRuntime().addShutdownHook(ThreadSpawner.createVirtualThread("gattos-lab-shutdown-hook", new ShutdownHook(beansContainer)));
     }
 
     ///..

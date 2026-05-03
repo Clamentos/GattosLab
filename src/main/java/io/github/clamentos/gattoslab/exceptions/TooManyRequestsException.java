@@ -4,9 +4,9 @@ package io.github.clamentos.gattoslab.exceptions;
 public final class TooManyRequestsException extends Exception {
 
     ///
-    public TooManyRequestsException(final String message) {
+    public TooManyRequestsException(final String message, final String source) {
 
-        super(message, null, false, false);
+        super(message, new CauseContainer(source), false, false);
     }
 
     ///

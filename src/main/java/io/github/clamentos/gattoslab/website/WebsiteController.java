@@ -55,7 +55,11 @@ public final class WebsiteController {
 
             if(requestMethod != HttpMethod.GET) {
 
-                throw new IllegalHttpMethodException("WebsiteController.serveContent~Method " + requestMethod + " is not supported for this endpoint. Supported methods are: GET");
+                throw new IllegalHttpMethodException(
+
+                    "Method '" + requestMethod + "' is not supported for this endpoint. Supported methods are: GET",
+                    "WebsiteController.serveContent"
+                );
             }
 
             if(content.isCacheable()) {
@@ -68,7 +72,7 @@ public final class WebsiteController {
 
                         final OffsetDateTime date = OffsetDateTime.parse(ifModifiedSince, DateTimeFormatter.RFC_1123_DATE_TIME);
 
-                        if(date.compareTo(website.getTimeAtStartup()) > 0) {
+                        if(website.getTimeAtStartup().compareTo(date) <= 0) {
 
                             exchange.setStatusCode(StatusCodes.NOT_MODIFIED);
                             return;
@@ -99,9 +103,11 @@ public final class WebsiteController {
         final HeaderMap headers = exchange.getResponseHeaders();
 
         HttpUtils.addContentType(headers, resource.getMimeType());
-        HttpUtils.addCache(headers, website.getCacheDuration());
         HttpUtils.addLastModified(headers, website.getTimeAtStartupStr());
         HttpUtils.addGzipEncoding(headers);
+
+        if(resource.isCacheable()) HttpUtils.addCache(headers, website.getCacheDuration());
+        else HttpUtils.addNoCache(headers);
 
         exchange.getResponseSender().send(ByteBuffer.wrap(resource.getContent()));
     }

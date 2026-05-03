@@ -25,10 +25,11 @@ public enum SessionRole {
     ADMIN("admin");
 
     ///
+    private static final String SOURCE_DECODE = "SessionRole.decode";
     private final String propertySection;
 
     ///
-    public static SessionRole fromParam(final HttpServerExchange exchange) throws ApiSecurityException {
+    public static SessionRole decode(final HttpServerExchange exchange) throws ApiSecurityException {
 
         final Deque<String> values = exchange.getQueryParameters().get("role");
 
@@ -38,12 +39,12 @@ public enum SessionRole {
 
             if(value != null) {
 
-                try { return SessionRole.valueOf(value); }
-                catch(final IllegalArgumentException _) { throw new ApiSecurityException("SessionRole.fromParam~Unknown role: " + value); }
+                if("ADMIN".equals(value)) return SessionRole.ADMIN;
+                throw new ApiSecurityException("Unknown role '" + value + "'", SOURCE_DECODE);
             }
         }
 
-        throw new ApiSecurityException("SessionRole.fromParam~Query param cannot be null");
+        throw new ApiSecurityException("Query param cannot be null", SOURCE_DECODE);
     }
 
     ///

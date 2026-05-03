@@ -3,8 +3,10 @@ package io.github.clamentos.gattoslab.configuration.dynamic.mappers;
 ///
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyEntity;
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyType;
+import io.github.clamentos.gattoslab.exceptions.CauseContainer;
 import io.github.clamentos.gattoslab.exceptions.CodecException;
 import io.github.clamentos.gattoslab.persistence.EntityField;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 import io.github.clamentos.gattoslab.utils.Hashable;
 
 ///..
@@ -21,6 +23,9 @@ import org.bson.codecs.EncoderContext;
 
 ///
 public final class DynamicPropertyMapper implements Codec<DynamicPropertyEntity<? extends Hashable>> {
+
+///
+    public static final String SOURCE_DECODE = "DynamicPropertyMapper.decode";
 
     ///
     private final Map<DynamicPropertyType, DynamicPropertySubMapper<? extends Hashable>> subMappers;
@@ -44,7 +49,11 @@ public final class DynamicPropertyMapper implements Codec<DynamicPropertyEntity<
     @Override
     public void encode(final BsonWriter writer, final DynamicPropertyEntity<? extends Hashable> value, final EncoderContext encoderContext) throws UnsupportedOperationException {
 
-        throw new UnsupportedOperationException("DynamicPropertyMapper.encode~Dynamic properties are currently read-only and must be inserted into the database manually");
+        throw new UnsupportedOperationException(
+
+            "Dynamic properties are currently read-only and must be inserted into the database manually",
+            new CauseContainer("DynamicPropertyMapper.encode")
+        );
     }
 
     ///..
@@ -54,7 +63,7 @@ public final class DynamicPropertyMapper implements Codec<DynamicPropertyEntity<
         try {
 
             DynamicPropertyType type = null;
-            boolean enabled = false;
+            Boolean enabled = false;
             Hashable value = null;
 
             reader.readStartDocument();
@@ -65,12 +74,19 @@ public final class DynamicPropertyMapper implements Codec<DynamicPropertyEntity<
 
                 switch(name) {
 
-                    case EntityField.KEY: type = DynamicPropertyType.valueOf(reader.readString()); break;
-                    case EntityField.ENABLED: enabled = reader.readBoolean(); break;
+                    case EntityField.KEY: type = DynamicPropertyType.decode(GenericUtils.readString(reader)); break;
+
+                    case EntityField.ENABLED: 
+
+                        enabled = GenericUtils.readBoolean(reader);
+                        if(enabled == null) throw new CodecException("Field 'enabled' cannot be null", SOURCE_DECODE);
+
+                    break;
+
                     case EntityField.VALUE: value = subMappers.get(type).map(reader); break;
 
                     case EntityField.ID: reader.readObjectId(); break;
-                    default: throw new IllegalArgumentException("DynamicPropertyMapper.decode~Unknown field name " + name);
+                    default: throw new CodecException("Unknown field '" + name + "'", SOURCE_DECODE);
                 }
             }
 
@@ -80,7 +96,7 @@ public final class DynamicPropertyMapper implements Codec<DynamicPropertyEntity<
 
         catch(final IllegalStateException exc) {
 
-            throw new CodecException("DynamicPropertyMapper.decode~" + exc.getMessage(), exc);
+            throw new CodecException(GenericUtils.WRAPPED_EXCEPTION_MSG, SOURCE_DECODE, exc);
         }
     }
 

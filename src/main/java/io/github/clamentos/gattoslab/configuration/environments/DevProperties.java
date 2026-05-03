@@ -85,32 +85,32 @@ public final class DevProperties extends ApplicationProperties {
     ///
     public DevProperties() {
 
-        batchSchedulerShutdownTimeout = Duration.ofSeconds(10);
+        batchSchedulerShutdownTimeout = Duration.ofSeconds(5);
 
         isCorsEnabled = true;
         corsAllowedOrigins = Set.of("https://localhost:8443");
-        corsMaxAge = Duration.ofHours(1);
+        corsMaxAge = Duration.ofDays(7);
 
         dbConnectionString = "mongodb://localhost:27017/GattosLabMongoDB";
         dbMinPoolSize = 4;
         dbMaxPoolSize = 16;
-        dbMaintenanceFrequency = Duration.ofSeconds(30);
+        dbMaintenanceFrequency = Duration.ofMinutes(1);
         dbMaxConnectionIdleTime = Duration.ofMinutes(5);
-        dbConnectTimeout = Duration.ofSeconds(20);
-        dbReadTimeout = Duration.ofSeconds(15);
+        dbConnectTimeout = Duration.ofSeconds(30);
+        dbReadTimeout = Duration.ofSeconds(20);
 
         dynamicPropertiesRefreshSchedule = CommonCrons.EVERY_MINUTE;
 
-        logsRetention = Duration.ofDays(7);
+        logsRetention = Duration.ofDays(31);
         logsRetentionSchedule = CommonCrons.EVERY_DAY;
         logsSquashSchedule = CommonCrons.EVERY_MINUTE;
 
         metricsDumpToDbSchedule = CommonCrons.EVERY_MINUTE;
         isRequestMetricsEnabled = true;
-        requestMetricsRetention = Duration.ofDays(7);
+        requestMetricsRetention = Duration.ofDays(31);
         metricsRetentionSchedule = CommonCrons.EVERY_DAY;
         metricsSiphonCapacity = 1000;
-        systemMetricsRetention = Duration.ofDays(7);
+        systemMetricsRetention = Duration.ofDays(31);
         systemMetricsSampling = CommonCrons.EVERY_5_SECONDS;
         systemMetricsPolling = CommonCrons.EVERY_SECOND;
 

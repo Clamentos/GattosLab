@@ -1,8 +1,10 @@
 package io.github.clamentos.gattoslab.observability.metrics.mappers;
 
 ///
+import io.github.clamentos.gattoslab.exceptions.CodecException;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
 import io.github.clamentos.gattoslab.persistence.EntityField;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import org.bson.BsonReader;
@@ -15,6 +17,9 @@ import org.bson.types.ObjectId;
 
 ///
 public class RequestMetricsEntityMapper implements Codec<RequestMetricsEntity> {
+
+    ///
+    private static final String SOURCE_DECODE = "RequestMetricsEntityMapper.decode";
 
     ///
     @Override
@@ -42,38 +47,46 @@ public class RequestMetricsEntityMapper implements Codec<RequestMetricsEntity> {
 
     ///..
     @Override
-    public RequestMetricsEntity decode(final BsonReader reader, final DecoderContext decoderContext) {
+    public RequestMetricsEntity decode(final BsonReader reader, final DecoderContext decoderContext) throws CodecException {
 
-        ObjectId id = null;
-        long timestamp = 0;
-        int latency = 0;
-        String path = null;
-        String userAgent = null;
-        boolean isOthers = false;
-        int httpStatus = 0;
+        try {
 
-        reader.readStartDocument();
+            ObjectId id = null;
+            long timestamp = 0;
+            int latency = 0;
+            String path = null;
+            String userAgent = null;
+            boolean isOthers = false;
+            int httpStatus = 0;
 
-        while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            reader.readStartDocument();
 
-            final String name = reader.readName();
+            while(reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
 
-            switch(name) {
+                final String name = reader.readName();
 
-                case EntityField.ID: id = reader.readObjectId(); break;
-                case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
-                case EntityField.LATENCY: latency = reader.readInt32(); break;
-                case EntityField.PATH: path = reader.readString(); break;
-                case EntityField.USER_AGENT: userAgent = reader.readString(); break;
-                case EntityField.IS_OTHERS: isOthers = reader.readBoolean(); break;
-                case EntityField.HTTP_STATUS: httpStatus = reader.readInt32(); break;
+                switch(name) {
 
-                default: throw new IllegalArgumentException("RequestMetricsEntityMapper.decode~Unknown field name " + name);
+                    case EntityField.ID: id = reader.readObjectId(); break;
+                    case EntityField.TIMESTAMP: timestamp = reader.readInt64(); break;
+                    case EntityField.LATENCY: latency = reader.readInt32(); break;
+                    case EntityField.PATH: path = reader.readString(); break;
+                    case EntityField.USER_AGENT: userAgent = reader.readString(); break;
+                    case EntityField.IS_OTHERS: isOthers = reader.readBoolean(); break;
+                    case EntityField.HTTP_STATUS: httpStatus = reader.readInt32(); break;
+
+                    default: throw new CodecException("Unknown field '" + name + "'", SOURCE_DECODE);
+                }
             }
+
+            reader.readEndDocument();
+            return new RequestMetricsEntity(id, timestamp, latency, path, userAgent, isOthers, httpStatus);
         }
 
-        reader.readEndDocument();
-        return new RequestMetricsEntity(id, timestamp, latency, path, userAgent, isOthers, httpStatus);
+        catch(final IllegalStateException exc) {
+
+            throw new CodecException(GenericUtils.WRAPPED_EXCEPTION_MSG, SOURCE_DECODE, exc);
+        }
     }
 
     ///

@@ -81,14 +81,14 @@ public final class HttpUtils {
         return headerMap.add(
 
             HttpString.tryFromString("Access-Control-Allow-Methods"),
-            allowedMethods.stream().map(HttpMethod::name).collect(Collectors.joining(", "))
+            allowedMethods.stream().map(HttpMethod::name).collect(Collectors.joining(","))
         );
     }
 
     ///..
     public static HeaderMap addAllowedOrigins(final HeaderMap headerMap, final Set<String> allowedOrigins) {
 
-        return headerMap.add(HttpString.tryFromString("Access-Control-Allow-Origin"), allowedOrigins.stream().collect(Collectors.joining(", ")));
+        return headerMap.add(HttpString.tryFromString("Access-Control-Allow-Origin"), allowedOrigins.stream().collect(Collectors.joining(",")));
     }
 
     ///..
