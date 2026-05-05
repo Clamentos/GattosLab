@@ -59,7 +59,7 @@ rm -fr "$REPO_DIR"
 git clone https://github.com/Clamentos/GattosLab.git "$REPO_DIR"
 
 echo -e "\n--> Building the project with mvn\n"
-mvn -f "$REPO_DIR"/pom.xml clean package -DskipTests
+mvn -f "$REPO_DIR"/pom.xml mvn clean compile assembly:single
 
 echo -e "$BOLD_PRINT\n=> PROJECT DEPLOY$RESET_COLORS"
 echo "--> Grabbing the generated JAR"
@@ -132,7 +132,7 @@ runuser -u "$APP_USER" -- bash -c "
 
     set -a
     source "$SECRETS_FILE"
-    exec java -jar -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError "$RUN_DIR/$NEW_JAR_NAME" prod
+    exec java -jar -XX:+UnlockExperimentalVMOptions -Xmx1024M -XX:+UseZGC -XX:+ZGenerational -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompressedClassPointers -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+UseSuperWord -XX:+ExitOnOutOfMemoryError "$RUN_DIR/$NEW_JAR_NAME" PROD
 " &
 
 echo "--> Waiting for the app to start"
