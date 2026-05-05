@@ -109,12 +109,11 @@ public class ObservabilityService implements Closeable {
     ) throws IllegalArgumentException {
 
         eventBus = new EventBus(this::dumpMetrics);
+        systemMetrics = new SystemMetrics(SimpleCron.decodePeriod(applicationProperties.getSystemMetricsSampling()));
 
         batchScheduler.schedule(this::sampleSystemMetrics, "ObservabilityService::sampleSystemMetrics", applicationProperties.getSystemMetricsPolling());
         batchScheduler.schedule(eventBus::trigger, "ObservabilityService::trigger", applicationProperties.getMetricsDumpToDbSchedule());
         batchScheduler.schedule(this::deleteOldMetrics, "ObservabilityService::deleteOldMetrics", applicationProperties.getMetricsRetentionSchedule());
-
-        systemMetrics = new SystemMetrics(SimpleCron.decodePeriod(applicationProperties.getSystemMetricsSampling()));
 
         siphonCapacity = applicationProperties.getMetricsSiphonCapacity();
         requestMetricsRetention = applicationProperties.getRequestMetricsRetention().toMillis();

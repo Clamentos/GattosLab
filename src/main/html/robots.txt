@@ -1,3 +1,4 @@
 user-agent: * 
 allow: *
 sitemap: https://www.gattoslab.dev/sitemap.txt
+sitemap: https://www.gattoslab.dev/sitemap.xml
