@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# Put in directory: /etc/letsencrypt/renewal-hooks/deploy
 # Make this script permissions: -rwx------ root root
 
 DOMAIN="gattoslab.dev"
@@ -11,6 +13,7 @@ FULLCHAIN="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 PRIVKEY="/etc/letsencrypt/live/$DOMAIN/privkey.pem"
 CHAIN="/etc/letsencrypt/live/$DOMAIN/chain.pem"
 
+echo "Begin keystore-regen..."
 mkdir -p "$TARGET_DIR"
 openssl pkcs12 -export -in "$FULLCHAIN" -inkey "$PRIVKEY" -out "$TARGET_DIR/$KEYSTORE_NAME" -name undertow -CAfile "$CHAIN" -caname root -password "pass:$KEYSTORE_PASSWORD"
 
@@ -19,3 +22,4 @@ chmod 400 "$TARGET_DIR/$KEYSTORE_NAME"
 
 # In theory this should require an app-restart because the cert will be different and therefore the keystore
 gattoslab-deploy
+echo "End keystore-regen"
