@@ -5,7 +5,6 @@ target/
 !**/src/test/**/target/
 *.log
 *.p12
-*.txt
 
 ### STS ###
 .apt_generated
