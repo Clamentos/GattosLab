@@ -59,7 +59,7 @@ rm -fr "$REPO_DIR"
 git clone https://github.com/Clamentos/GattosLab.git "$REPO_DIR"
 
 echo -e "\n--> Building the project with mvn\n"
-mvn -f "$REPO_DIR"/pom.xml mvn clean compile assembly:single
+mvn -f "$REPO_DIR"/pom.xml clean compile assembly:single
 
 echo -e "$BOLD_PRINT\n=> PROJECT DEPLOY$RESET_COLORS"
 echo "--> Grabbing the generated JAR"
