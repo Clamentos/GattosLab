@@ -1,8 +1,10 @@
 package io.github.clamentos.gattoslab.configuration;
 
+///
+import io.github.clamentos.gattoslab.configuration.environments.Environment;
 import io.github.clamentos.gattoslab.exceptions.CauseContainer;
 
-///
+///..
 import java.time.Duration;
 import java.util.Set;
 
@@ -13,6 +15,9 @@ public abstract class ApplicationProperties {
     private static final String SOURCE_RESOLVE = "ApplicationProperties.resolve";
 
     ///
+    public abstract Environment getCurrentEnvironment();
+
+    ///..
     public abstract Duration getBatchSchedulerShutdownTimeout();
 
     ///..
@@ -71,6 +76,7 @@ public abstract class ApplicationProperties {
 
     ///..
     public abstract boolean isSslEnabled();
+    public abstract String getSslKeystoreName();
     public abstract String getSslKeystorePassword();
 
     ///..

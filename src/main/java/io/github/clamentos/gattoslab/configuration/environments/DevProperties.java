@@ -76,11 +76,19 @@ public final class DevProperties extends ApplicationProperties {
 
     ///..
     private final boolean isSslEnabled;
+    private final String sslKeystoreName;
     private final String sslKeystorePassword;
 
     ///..
     private final int serverPort;
     private final String serverHost;
+
+    ///..
+    @Override
+    public Environment getCurrentEnvironment() {
+
+        return Environment.DEV;
+    }
 
     ///
     public DevProperties() {
@@ -133,6 +141,7 @@ public final class DevProperties extends ApplicationProperties {
         siteRoot = "site";
 
         isSslEnabled = true;
+        sslKeystoreName = "keystore.p12";
         sslKeystorePassword = "password";
 
         serverPort = 8443;

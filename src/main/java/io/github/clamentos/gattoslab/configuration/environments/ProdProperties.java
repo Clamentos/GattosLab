@@ -76,11 +76,19 @@ public final class ProdProperties extends ApplicationProperties {
 
     ///..
     private final boolean isSslEnabled;
+    private final String sslKeystoreName;
     private final String sslKeystorePassword;
 
     ///..
     private final int serverPort;
     private final String serverHost;
+
+    ///..
+    @Override
+    public Environment getCurrentEnvironment() {
+
+        return Environment.PROD;
+    }
 
     ///
     public ProdProperties() throws IllegalArgumentException {
@@ -133,6 +141,7 @@ public final class ProdProperties extends ApplicationProperties {
         siteRoot = "site";
 
         isSslEnabled = true;
+        sslKeystoreName = "keystore.p12";
         sslKeystorePassword = super.resolve("SSL_KEY_STORE_PASSWORD", String.class);
 
         serverPort = 443;

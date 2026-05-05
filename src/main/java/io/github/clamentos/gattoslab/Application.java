@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.ProfileResolver;
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
+import io.github.clamentos.gattoslab.configuration.environments.Environment;
 import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.ingress.IngressHandler;
 import io.github.clamentos.gattoslab.ingress.RequestDispatcher;
@@ -37,6 +38,7 @@ import io.undertow.Undertow.Builder;
 import io.undertow.servlet.Servlets;
 
 ///..
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -177,7 +179,7 @@ public class Application {
         ;
 
         final Builder serverBuilder = Undertow.builder().setHandler(ingressHandler);
-        final SSLContext sslContext = createSSLContext(applicationProperties.isSslEnabled(), applicationProperties.getSslKeystorePassword());
+        final SSLContext sslContext = createSSLContext(applicationProperties.isSslEnabled(), applicationProperties.getSslKeystorePassword(), applicationProperties);
 
         serverBuilder.setServerOption(UndertowOptions.MAX_HEADER_SIZE, 8192);
         serverBuilder.setServerOption(UndertowOptions.MAX_ENTITY_SIZE, 4096L);
@@ -220,7 +222,7 @@ public class Application {
     }
 
     ///..
-    private static SSLContext createSSLContext(final boolean isEnabled, final String password)
+    private static SSLContext createSSLContext(final boolean isEnabled, final String password, final ApplicationProperties applicationProperties)
     throws CertificateException, IOException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
 
         if(isEnabled) {
@@ -228,7 +230,7 @@ public class Application {
             log.info("Loading SSL certificate start...");
             final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 
-            keyManagerFactory.init(loadKeyStore("/keystore.p12", password), password.toCharArray());
+            keyManagerFactory.init(loadKeyStore(password, applicationProperties), password.toCharArray());
 
             final SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
@@ -242,11 +244,21 @@ public class Application {
     }
 
     ///..
-    private static KeyStore loadKeyStore(final String name, final String password) throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
+    private static KeyStore loadKeyStore(final String password, final ApplicationProperties applicationProperties)
+    throws CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException {
 
-        try(InputStream keyStream = Application.class.getClassLoader().getResourceAsStream(name)) {
+        final Environment currentEnvironment = applicationProperties.getCurrentEnvironment();
+        final String name = applicationProperties.getSslKeystoreName();
 
-            log.info("Keystore file 'keystore.p12' grabbed {}", keyStream != null);
+        final InputStream keyStream = currentEnvironment == Environment.PROD ?
+
+            new FileInputStream("./" + name) :
+            Application.class.getClassLoader().getResourceAsStream(name)
+        ;
+
+        try(keyStream) {
+
+            log.info("Keystore file grabbed {}", keyStream != null);
 
             final KeyStore loadedKeystore = KeyStore.getInstance("JKS");
             loadedKeystore.load(keyStream, password.toCharArray());
