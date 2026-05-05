@@ -38,8 +38,8 @@ public final class BatchScheduler implements Closeable {
 
         shutdownTimeout = applicationProperties.getBatchSchedulerShutdownTimeout();
 
-        scheduler = ThreadSpawner.spawnVirtualThread("gattos-lab-bs", this::triggerJobs);
         jobs = new CopyOnWriteArrayList<>();
+        scheduler = ThreadSpawner.spawnVirtualThread("gattos-lab-bs", this::triggerJobs);
 
         workers = new ConcurrentHashMap<>();
     }
