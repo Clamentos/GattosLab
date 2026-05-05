@@ -136,7 +136,7 @@ public final class ProdProperties extends ApplicationProperties {
         sslKeystorePassword = super.resolve("SSL_KEY_STORE_PASSWORD", String.class);
 
         serverPort = 443;
-        serverHost = "46.224.204.35";
+        serverHost = "::";
     }
 
     ///

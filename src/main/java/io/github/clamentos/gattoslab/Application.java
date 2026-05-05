@@ -99,6 +99,7 @@ public class Application {
         }
 
         log.info("Application PID: {}", pid);
+        log.info("Classpath: {}", System.getProperty("java.class.path"));
     }
 
     ///..
@@ -227,7 +228,7 @@ public class Application {
             log.info("Loading SSL certificate start...");
             final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 
-            keyManagerFactory.init(loadKeyStore("keystore.p12", password), password.toCharArray());
+            keyManagerFactory.init(loadKeyStore("./keystore.p12", password), password.toCharArray());
 
             final SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
@@ -245,7 +246,7 @@ public class Application {
 
         try(InputStream keyStream = Application.class.getClassLoader().getResourceAsStream(name)) {
 
-            log.info("DEBUG keystore.p12 exists {}", keyStream != null);
+            log.info("Keystore file 'keystore.p12' grabbed {}", keyStream != null);
 
             final KeyStore loadedKeystore = KeyStore.getInstance("JKS");
             loadedKeystore.load(keyStream, password.toCharArray());
