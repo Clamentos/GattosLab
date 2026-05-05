@@ -228,7 +228,7 @@ public class Application {
             log.info("Loading SSL certificate start...");
             final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 
-            keyManagerFactory.init(loadKeyStore("./keystore.p12", password), password.toCharArray());
+            keyManagerFactory.init(loadKeyStore("/keystore.p12", password), password.toCharArray());
 
             final SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
