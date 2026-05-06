@@ -38,9 +38,13 @@ public class RequestMetricsEntityMapper implements Codec<RequestMetricsEntity> {
         writer.writeInt64(EntityField.TIMESTAMP, entity.getTimestamp());
         writer.writeInt32(EntityField.LATENCY, entity.getLatency());
         writer.writeString(EntityField.PATH, entity.getPath());
-        writer.writeString(EntityField.USER_AGENT, entity.getUserAgent());
         writer.writeBoolean(EntityField.IS_OTHERS, entity.isOthers());
         writer.writeInt32(EntityField.HTTP_STATUS, entity.getHttpStatus());
+
+        final String userAgent = entity.getUserAgent();
+
+        if(userAgent != null) writer.writeString(EntityField.USER_AGENT, userAgent);
+        else writer.writeNull();
 
         writer.writeEndDocument();
     }
