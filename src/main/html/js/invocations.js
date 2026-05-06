@@ -117,7 +117,7 @@ function appendRow(entry, table, hook) {
 
     if(hook === "invocations-table-hook") {
 
-        if(!entry.isOthers) tr.style = "color: #00FF00";
+        if(entry.isOthers !== true) tr.style = "color: #00FF00";
         const httpStatuses = document.createElement("div");
 
         key.style = "width: 60%";

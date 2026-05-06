@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+///..
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -16,7 +19,10 @@ public final class PathInvocationAggregationEntity {
     private final long firstInvocation;
     private final long lastInvocation;
     private final long count;
+
+    @Getter(onMethod = @__({@JsonProperty("isOthers")}))
     private final boolean isOthers;
+
     private final short[] httpStatuses;
 
     ///
