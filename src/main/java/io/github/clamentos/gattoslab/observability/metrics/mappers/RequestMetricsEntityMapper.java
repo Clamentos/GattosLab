@@ -44,7 +44,7 @@ public class RequestMetricsEntityMapper implements Codec<RequestMetricsEntity> {
         final String userAgent = entity.getUserAgent();
 
         if(userAgent != null) writer.writeString(EntityField.USER_AGENT, userAgent);
-        else writer.writeNull();
+        else writer.writeNull(EntityField.USER_AGENT);
 
         writer.writeEndDocument();
     }
