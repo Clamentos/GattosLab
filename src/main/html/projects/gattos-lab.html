@@ -39,22 +39,34 @@
 
             <div class = "project-container">
 
-                <h1 class = "project-title">Gatto's Lab</h1>
+                <div class = "project-title-container">
+
+                    <h1 class = "project-title">Gatto's Lab</h1>
+                    <img class = "project-logo" src = "./images/gattos-lab-logo.svg" alt = "Gatto's Lab project logo"/>
+
+                </div>
 
                 <p>
-                    As you might have figured out by now, it's this website! I always wanted to have my own slice of the internet all for myself and so i decided to develop a simple website with my GitHub projects as the subject.
+                    As you might have figured out by now, it's this website! I always wanted to have my own slice of the internet all for myself and so i decided to develop a simple website with my GitHub projects and interests as the subject.
                 </p>
 
                 <h1 class = "project-subtitle">Backend</h1>
 
                 <p>
-                    I used Java 25 with Spring Boot as it's a language and framework combo that i'm comfortable with and know very well. The system serves the whole site directly from memory, thus completely eliminating disk usage (totally overkill of the sub 1 RPS i receive on average, but it was fun to implement). The backend also communicates with a simple MongoDB instance to store logs, usage and request metrics. This observability system is fully custom and took me a while to get right as i mostly played around with different techniques and implementations.
+                    I originally used Java 25 with Spring Boot as the language and framework, but i decided to remove the framework entirely and just se Undertow as the web-server and manage everything manually, in order to have more control and to see what it would be like to develop something without the help of a framework. The system serves the whole site directly from memory, thus completely eliminating disk usage (totally overkill of the sub 1 RPS i receive on average, but it was fun to implement). The backend also communicates with a simple MongoDB instance to store logs, usage and request metrics. This observability system is fully custom and took me a while to get right as i mostly played around with different techniques and implementations.
+
+                    <figure>
+                        <img src = "./images/gattos-lab-BE-arch.svg" alt = "Gatto's Lab BE architecture" style = "width: 100%; padding-top: 100px"/>
+                        <figcaption>The simplified backend architecture.</figcaption>
+                    </figure>
+
+                    <br/><br/>
                 </p>
 
                 <h1 class = "project-subtitle">Frontend</h1>
 
                 <p>
-                    I decided to use vanilla HTML, CSS and a bit JS in specific places (non public pages, where i can view the metrics and logs). The public site can be browsed without JS enabled at all, which is nice as the web of today overly relies on it for functionality that can be achieved with traditional methods without too much effort.
+                    I decided to use vanilla HTML, CSS and a bit JS in specific places (non "public" pages, where i can view the metrics and logs). The public site can be browsed without JS enabled at all, which is nice as the web of today overly relies on it for functionality that can be achieved with traditional methods without too much effort. The assets are minified with the help of a minifier called <a href = "https://www.npmjs.com/package/html-minifier-next" target = "_blank">HTML Minifier Next</a> in conjunction with custom preprocessing implemented in Java that bundle the HTML, CSS, SVG assets and the JavaScript code (when present) into a single page in order to reduce round-trips as much as possible.
                 </p>
 
                 <h1 class = "project-subtitle">Infrastructure</h1>
@@ -65,6 +77,8 @@
                     <br/><br/>
 
                     Lastly, to deploy the site, i made use of <a href = "https://www.jenkins.io/" target = "_blank">Jenkins</a> on the VPS (not the best practice, but the project is quite small) for fully automated build and deploy pipeline that is triggered on commits to the main git branch.
+
+                    Lastly, to deploy the site, i simply execute a shell script i made on the VPS directly that pulls, builds and launches the whole website as a sort of ultra-simplified CI/CD pipeline. Previously i tried using Jenkins and GitHub actions but they were very clunky to use and overly complicated for my needs.
                 </p>
 
                 <figure>

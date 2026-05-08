@@ -39,14 +39,24 @@
 
             <div class = "project-container">
 
-                <h1 class = "project-title">FabRISC</h1>
+                <div class = "project-title-container">
+
+                    <h1 class = "project-title">FabRISC</h1>
+                    <img class = "project-logo" src = "./images/fabrisc-logo.png" alt = "FabRISC ISA project logo" style = "background-color: white; padding: 3px;"/>
+
+                </div>
 
                 <p>
-                    This is the longes running project i have (almost four years) and is very dear to my heart. When i got into computer science i used to spend a good potion of my free time playing around and studying instruction sets, while also trying to design basic toy-like CPUs. As my knowledge grew, so did the desire to create a more feature-rich ISA akin to the likes of RISC-V and ARM, simply for pure fun, but also to design a high-performance CPU around such an architecture in a far future.
+                    This is the longes running project i have (started around May 2022) and is very dear to my heart. When i got into computer science i used to spend a good potion of my free time playing around and studying instruction sets, while also trying to design basic toy-like CPUs. As my knowledge grew, so did the desire to create a more feature-rich ISA akin to the likes of RISC-V and ARM, simply for pure fun, but also to design a high-performance CPU around such an architecture in a far future perhaps on an FPGA.
 
                     <br/><br/>
 
-                    The FabRISC ISA specification document is divided in several chapters, each explaining a particular aspect of the interface, such as the memory and IO models and organizations, as well as the register file architecture, instruction formats and the instructions themselves. FabRISC doesn't have a "base ISA", it instead composed of a collection of <i>modules</i> that can be used to create many different variants of the ISA to suit different needs.
+                    The ISA started as a simpler beast targeting 16-bit CPUs only, but over the years, it went over many transformations and reworks to become what it is now. <i>Classic scope creep...</i>
+                    In the beginning it was a just a file on my PC that i kept updating over and over, while now is a lot more structured, properly type-setted and it has an actual Git repository.
+
+                    <br/><br/>
+
+                    The specification document is divided in several chapters, each explaining a particular aspect of the interface, such as the memory and IO models and organizations, as well as the register file architecture, instruction formats and the instructions themselves. FabRISC doesn't have a "base ISA", it instead composed of a collection of <i>modules</i> that can be used to create many different variants of the ISA to suit different needs. The following is a quick overview of the features and capabilities.
                 </p>
 
                 <h1 class = "project-subtitle">Instruction encodings</h1>
@@ -56,10 +66,10 @@
 
                     <br/><br/>
 
-                    In addition, the opcode can vary in length between formats, which requires additional logic that "normalizes" it during decoding. The smaller length is dedicated for "compressed" instructions, which are simply shortcuts for the most common patterns. The four byte length is the standard length in the ISA and it contains the most important instructions. The 6 byte length is dedicated to more unusual and complex instructions, such as vector operations.
+                    In addition, the opcode can vary in length between formats, which requires additional logic that "normalizes" it during decoding. The smaller length is dedicated for "compressed" instructions, which are simply shortcuts for the most common patterns. The four byte length is the standard length in the ISA and it contains the most important instructions. The 6 byte length is dedicated to more exotic and complex instructions, such as vector operations.
                 </p>
 
-                <h1 class = "project-subtitle">Floating point</h1>
+                <h2 class = "project-subtitle">Floating point</h2>
 
                 <p>
                     FabRISC provides simple floating point instructions, such as addition, subtraction, multiplication, division and type conversion. Implementations can also choose more advanced operations such as fused-multiply-accumulate (along with some of its variants) and square root. FabRISC utilizes a simplified custom IEEE-754 model that also introduces 8-bit floats, creating a one to one mapping with the standard integer lengths. One difference between other architectures, is that the floating point instructions share the register file with the integer ones. This increases the "pressure" (resulting in more read ports), but it reduces bookkeeping overhead and allows for easier bit manipulation via the standard bitwise operations.

@@ -6,7 +6,9 @@ Simple, *mostly static*, website about my personal projects that uses the follow
 
 - Java 26 with Spring Boot and MongoDB for the backend.
 - Vanilla HTML, CSS and JavaScript for the frontend.
-- Jenkins for building and deploying the application into a Hetzner VPS.
+- Hosted on a Hetzner VPS.
+
+[Check it out here](https://gattoslab.dev)
 
 <br/>
 <img src="./src/main/html/projects/images/gattos-lab-arch.svg" width="100%">

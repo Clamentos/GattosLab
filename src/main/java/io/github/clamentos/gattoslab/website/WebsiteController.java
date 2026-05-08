@@ -105,6 +105,9 @@ public final class WebsiteController {
         HttpUtils.addContentType(headers, resource.getMimeType());
         HttpUtils.addLastModified(headers, website.getTimeAtStartupStr());
         HttpUtils.addGzipEncoding(headers);
+        HttpUtils.addContentSecurityPolicy(headers);
+        HttpUtils.addXFrameOptions(headers);
+        HttpUtils.addStrictTransportSecurity(headers);
 
         if(resource.isCacheable()) HttpUtils.addCache(headers, website.getCacheDuration());
         else HttpUtils.addNoCache(headers);

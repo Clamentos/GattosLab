@@ -39,16 +39,21 @@
 
             <div class = "project-container">
 
-                <h1 class = "project-title">Logi-Block</h1>
+                <div class = "project-title-container">
+
+                    <h1 class = "project-title">Logi-Block</h1>
+                    <img class = "project-logo" src = "./images/logi-block.png" alt = "Logi-Block project PCB"/>
+
+                </div>
 
                 <p>
-                    With this project i wanted to delve in the world of electronics in a more "serious" way. I always played around with breadboards and designed a couple of PCBs with <a href = "https://www.kicad.org/" target = "_blank">KiCad</a>, but i have never actually <i>manufactured</i> anything up until this point. I designed Logi-Block simply to have something to fabricate, just to see how the experience of the whole process is.
+                    With this project i wanted to delve in the world of electronics in a more "serious" way. I always played around with breadboards and designed a few PCBs with <a href = "https://www.kicad.org/" target = "_blank">KiCad</a>, but i have never actually got anything <i>manufactured</i> until this point. I designed Logi-Block simply to have something to fabricate, just to see how the experience of the whole process would be.
                 </p>
 
                 <h1 class = "project-subtitle">What is Logi-Block?</h1>
 
                 <p>
-                    Logi-Block is a single simplified FPGA logic cell implemented with 74xx discrete logic ICs. The board is capable of computing any 4-to-1 or 3-to-2 boolean function as its LUT is "fracturable". It also has an optional D-type output flip-flop to store the result. With this board is in theory possible, although very impractical, to implement any digital logic circuit in the same way that an FPGA would.
+                    Logi-Block is a single simplified FPGA logic cell implemented with discrete 74xx series logic ICs. The board is capable of computing any 4-to-1 or 3-to-2 boolean function as its LUT is "fracturable" and it also has an optional D-type output flip-flop to store the result. With this board it is in theory possible, although very impractical, to implement any digital logic circuit in the same way that an FPGA would.
 
                     <br/><br/>
 
@@ -58,7 +63,7 @@
                 <h1 class = "project-subtitle">Fabrication</h1>
 
                 <p>
-                    I chose <a href = "https://jlcpcb.com/" target = "_blank">JLCPCB</a> which is a low-cost chinese based PCB manufacturer. They have lots of services, ranging from PCB fabrication, PCB assembly (SMT and THT), 3D printing and even CNC machining. Since i wanted to fabricate a fully functional PCB, i chose the first two options. The experience was a bit overwhelming at first since i had to be sure that the my PCB design was within their capabilities and tolerances, which are thankfully listed on their website. Moreover, since i also wanted the assembly service, i had to integrate the components that were available through them. I also had to generate the production files needed for fabrication according to their needs and formats, which i managed to do with a KiCAD plugin (i wish i knew about it earlier in the project...).
+                    I chose <a href = "https://jlcpcb.com/" target = "_blank">JLCPCB</a> which is a low-cost chinese based PCB manufacturer. They have lots of services, ranging from PCB fabrication, PCB assembly (SMT and THT), 3D printing and even CNC machining. Since i wanted to fabricate a fully functional PCB, i chose the first two options. The experience was a bit overwhelming at first since i had to be sure that the my PCB design was within their capabilities and tolerances, which are thankfully listed on their website. Moreover, since i also wanted the assembly service, i had to integrate the components that were available through them, which restricted my freedom on component selection a bit. I also had to generate the production files needed for fabrication according to their needs and formats, which i managed to do with a KiCAD plugin (i wish i knew about it earlier in the project...).
 
                     <br/><br/>
 
@@ -71,17 +76,17 @@
                 </figure>
 
                 <p>
-                    When i received the package i was quite impressed by the quality of the board. The silkscreen was very crisp and the component assembly was basically flawless. The only negative aspect was that the board edges weren't as smooth as on other boards i have handled (for example an Arduino UNO i had lying around) and a few small strands of fiberglass were detaching, though nothing to be concerned about.
+                    When i received the package i was quite impressed by the quality of the board: the silkscreen was very crisp and the component assembly was basically flawless. The only slightly negative aspect was that the board edges weren't as smooth as on other boards i have handled (for example an Arduino UNO i had lying around) and a few small strands of fiberglass were detaching, though nothing to be concerned about.
                 </p>
 
                 <h1 class = "project-subtitle">Version 2</h1>
 
                 <p>
-                    I eventually decided to design a second version as the first one had some design issues... Simply put, i made a mistake connecting the asynchronous-set of the output flip-flop, leaving it permanently stuck at high logic level (doh!). Another mistake i made in the first version was the spacing of the bottom connectors that allowed the PCB to be mounted on a breadboard was slightly wrong. With those two issues solved and some general improvements, the V2 is ready to be manufactured, though i still haven't placed the order.
+                    I eventually decided to design a second version as the first one had some design issues... Simply put, i made a mistake connecting the asynchronous-set of the output flip-flop, leaving it permanently stuck at high logic level (doh!). Another mistake i made in the first version was the spacing of the bottom connectors that allowed the PCB to be mounted on a breadboard was slightly wrong. With those two issues solved and some general improvements, the V2 is ready to be manufactured, though i still haven't placed the order yet.
 
                     <br/><br/>
 
-                    Thankfully, the version 1 didn't explode or melt when i connected it to 5V to test it out. It turns out that it was almost fully functional, with the exception of that flip-flop. I honestly didn't think it would work at all on the first try...
+                    Thankfully, the version 1 didn't explode or melt when i connected it to 5V to test it out and it turns out that it was almost fully functional, with the exception of the output flip-flop. I honestly didn't think it would work at all on the first try...
                 </p>
 
                 <figure>
