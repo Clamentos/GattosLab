@@ -42,7 +42,7 @@ public final class AggregationPipelines {
     private static final Field<Map<String, List<Object>>> perfPipelineKey = new Field<>(
 
         EntityField.KEY,
-        Map.of("$concat", List.of(Map.of("$toString", "$" + EntityField.HTTP_STATUS), ":", "$" + EntityField.PATH))
+        Map.of("$concat", List.of(Map.of("$toString", "$" + EntityField.HTTP_STATUS), ":", Map.of(COND, List.of("$" + EntityField.IS_OTHERS, "<others>", "$" + EntityField.PATH))))
     );
 
     ///..
