@@ -132,7 +132,7 @@ runuser -u "$APP_USER" -- bash -c "
 
     set -a
     source "$SECRETS_FILE"
-    exec java -XX:+UnlockExperimentalVMOptions -Xms128M -Xmx1024M -XX:+UseG1GC-XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+ExitOnOutOfMemoryError -jar "$RUN_DIR/$NEW_JAR_NAME" PROD
+    exec java -XX:+UnlockExperimentalVMOptions -Xms128M -Xmx1024M -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -XX:+UseCompressedOops -XX:+UseCompactObjectHeaders -XX:+AlwaysPreTouch -XX:+ExitOnOutOfMemoryError -jar "$RUN_DIR/$NEW_JAR_NAME" PROD
 " &
 
 echo "--> Waiting for the app to start"
