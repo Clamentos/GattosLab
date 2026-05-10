@@ -81,7 +81,7 @@ public final class SessionService {
             if(existingSessionMaybe != null) return Map.entry(sessionId, existingSessionMaybe);
         }
 
-        return sessionContainers.get(role).createSession(authorization, GenericUtils.composeFingerprint(ip, userAgent), false);
+        return sessionContainers.get(role).createSession(authorization, fingerprint, false);
     }
 
     ///..
