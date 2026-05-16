@@ -21,13 +21,11 @@ import io.github.clamentos.gattoslab.observability.logging.squash.BlacklistSquas
 import io.github.clamentos.gattoslab.observability.logging.squash.IfModifiedSinceMalformedSquash;
 import io.github.clamentos.gattoslab.observability.logging.squash.RateLimitSquash;
 import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEvent;
-import io.github.clamentos.gattoslab.persistence.MongoClientProvider;
-import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
+import io.github.clamentos.gattoslab.persistence.FileDatabase;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.session.SessionController;
 import io.github.clamentos.gattoslab.session.SessionService;
 import io.github.clamentos.gattoslab.utils.ThreadSpawner;
-import io.github.clamentos.gattoslab.utils.VirtualThreadExecutor;
 import io.github.clamentos.gattoslab.website.Website;
 import io.github.clamentos.gattoslab.website.WebsiteController;
 
@@ -35,14 +33,12 @@ import io.github.clamentos.gattoslab.website.WebsiteController;
 import io.undertow.Undertow;
 import io.undertow.UndertowOptions;
 import io.undertow.Undertow.Builder;
-import io.undertow.servlet.Servlets;
 
 ///..
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -90,10 +86,6 @@ public class Application {
     private static void prepareOutputFiles() throws IOException {
 
         final long pid = ProcessHandle.current().pid();
-        final PrintStream consoleOut = new PrintStream("./console_out.log");
-
-        System.setOut(consoleOut);
-        System.setErr(consoleOut);
 
         try(final FileWriter pidFile = new FileWriter("./pid.txt")) {
 
@@ -107,17 +99,6 @@ public class Application {
     ///..
     public static List<Object> prepareBeans(final ApplicationProperties applicationProperties) throws IOException {
 
-        final BatchScheduler batchScheduler = new BatchScheduler(applicationProperties);
-        final SessionService sessionService = new SessionService(applicationProperties, batchScheduler);
-        final SessionController sessionController = new SessionController(applicationProperties, sessionService);
-        final MongoClientWrapper mongoClientWrapper = new MongoClientWrapper(applicationProperties);
-
-        MongoClientProvider.setWrapper(mongoClientWrapper);
-        final List<SquashLogEvent> squashes = List.of(new IfModifiedSinceMalformedSquash(), new RateLimitSquash(), new BlacklistSquash());
-
-        @SuppressWarnings("squid:S2095") // Closed by shutdown hook
-        final SquashedLogsContainer squashedLogsContainer = new SquashedLogsContainer(applicationProperties, batchScheduler, squashes);
-
         final JsonMapper jsonMapper = JsonMapper.builder()
 
             .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL).withContentInclusion(JsonInclude.Include.NON_NULL))
@@ -125,12 +106,22 @@ public class Application {
             .build()
         ;
 
-        final DynamicProperties dynamicProperties = new DynamicProperties(applicationProperties, batchScheduler, mongoClientWrapper);
+        final BatchScheduler batchScheduler = new BatchScheduler(applicationProperties);
+        final SessionService sessionService = new SessionService(applicationProperties, batchScheduler);
+        final SessionController sessionController = new SessionController(applicationProperties, sessionService);
+        final FileDatabase fileDatabase = new FileDatabase(jsonMapper);
+
+        final List<SquashLogEvent> squashes = List.of(new IfModifiedSinceMalformedSquash(), new RateLimitSquash(), new BlacklistSquash());
+
+        @SuppressWarnings("squid:S2095") // Closed by shutdown hook
+        final SquashedLogsContainer squashedLogsContainer = new SquashedLogsContainer(applicationProperties, batchScheduler, squashes);
+
+        final DynamicProperties dynamicProperties = new DynamicProperties(applicationProperties, batchScheduler, fileDatabase);
         final BlacklistFilter blacklistFilter = new BlacklistFilter(dynamicProperties, squashedLogsContainer);
-        final LogsService logsService = new LogsService(applicationProperties, batchScheduler, mongoClientWrapper);
+        final LogsService logsService = new LogsService(fileDatabase);
         final Website website = new Website(applicationProperties);
         final WebsiteController websiteController = new WebsiteController(website, squashedLogsContainer);
-        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, batchScheduler, website, mongoClientWrapper);
+        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, batchScheduler, website, fileDatabase);
         final ObservabilityController observabilityController = new ObservabilityController(observabilityService, sessionService, logsService, jsonMapper);
         final GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler(applicationProperties, jsonMapper, observabilityService);
 
@@ -172,11 +163,11 @@ public class Application {
     private static Undertow prepareWebserver(final ApplicationProperties applicationProperties, final IngressHandler ingressHandler)
     throws CertificateException, IOException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
 
-        Servlets.deployment()
+        /*Servlets.deployment()
 
             .setExecutor(new VirtualThreadExecutor("gattos-lab-ws"))
             .setAsyncExecutor(new VirtualThreadExecutor("gattos-lab-wsa"))
-        ;
+        ;*/
 
         final Builder serverBuilder = Undertow.builder().setHandler(ingressHandler);
         final SSLContext sslContext = createSSLContext(applicationProperties.isSslEnabled(), applicationProperties.getSslKeystorePassword(), applicationProperties);

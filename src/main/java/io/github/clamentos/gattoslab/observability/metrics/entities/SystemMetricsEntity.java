@@ -1,30 +1,25 @@
 package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
-import java.io.IOException;
-import java.nio.file.FileStore;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 ///..
-import lombok.AllArgsConstructor;
+import io.github.clamentos.gattoslab.observability.filters.SearchFilter;
+import io.github.clamentos.gattoslab.persistence.SearchableEntity;
+
+///..
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-///..
-import org.bson.types.ObjectId;
-
 ///
-@AllArgsConstructor
 @Getter
 @Slf4j
 
 ///
-public final class SystemMetricsEntity {
+public final class SystemMetricsEntity implements SearchableEntity {
 
     ///
-    private final ObjectId id;
     private final long timestamp;
     private final long virtualThreads;
     private final long platformThreads;
@@ -46,31 +41,31 @@ public final class SystemMetricsEntity {
     private final long storageUsed;
 
     ///
+    @JsonCreator
     public SystemMetricsEntity(
 
-        final long virtualThreads,
-        final long platformThreads,
-        final long classesLoaded,
-        final long fileReads,
-        final long fileWrites,
-        final long socketReads,
-        final long socketWrites,
-        final long gcCounts,
-        final long gcPause,
-        final long cpuLoadJvmUser,
-        final long cpuLoadJvmSystem,
-        final long cpuLoadMachineTotal,
-        final long systemMemoryUsed,
-        final long metaSpaceUsed,
-        final long directBuffersUsed,
-        final long directBuffersMemoryUsed,
-        final long heapUsed
+        @JsonProperty("timestamp") final long timestamp,
+        @JsonProperty("virtualThreads") final long virtualThreads,
+        @JsonProperty("platformThreads") final long platformThreads,
+        @JsonProperty("classesLoaded") final long classesLoaded,
+        @JsonProperty("fileReads") final long fileReads,
+        @JsonProperty("fileWrites") final long fileWrites,
+        @JsonProperty("socketReads") final long socketReads,
+        @JsonProperty("socketWrites") final long socketWrites,
+        @JsonProperty("gcCounts") final long gcCounts,
+        @JsonProperty("gcPause") final long gcPause,
+        @JsonProperty("cpuLoadJvmUser") final long cpuLoadJvmUser,
+        @JsonProperty("cpuLoadJvmSystem") final long cpuLoadJvmSystem,
+        @JsonProperty("cpuLoadMachineTotal") final long cpuLoadMachineTotal,
+        @JsonProperty("systemMemoryUsed") final long systemMemoryUsed,
+        @JsonProperty("metaSpaceUsed") final long metaSpaceUsed,
+        @JsonProperty("directBuffersUsed") final long directBuffersUsed,
+        @JsonProperty("directBuffersMemoryUsed") final long directBuffersMemoryUsed,
+        @JsonProperty("heapUsed") final long heapUsed,
+        @JsonProperty("storageUsed") final long storageUsed
     ) {
 
-        final Date now = new Date();
-
-        id = new ObjectId(now);
-        timestamp = now.getTime();
+        this.timestamp = timestamp;
         this.virtualThreads = virtualThreads;
         this.platformThreads = platformThreads;
         this.classesLoaded = classesLoaded;
@@ -88,21 +83,28 @@ public final class SystemMetricsEntity {
         this.directBuffersUsed = directBuffersUsed;
         this.directBuffersMemoryUsed = directBuffersMemoryUsed;
         this.heapUsed = heapUsed;
+        this.storageUsed = storageUsed;
+    }
 
-        long storageUsedTmp = -1;
+    ///
+    @Override
+    public boolean respectsFilter(final SearchFilter searchFilter) {
 
-        try {
+        return timestamp >= searchFilter.getStartTimestamp() && timestamp <= searchFilter.getEndTimestamp();
+    }
 
-            final FileStore fileStore = Files.getFileStore(Paths.get("/"));
-            storageUsedTmp = fileStore.getTotalSpace() - fileStore.getUnallocatedSpace();
-        }
+    ///..
+    @Override
+    public String toString() {
 
-        catch(final IOException exc) {
-
-            log.error("Could not get filesystem usage because", exc);
-        }
-
-        storageUsed = storageUsedTmp;
+        return "{\"timestamp\":" + timestamp + ",\"virtualThreads\":" + virtualThreads
+                + ",\"platformThreads\":" + platformThreads + ",\"classesLoaded\":" + classesLoaded + ",\"fileReads\":"
+                + fileReads + ",\"fileWrites\":" + fileWrites + ",\"socketReads\":" + socketReads + ",\"socketWrites\":"
+                + socketWrites + ",\"gcCounts\":" + gcCounts + ",\"gcPause\":" + gcPause + ",\"cpuLoadJvmUser\":"
+                + cpuLoadJvmUser + ",\"cpuLoadJvmSystem\":" + cpuLoadJvmSystem + ",\"cpuLoadMachineTotal\":"
+                + cpuLoadMachineTotal + ",\"systemMemoryUsed\":" + systemMemoryUsed + ",\"metaSpaceUsed\":" + metaSpaceUsed
+                + ",\"directBuffersUsed\":" + directBuffersUsed + ",\"directBuffersMemoryUsed\":" + directBuffersMemoryUsed
+                + ",\"heapUsed\":" + heapUsed + ",\"storageUsed\":" + storageUsed + "}";
     }
 
     ///

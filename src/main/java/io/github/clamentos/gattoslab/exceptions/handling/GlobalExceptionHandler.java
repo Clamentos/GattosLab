@@ -1,9 +1,6 @@
 package io.github.clamentos.gattoslab.exceptions.handling;
 
 ///
-import com.mongodb.MongoException;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.exceptions.IllegalHttpMethodException;
@@ -18,6 +15,9 @@ import io.undertow.io.UndertowOutputStream;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
 import io.undertow.util.StatusCodes;
+
+///..
+import java.io.IOException;
 
 ///..
 import lombok.extern.slf4j.Slf4j;
@@ -72,9 +72,9 @@ public final class GlobalExceptionHandler {
                 switch(exception) {
 
                     case final ApiSecurityException ex -> this.respond(exchange, StatusCodes.FORBIDDEN, ex, "Forbidden");
+                    case final IOException ex -> this.respond(exchange, StatusCodes.INTERNAL_SERVER_ERROR, ex, "File database error");
                     case final IllegalHttpMethodException ex -> this.respond(exchange, StatusCodes.METHOD_NOT_ALLOWED, ex, "Method not allowed");
                     case final JacksonException ex -> this.respond(exchange, StatusCodes.BAD_REQUEST, ex, "Nonsensical body");
-                    case final MongoException ex -> this.respond(exchange, StatusCodes.INTERNAL_SERVER_ERROR, ex, "Database error");
 
                     case final RedirectException ex -> {
 
@@ -95,8 +95,8 @@ public final class GlobalExceptionHandler {
 
             catch(final RuntimeException exc) {
 
-                log.error("Could not handle exception, will respond with a basic 500. RID: {}", exchange.getRequestId(), exc);
-                log.error("Original exception for RID: {}", exchange.getRequestId(), exception);
+                log.error("Could not handle exception, will respond with a basic 500. REQID: {}", exchange.getRequestId(), exc);
+                log.error("Original exception for REQID: {}", exchange.getRequestId(), exception);
 
                 exchange.setStatusCode(StatusCodes.INTERNAL_SERVER_ERROR);
             }
@@ -116,7 +116,7 @@ public final class GlobalExceptionHandler {
 
             else {
 
-                log.warn("Response already started. Exception to be handled for RID: {} is", exchange.getRequestId(), exception);
+                log.warn("Response already started. Exception to be handled for REQID: {} is", exchange.getRequestId(), exception);
             }
         }
 

@@ -13,7 +13,7 @@ public final class RequestMetricsCharts {
 
     ///
     private final LineChart rate;
-    private final BubbleChart latency;
+    private final LineChart latency;
 
     ///
 }

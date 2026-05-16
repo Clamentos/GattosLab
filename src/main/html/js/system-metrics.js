@@ -2,7 +2,7 @@ Chart.defaults.color = "#FFFFFF";
 Chart.defaults.datasets.line.fill = true;
 Chart.defaults.datasets.bubble.fill = true;
 Chart.defaults.elements.line.borderWidth = 1;
-Chart.defaults.elements.point.pointRadius = 1;
+Chart.defaults.elements.point.pointRadius = 0;
 
 const today = new Date();
 const defaultTimeResolution = 600000;

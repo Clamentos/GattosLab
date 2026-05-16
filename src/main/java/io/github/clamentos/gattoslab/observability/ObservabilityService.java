@@ -1,39 +1,27 @@
 package io.github.clamentos.gattoslab.observability;
 
 ///
-import com.mongodb.MongoException;
-import com.mongodb.client.ClientSession;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
-import com.mongodb.client.model.Filters;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.eventbus.EventBus;
 import io.github.clamentos.gattoslab.exceptions.ValidationException;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.http.ResponseSender;
 import io.github.clamentos.gattoslab.observability.filters.AggregatedSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.AggregationPipelines;
 import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.TemporalSearchFilter;
+import io.github.clamentos.gattoslab.observability.filters.SearchFilter;
 import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
 import io.github.clamentos.gattoslab.observability.metrics.entities.PathInvocationAggregationEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsAggregateEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsAggregateEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.UserAgentAggregationEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.charts.BubbleChartDataEntry;
 import io.github.clamentos.gattoslab.observability.metrics.entities.charts.ChartDataset;
 import io.github.clamentos.gattoslab.observability.metrics.entities.charts.RequestMetricsCharts;
 import io.github.clamentos.gattoslab.observability.metrics.entities.charts.SystemMetricsCharts;
-import io.github.clamentos.gattoslab.observability.metrics.entities.charts.BubbleChart;
 import io.github.clamentos.gattoslab.observability.metrics.entities.charts.LineChart;
-import io.github.clamentos.gattoslab.persistence.DatabaseCollection;
-import io.github.clamentos.gattoslab.persistence.EntityField;
-import io.github.clamentos.gattoslab.persistence.MongoClientWrapper;
+import io.github.clamentos.gattoslab.persistence.EntityType;
+import io.github.clamentos.gattoslab.persistence.FileDatabase;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.scheduling.SimpleCron;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
@@ -49,12 +37,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -62,14 +49,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 ///..
-import org.bson.conversions.Bson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 ///..
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonGenerator;
 
 ///
-@Slf4j
+@Slf4j()
 
 ///
 public class ObservabilityService implements Closeable {
@@ -77,15 +65,15 @@ public class ObservabilityService implements Closeable {
     ///
     private static final int MAX_TIMESTAMPS = 10000;
     private static final String SOURCE_VALIDATE = "ObservabilityService.validateSearchFilter";
+    private static final Logger REQUEST_METRICS_LOGGER = LoggerFactory.getLogger("REQUEST_METRICS_LOGGER");
+    private static final Logger SYSTEM_METRICS_LOGGER = LoggerFactory.getLogger("SYSTEM_METRICS_LOGGER");
 
     ///..
     private final int siphonCapacity;
-    private final long requestMetricsRetention;
-    private final long systemMetricsRetention;
     private final Set<String> monitoredPaths;
 
     ///..
-    private final MongoClientWrapper mongoClientWrapper;
+    private final FileDatabase fileDatabase;
 
     ///..
     private final SystemMetrics systemMetrics;
@@ -95,16 +83,13 @@ public class ObservabilityService implements Closeable {
     private final AtomicReference<ObservabilityContext> primaryContext;
     private final AtomicReference<ObservabilityContext> secondaryContext;
 
-    private final Queue<ObservabilityContext> requestMetricsDumpFailures;
-    private final Queue<SystemMetricsEntity> systemMetricsDumpFailures;
-
     ///
     public ObservabilityService(
 
         final ApplicationProperties applicationProperties,
         final BatchScheduler batchScheduler,
         final Website website,
-        final MongoClientWrapper mongoClientWrapper
+        final FileDatabase fileDatabase
 
     ) throws IllegalArgumentException {
 
@@ -113,95 +98,73 @@ public class ObservabilityService implements Closeable {
 
         batchScheduler.schedule(this::sampleSystemMetrics, "ObservabilityService::sampleSystemMetrics", applicationProperties.getSystemMetricsPolling());
         batchScheduler.schedule(eventBus::trigger, "ObservabilityService::trigger", applicationProperties.getMetricsDumpToDbSchedule());
-        batchScheduler.schedule(this::deleteOldMetrics, "ObservabilityService::deleteOldMetrics", applicationProperties.getMetricsRetentionSchedule());
 
         siphonCapacity = applicationProperties.getMetricsSiphonCapacity();
-        requestMetricsRetention = applicationProperties.getRequestMetricsRetention().toMillis();
-        systemMetricsRetention = applicationProperties.getSystemMetricsRetention().toMillis();
         monitoredPaths = website.getPaths();
 
-        this.mongoClientWrapper = mongoClientWrapper;
+        this.fileDatabase = fileDatabase;
 
         primaryContext = new AtomicReference<>(new ObservabilityContext(eventBus, siphonCapacity));
         secondaryContext = new AtomicReference<>(new ObservabilityContext(eventBus, siphonCapacity));
-
-        requestMetricsDumpFailures = new ConcurrentLinkedQueue<>();
-        systemMetricsDumpFailures = new ConcurrentLinkedQueue<>();
 
         isHandlingEvent = new AtomicBoolean();
     }
 
     ///
     public ResponseSender getRequestMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter)
-    throws JacksonException, MongoException, ValidationException {
+    throws IOException, JacksonException, ValidationException {
 
         this.validateSearchFilter(searchFilter, true);
 
-        final MongoCollection<RequestMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
         final long bucketSize = searchFilter.getBucketSize();
-
-        final MongoCursor<RequestMetricsAggregateEntity> entityCursor = collection.aggregate(
-
-            AggregationPipelines.performanceMetricsPipeline(searchFilter), 
-            RequestMetricsAggregateEntity.class
-
-        ).iterator();
-
-        final Map<String, Map<Long, RequestMetricsAggregateEntity>> metricsMap = new HashMap<>();
-
-        try(entityCursor) {
-
-            while(entityCursor.hasNext()) {
-
-                final RequestMetricsAggregateEntity entity = entityCursor.next();
-                final long timeSlot = entity.getTimeSlot();
-
-                metricsMap.computeIfAbsent(entity.getKey(), _ -> new TreeMap<>()).put(timeSlot * bucketSize, entity);
-            }
-        }
-
         final long[] labels = new long[(int)((searchFilter.getEndTimestamp() - searchFilter.getStartTimestamp()) / bucketSize) + 1];
+        for(int i = 0; i < labels.length; i++) labels[i] = (i * bucketSize) + searchFilter.getStartTimestamp();
 
-        for(int i = 0; i < labels.length; i++) {
+        final List<RequestMetricsEntity> entities = fileDatabase.fetchByFilter(EntityType.REQUEST_METRICS, searchFilter, RequestMetricsEntity.class);
+        final Map<String, Map<Long, RequestMetricsAggregateEntity>> metricsAggregationMap = new HashMap<>();
 
-            labels[i] = (i * bucketSize) + searchFilter.getStartTimestamp();
+        for(final RequestMetricsEntity entity : entities) {
+
+            final int bucketIndex = (int)((entity.getTimestamp() - searchFilter.getStartTimestamp()) / bucketSize);
+            final String key = Integer.toString(entity.getHttpStatus()) + (entity.isOthers() ? "<others>" : entity.getPath());
+
+            metricsAggregationMap.computeIfAbsent(key, _ -> new TreeMap<>()).computeIfAbsent(labels[bucketIndex], _ -> new RequestMetricsAggregateEntity()).update(entity);
+            metricsAggregationMap.computeIfAbsent("TOTAL", _ -> new TreeMap<>()).computeIfAbsent(labels[bucketIndex], _ -> new RequestMetricsAggregateEntity()).update(entity);
         }
 
-        for(final Map<Long, RequestMetricsAggregateEntity> metricsMapInner : metricsMap.values()) {
+        for(final Map<Long, RequestMetricsAggregateEntity> innerMetricsAggregationMap : metricsAggregationMap.values()) {
 
             for(int i = 0; i < labels.length; i++) {
 
-                metricsMapInner.putIfAbsent(labels[i], null);
+                innerMetricsAggregationMap.putIfAbsent(labels[i], null);
             }
         }
 
         final List<ChartDataset<long[]>> rateDatasets = new ArrayList<>();
-        final List<ChartDataset<List<BubbleChartDataEntry>>> latencyDatasets = new ArrayList<>();
+        final List<ChartDataset<long[]>> latencyDatasets = new ArrayList<>();
 
-        for(final Map.Entry<String, Map<Long, RequestMetricsAggregateEntity>> metricsMapEntry : metricsMap.entrySet()) {
+        for(final Map.Entry<String, Map<Long, RequestMetricsAggregateEntity>> metricsMapEntry : metricsAggregationMap.entrySet()) {
 
-            final List<BubbleChartDataEntry> latencyData = new ArrayList<>();
             final Collection<RequestMetricsAggregateEntity> innerEntities = metricsMapEntry.getValue().values();
             final long[] rateData = new long[innerEntities.size()];
+            final long[] latencyData = new long[innerEntities.size()];
 
             int index = 0;
 
-            for(final RequestMetricsAggregateEntity entity : innerEntities) {
+            for(final Map.Entry<Long, RequestMetricsAggregateEntity> entry : metricsMapEntry.getValue().entrySet()) {
+
+                final RequestMetricsAggregateEntity entity = entry.getValue();
 
                 if(entity != null) {
 
                     rateData[index] = entity.getRate();
-                    final int[] latencyDistribution = entity.getLatencyDistribution();
-
-                    for(int i = 0; i < latencyDistribution.length; i++) {
-
-                        latencyData.add(new BubbleChartDataEntry(entity.getTimeSlot() * bucketSize, i, latencyDistribution[i]));
-                    }
+                    latencyData[index] = entity.getLatencySum() / entity.getRate();
                 }
 
                 else {
 
                     rateData[index] = 0;
+                    latencyData[index] = 0;
                 }
 
                 index++;
@@ -213,79 +176,108 @@ public class ObservabilityService implements Closeable {
             latencyDatasets.add(new ChartDataset<>(key, latencyData));
         }
 
-        return () -> generator.writePOJO(new RequestMetricsCharts(new LineChart(labels, rateDatasets), new BubbleChart(latencyDatasets)));
+        return () -> generator.writePOJO(new RequestMetricsCharts(new LineChart(labels, rateDatasets), new LineChart(labels, latencyDatasets)));
     }
 
     ///..
     public ResponseSender getInvocationMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter)
-    throws JacksonException, MongoException, ValidationException {
+    throws IOException, JacksonException, ValidationException {
 
         this.validateSearchFilter(searchFilter, false);
 
-        final MongoCollection<RequestMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS);
-        final List<Bson> pathsAggregation = AggregationPipelines.invocationMetricsPipeline(searchFilter);
-        final List<Bson> userAgentsAggregation = AggregationPipelines.userAgentMetricsPipeline(searchFilter);
+        final List<RequestMetricsEntity> entities = fileDatabase.fetchByFilter(EntityType.REQUEST_METRICS, searchFilter, RequestMetricsEntity.class);
+        final Map<String, List<RequestMetricsEntity>> pathsAggregationMap = new HashMap<>();
+        final Map<String, List<RequestMetricsEntity>> userAgentsAggregationMap = new HashMap<>();
+
+        for(final RequestMetricsEntity entity : entities) {
+
+            pathsAggregationMap.computeIfAbsent(entity.getPath(), _ -> new ArrayList<>()).add(entity);
+            userAgentsAggregationMap.computeIfAbsent(entity.getUserAgent(), _ -> new ArrayList<>()).add(entity);
+        }
+
+        final List<PathInvocationAggregationEntity> pathAggregates = new ArrayList<>();
+        final List<UserAgentAggregationEntity> userAgentAggregates = new ArrayList<>();
+
+        for(final Map.Entry<String, List<RequestMetricsEntity>> entry : pathsAggregationMap.entrySet()) {
+
+            long firstInvocation = Long.MAX_VALUE;
+            long lastInvocation = Long.MIN_VALUE;
+            Set<Integer> httpStatuses = new HashSet<>();
+            int count = 0;
+
+            for(final RequestMetricsEntity entity : entry.getValue()) {
+
+                firstInvocation = Math.min(firstInvocation, entity.getTimestamp());
+                lastInvocation = Math.max(lastInvocation, entity.getTimestamp());
+                httpStatuses.add(entity.getHttpStatus());
+                count++;
+            }
+
+            int idx = 0;
+            final int[] httpStatusesArr = new int[httpStatuses.size()];
+            for(final Integer httpStatus : httpStatuses) httpStatusesArr[idx++] = httpStatus;
+            pathAggregates.add(new PathInvocationAggregationEntity(entry.getKey(), firstInvocation, lastInvocation, count, entry.getValue().get(0).isOthers(), httpStatusesArr));
+        }
+
+        for(final Map.Entry<String, List<RequestMetricsEntity>> entry : userAgentsAggregationMap.entrySet()) {
+
+            long firstInvocation = Long.MAX_VALUE;
+            long lastInvocation = Long.MIN_VALUE;
+            int count = 0;
+
+            for(final RequestMetricsEntity entity : entry.getValue()) {
+
+                firstInvocation = Math.min(firstInvocation, entity.getTimestamp());
+                lastInvocation = Math.max(lastInvocation, entity.getTimestamp());
+                count++;
+            }
+
+            userAgentAggregates.add(new UserAgentAggregationEntity(entry.getKey(), firstInvocation, lastInvocation, count));
+        }
+
+        pathAggregates.sort((a, b) -> b.getCount() - a.getCount());
+        userAgentAggregates.sort((a, b) -> b.getCount() - a.getCount());
 
         return () -> {
 
-            try(
-                final MongoCursor<PathInvocationAggregationEntity> paths = collection.aggregate(pathsAggregation, PathInvocationAggregationEntity.class).iterator();
-                final MongoCursor<UserAgentAggregationEntity> userAgents = collection.aggregate(userAgentsAggregation, UserAgentAggregationEntity.class).iterator();
-            ) {
+            generator.writeStartObject();
 
-                generator.writeStartObject();
+            generator.writeArrayPropertyStart("paths");
+            for(final PathInvocationAggregationEntity pathAggregate : pathAggregates) generator.writePOJO(pathAggregate);
+            generator.writeEndArray();
 
-                generator.writeArrayPropertyStart(EntityField.PATHS);
-                while(paths.hasNext()) generator.writePOJO(paths.next());
-                generator.writeEndArray();
+            generator.writeArrayPropertyStart("userAgents");
+            for(final UserAgentAggregationEntity userAgentAggregate : userAgentAggregates) generator.writePOJO(userAgentAggregate);
+            generator.writeEndArray();
 
-                generator.writeArrayPropertyStart(EntityField.USER_AGENTS);
-                while(userAgents.hasNext()) generator.writePOJO(userAgents.next());
-                generator.writeEndArray();
-
-                generator.writeEndObject();
-            }
+            generator.writeEndObject();
         };
     }
 
     ///..
-    public ResponseSender getSystemMetrics(final JsonGenerator generator, final AggregatedSearchFilter searchFilter)
-    throws JacksonException, MongoException, ValidationException {
+    public ResponseSender getSystemMetrics(final JsonGenerator generator, final AggregatedSearchFilter searchFilter) throws IOException, JacksonException, ValidationException {
 
         this.validateSearchFilter(searchFilter, true);
 
         final long bucketSize = searchFilter.getBucketSize();
-        final MongoCollection<SystemMetricsEntity> collection = mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS);
-
-        final MongoCursor<SystemMetricsAggregateEntity> metrics = collection.aggregate(
-
-            AggregationPipelines.systemMetricsPipeline(searchFilter),
-            SystemMetricsAggregateEntity.class
-
-        ).iterator();
-
-        final Map<Long, SystemMetricsAggregateEntity> metricsMap = new TreeMap<>();
-
-        try(metrics) {
-
-            while(metrics.hasNext()) {
-
-                final SystemMetricsAggregateEntity metric = metrics.next();
-                final long timeSlot = metric.getTimeSlot();
-
-                metricsMap.put(timeSlot * bucketSize, metric);
-            }
-        }
-
         final long[] labels = new long[(int)((searchFilter.getEndTimestamp() - searchFilter.getStartTimestamp()) / bucketSize) + 1];
+        final Map<Long, List<SystemMetricsEntity>> metricsAggregationMap = new TreeMap<>();
 
         for(int i = 0; i < labels.length; i++) {
 
             labels[i] = (i * bucketSize) + searchFilter.getStartTimestamp();
-            metricsMap.putIfAbsent(labels[i], null);
+            metricsAggregationMap.putIfAbsent(labels[i], null);
         }
 
-        final int actualSize = metricsMap.size();
+        final List<SystemMetricsEntity> entities = fileDatabase.fetchByFilter(EntityType.SYSTEM_METRICS, searchFilter, SystemMetricsEntity.class);
+
+        for(final SystemMetricsEntity entity : entities) {
+
+            final int bucketIndex = (int)((entity.getTimestamp() - searchFilter.getStartTimestamp()) / bucketSize);
+            metricsAggregationMap.computeIfAbsent(labels[bucketIndex], _ -> new ArrayList<>()).add(entity);
+        }
+
+        final int actualSize = metricsAggregationMap.size();
 
         final long[] virtualThreads = new long[actualSize];
         final long[] platformThreads = new long[actualSize];
@@ -308,50 +300,71 @@ public class ObservabilityService implements Closeable {
 
         int index = 0;
 
-        for(final SystemMetricsAggregateEntity aggregate : metricsMap.values()) {
+        for(final Map.Entry<Long, List<SystemMetricsEntity>> entry : metricsAggregationMap.entrySet()) {
 
-            if(aggregate != null) {
+            if(entry.getValue() != null) {
 
-                virtualThreads[index] = aggregate.getVirtualThreads();
-                platformThreads[index] = aggregate.getPlatformThreads();
-                classes[index] = aggregate.getClassesLoaded();
-                fileReads[index] = aggregate.getFileReads();
-                fileWrites[index] = aggregate.getFileWrites();
-                socketReads[index] = aggregate.getSocketReads();
-                socketWrites[index] = aggregate.getSocketWrites();
-                gcCounts[index] = aggregate.getGcCounts();
-                gcPause[index] = aggregate.getGcPause();
-                cpuUser[index] = aggregate.getCpuLoadJvmUser();
-                cpuSystem[index] = aggregate.getCpuLoadJvmSystem();
-                cpuMachine[index] = aggregate.getCpuLoadMachineTotal();
-                systemMemoryUsed[index] = aggregate.getSystemMemoryUsed();
-                metaSpaceUsed[index] = aggregate.getMetaSpaceUsed();
-                directBuffersUsed[index] = aggregate.getDirectBuffersUsed();
-                directBuffersMemoryUsed[index] = aggregate.getDirectBuffersMemoryUsed();
-                heapUsed[index] = aggregate.getHeapUsed();
-                storageUsed[index] = aggregate.getStorageUsed();
-            }
+                final int count = entry.getValue().size();
 
-            else {
+                long virtualThreadsTmp = 0;
+                long platformThreadsTmp = 0;
+                long classesTmp = 0;
+                long fileReadsTmp = 0;
+                long fileWritesTmp = 0;
+                long socketReadsTmp = 0;
+                long socketWritesTmp = 0;
+                long gcCountsTmp = 0;
+                long gcPauseTmp = 0;
+                long cpuUserTmp = 0;
+                long cpuSystemTmp = 0;
+                long cpuMachineTmp = 0;
+                long systemMemoryUsedTmp = 0;
+                long metaSpaceUsedTmp = 0;
+                long directBuffersUsedTmp = 0;
+                long directBuffersMemoryUsedTmp = 0;
+                long heapUsedTmp = 0;
+                long storageUsedTmp = 0;
 
-                virtualThreads[index] = 0;
-                platformThreads[index] = 0;
-                classes[index] = 0;
-                fileReads[index] = 0;
-                fileWrites[index] = 0;
-                socketReads[index] = 0;
-                socketWrites[index] = 0;
-                gcCounts[index] = 0;
-                gcPause[index] = 0;
-                cpuUser[index] = 0;
-                cpuSystem[index] = 0;
-                cpuMachine[index] = 0;
-                systemMemoryUsed[index] = 0;
-                metaSpaceUsed[index] = 0;
-                directBuffersUsed[index] = 0;
-                directBuffersMemoryUsed[index] = 0;
-                heapUsed[index] = 0;
-                storageUsed[index] = 0;
+                for(final SystemMetricsEntity entity : entry.getValue()) {
+
+                    virtualThreadsTmp = virtualThreadsTmp + entity.getVirtualThreads();
+                    platformThreadsTmp = platformThreadsTmp + entity.getPlatformThreads();
+                    classesTmp = classesTmp + entity.getClassesLoaded();
+                    fileReadsTmp = fileReadsTmp + entity.getFileReads();
+                    fileWritesTmp = fileWritesTmp + entity.getFileWrites();
+                    socketReadsTmp = socketReadsTmp + entity.getSocketReads();
+                    socketWritesTmp = socketWritesTmp + entity.getSocketWrites();
+                    gcCountsTmp = gcCountsTmp + entity.getGcCounts();
+                    gcPauseTmp = gcPauseTmp + entity.getGcPause();
+                    cpuUserTmp = cpuUserTmp + entity.getCpuLoadJvmUser();
+                    cpuSystemTmp = cpuSystemTmp + entity.getCpuLoadJvmSystem();
+                    cpuMachineTmp = cpuMachineTmp + entity.getCpuLoadMachineTotal();
+                    systemMemoryUsedTmp = systemMemoryUsedTmp + entity.getSystemMemoryUsed();
+                    metaSpaceUsedTmp = metaSpaceUsedTmp + entity.getMetaSpaceUsed();
+                    directBuffersUsedTmp = directBuffersUsedTmp + entity.getDirectBuffersUsed();
+                    directBuffersMemoryUsedTmp = directBuffersMemoryUsedTmp + entity.getDirectBuffersMemoryUsed();
+                    heapUsedTmp = heapUsedTmp + entity.getHeapUsed();
+                    storageUsedTmp = storageUsedTmp + entity.getStorageUsed();
+                }
+
+                virtualThreads[index] = Math.ceilDiv(virtualThreadsTmp, count);
+                platformThreads[index] = Math.ceilDiv(platformThreadsTmp, count);
+                classes[index] = Math.ceilDiv(classesTmp, count);
+                fileReads[index] = fileReadsTmp;
+                fileWrites[index] = fileWritesTmp;
+                socketReads[index] = socketReadsTmp;
+                socketWrites[index] = socketWritesTmp;
+                gcCounts[index] = gcCountsTmp;
+                gcPause[index] = gcPauseTmp;
+                cpuUser[index] = Math.ceilDiv(cpuUserTmp, count);
+                cpuSystem[index] = Math.ceilDiv(cpuSystemTmp, count);
+                cpuMachine[index] = Math.ceilDiv(cpuMachineTmp, count);
+                systemMemoryUsed[index] = Math.ceilDiv(systemMemoryUsedTmp, count);
+                metaSpaceUsed[index] = Math.ceilDiv(metaSpaceUsedTmp, count);
+                directBuffersUsed[index] = Math.ceilDiv(directBuffersUsedTmp, count);
+                directBuffersMemoryUsed[index] = Math.ceilDiv(directBuffersMemoryUsedTmp, count);
+                heapUsed[index] = Math.ceilDiv(heapUsedTmp, count);
+                storageUsed[index] = Math.ceilDiv(storageUsedTmp, count);
             }
 
             index++;
@@ -427,66 +440,8 @@ public class ObservabilityService implements Closeable {
     ///.
     private void sampleSystemMetrics() {
 
-        SystemMetricsEntity toSave = systemMetrics.toEntity();
-
-        if(toSave != null) {
-
-            final ClientSession session = mongoClientWrapper.getClient().startSession();
-
-            try {
-
-                session.startTransaction();
-                mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
-
-                toSave = systemMetricsDumpFailures.poll();
-                if(toSave != null) mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).insertOne(toSave);
-
-                session.commitTransaction();
-            }
-
-            catch(final Exception exc) {
-
-                log.error("Could not write metrics to DB", exc);
-
-                session.abortTransaction();
-                systemMetricsDumpFailures.add(toSave);
-            }
-
-            session.close();
-        }
-    }
-
-    ///..
-    private void deleteOldMetrics() {
-
-        log.info("Begin delete metrics by retention");
-        final ClientSession session = mongoClientWrapper.getClient().startSession();
-
-        long requestsDeleted = 0;
-        long systemsDeleted = 0;
-
-        try {
-
-            final long now = System.currentTimeMillis();
-            final Bson requestDeleteFilter = Filters.lte(EntityField.TIMESTAMP, now - requestMetricsRetention);
-            final Bson systemDeleteFilter = Filters.lte(EntityField.TIMESTAMP, now - systemMetricsRetention);
-
-            session.startTransaction();
-
-            requestsDeleted = mongoClientWrapper.getCollection(DatabaseCollection.REQUEST_METRICS).deleteMany(requestDeleteFilter).getDeletedCount();
-            systemsDeleted = mongoClientWrapper.getCollection(DatabaseCollection.SYSTEM_METRICS).deleteMany(systemDeleteFilter).getDeletedCount();
-
-            session.commitTransaction();
-            log.info("End delete metrics by retention, deleted {} request metrics and {} system metrics", requestsDeleted, systemsDeleted);
-        }
-
-        catch(final Exception exc) {
-
-            log.error("Could not delete old metrics from DB", exc);
-            session.abortTransaction();
-        }
-
-        session.close();
+        final SystemMetricsEntity entity = systemMetrics.toEntity();
+        if(entity != null) SYSTEM_METRICS_LOGGER.trace("{}", entity);
     }
 
     ///..
@@ -494,30 +449,7 @@ public class ObservabilityService implements Closeable {
 
         if(isHandlingEvent.compareAndSet(false, true)) {
 
-            final ClientSession session = mongoClientWrapper.getClient().startSession();
-            ObservabilityContext oldPrimary = this.swapContexts();
-
-            try {
-
-                session.startTransaction();
-                this.insertMetrics(oldPrimary);
-
-                oldPrimary = requestMetricsDumpFailures.poll();
-                if(oldPrimary != null) this.insertMetrics(oldPrimary);
-
-                session.commitTransaction();
-            }
-
-            catch(final Exception exc) {
-
-                log.error("Could not write metrics to DB", exc);
-
-                session.abortTransaction();
-                requestMetricsDumpFailures.add(oldPrimary);
-                secondaryContext.set(new ObservabilityContext(eventBus, siphonCapacity));
-            }
-
-            session.close();
+            this.insertMetrics(this.swapContexts());
             isHandlingEvent.set(false);
         }
     }
@@ -534,16 +466,15 @@ public class ObservabilityService implements Closeable {
     }
 
     ///..
-    private void insertMetrics(final ObservabilityContext context) throws MongoException {
+    private void insertMetrics(final ObservabilityContext context) {
 
         while(!context.isNoOneThere()) GenericUtils.silentSleep(1L);
-
-        mongoClientWrapper.insertAll(context.drainSiphon(), DatabaseCollection.REQUEST_METRICS);
+        for(final RequestMetricsEntity entity : context.drainSiphon()) REQUEST_METRICS_LOGGER.trace("{}", entity);
         context.reset();
     }
 
     ///..
-    private void validateSearchFilter(final TemporalSearchFilter temporalSearchFilter, final boolean isBucketRequired) throws ValidationException {
+    private void validateSearchFilter(final SearchFilter temporalSearchFilter, final boolean isBucketRequired) throws ValidationException {
 
         final long startTimestamp = temporalSearchFilter.getStartTimestamp();
         final long endTimestamp = temporalSearchFilter.getEndTimestamp();

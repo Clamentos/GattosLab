@@ -26,29 +26,14 @@ public abstract class ApplicationProperties {
     public abstract Duration getCorsMaxAge();
 
     ///..
-    public abstract String getDbConnectionString();
-    public abstract int getDbMinPoolSize();
-    public abstract int getDbMaxPoolSize();
-    public abstract Duration getDbMaintenanceFrequency();
-    public abstract Duration getDbMaxConnectionIdleTime();
-    public abstract Duration getDbConnectTimeout();
-    public abstract Duration getDbReadTimeout();
-
-    ///..
     public abstract String getDynamicPropertiesRefreshSchedule();
 
     ///..
-    public abstract Duration getLogsRetention();
-    public abstract String getLogsRetentionSchedule();
     public abstract String getLogsSquashSchedule();
 
     ///..
     public abstract String getMetricsDumpToDbSchedule();
-    public abstract boolean isRequestMetricsEnabled();
-    public abstract Duration getRequestMetricsRetention();
-    public abstract String getMetricsRetentionSchedule();
     public abstract int getMetricsSiphonCapacity();
-    public abstract Duration getSystemMetricsRetention();
     public abstract String getSystemMetricsSampling();
     public abstract String getSystemMetricsPolling();
 

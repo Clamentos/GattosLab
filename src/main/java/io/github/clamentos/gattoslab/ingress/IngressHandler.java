@@ -2,6 +2,11 @@ package io.github.clamentos.gattoslab.ingress;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
+import io.github.clamentos.gattoslab.exceptions.IllegalHttpMethodException;
+import io.github.clamentos.gattoslab.exceptions.RedirectException;
+import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
+import io.github.clamentos.gattoslab.exceptions.ValidationException;
 import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpUtils;
@@ -87,7 +92,7 @@ public final class IngressHandler implements HttpHandler {
             }
         }
 
-        catch(final Exception exc) {
+        catch(final RuntimeException | ApiSecurityException | IllegalHttpMethodException | RedirectException | TooManyRequestsException | ValidationException exc) {
 
             globalExceptionHandler.handle(exc, exchange);
             observabilityService.updateRequestMetrics(exchange);

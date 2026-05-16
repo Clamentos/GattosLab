@@ -11,7 +11,6 @@ import lombok.NoArgsConstructor;
 public class CommonCrons {
 
     ///
-    public static final String EVERY_DAY = "h24";
     public static final String EVERY_MINUTE = "m1";
     public static final String EVERY_10_SECONDS = "s10";
     public static final String EVERY_5_SECONDS = "s5";

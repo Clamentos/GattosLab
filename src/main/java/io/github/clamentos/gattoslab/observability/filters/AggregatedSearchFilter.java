@@ -5,16 +5,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 ///..
-import io.github.clamentos.gattoslab.persistence.EntityField;
-
-///..
 import lombok.Getter;
 
 ///
 @Getter
 
 ///
-public class AggregatedSearchFilter extends TemporalSearchFilter {
+public class AggregatedSearchFilter extends SearchFilter {
 
     ///
     private final Long bucketSize;
@@ -23,9 +20,9 @@ public class AggregatedSearchFilter extends TemporalSearchFilter {
     @JsonCreator
     public AggregatedSearchFilter(
 
-        @JsonProperty(EntityField.START_TIMESTAMP) final long startTimestamp,
-        @JsonProperty(EntityField.END_TIMESTAMP) final long endTimestamp,
-        @JsonProperty(EntityField.BUCKET_SIZE) final Long bucketSize
+        @JsonProperty("startTimestamp") final long startTimestamp,
+        @JsonProperty("endTimestamp") final long endTimestamp,
+        @JsonProperty("bucketSize") final Long bucketSize
     ) {
 
         super(startTimestamp, endTimestamp);

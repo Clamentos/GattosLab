@@ -6,15 +6,11 @@ import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetri
 
 ///..
 import java.util.AbstractList;
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-
-///..
-import org.bson.types.ObjectId;
 
 ///
 public final class Siphon extends AbstractList<RequestMetricsEntity> {
@@ -55,13 +51,6 @@ public final class Siphon extends AbstractList<RequestMetricsEntity> {
     public List<RequestMetricsEntity> drain() {
 
         isDraining.set(true);
-        final Date now = new Date();
-
-        for(int i = 0; i < index.get(); i++) {
-
-            elements.get(i).setId(new ObjectId(now));
-        }
-
         return this;
     }
 

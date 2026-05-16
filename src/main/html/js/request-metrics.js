@@ -2,24 +2,10 @@ Chart.defaults.color = "#FFFFFF";
 Chart.defaults.datasets.line.fill = true;
 Chart.defaults.datasets.bubble.fill = true;
 Chart.defaults.elements.line.borderWidth = 1;
-Chart.defaults.elements.point.pointRadius = 1;
+Chart.defaults.elements.point.pointRadius = 0;
 
 const today = new Date();
 const defaultTimeResolution = 600000;
-
-const latencyBuckets = [
-
-    "0-1 ms",
-    "2-4 ms",
-    "5-9 ms",
-    "10-19 ms",
-    "20-49 ms",
-    "50-99 ms",
-    "100-199 ms",
-    "200-499 ms",
-    "500-999 ms",
-    "1000+ ms"
-];
 
 let activeCharts = [];
 
@@ -85,7 +71,7 @@ function fetchAndRenderPerformanceMetrics(startTimestamp, endTimestamp, onlyOthe
             response.json().then(json => {
 
                 renderLineChart(activeCharts, "RequestsRateChart", "Request rates", json.rate);
-                renderBubbleChart(activeCharts, "RequestLatencyChart", "Request latencies", json.latency, latencyBuckets);
+                renderLineChart(activeCharts, "RequestLatencyChart", "Request latencies", json.latency);
             });
         }
 

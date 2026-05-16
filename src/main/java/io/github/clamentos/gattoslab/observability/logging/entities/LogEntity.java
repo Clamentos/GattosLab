@@ -1,31 +1,24 @@
 package io.github.clamentos.gattoslab.observability.logging.entities;
 
 ///
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.classic.spi.IThrowableProxy;
-import ch.qos.logback.classic.spi.StackTraceElementProxy;
-
-///..
-import io.github.clamentos.gattoslab.exceptions.CauseContainer;
+import io.github.clamentos.gattoslab.observability.filters.LogSearchFilter;
+import io.github.clamentos.gattoslab.observability.filters.SearchFilter;
+import io.github.clamentos.gattoslab.persistence.SearchableEntity;
 
 ///..
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 ///..
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-///..
-import org.bson.types.ObjectId;
-
 ///
 @AllArgsConstructor
 @Getter
 
 ///
-public final class LogEntity {
+public final class LogEntity implements SearchableEntity {
 
     ///
     public static final String NULL_REPLACEMENT = "\u0000";
@@ -33,7 +26,6 @@ public final class LogEntity {
     public static final String MESSAGE_LINE_SEPARATOR = "\u0002";
 
     ///
-    private final ObjectId id;
     private final long timestamp;
     private final String severity;
     private final String thread;
@@ -42,39 +34,10 @@ public final class LogEntity {
     private final LogEntityExceptionEntry exception;
 
     ///
-    public LogEntity(final ILoggingEvent logEvent) {
-
-        final long logbackTimestamp = logEvent.getTimeStamp();
-
-        id = new ObjectId(new Date(logbackTimestamp));
-        timestamp = logbackTimestamp;
-        severity = logEvent.getLevel().toString();
-        thread = logEvent.getThreadName();
-        logger = logEvent.getLoggerName();
-        message = logEvent.getFormattedMessage();
-
-        final IThrowableProxy throwableProxy = logEvent.getThrowableProxy();
-
-        if(throwableProxy != null) {
-
-            final List<String> stacktrace = this.formatStacktraceForDb(throwableProxy.getStackTraceElementProxyArray());
-
-            this.formatStacktraceForDb(throwableProxy, stacktrace);
-            exception = new LogEntityExceptionEntry(throwableProxy.getClassName(), throwableProxy.getMessage(), stacktrace);
-        }
-
-        else {
-
-            exception = null;
-        }
-    }
-
-    ///..
-    public LogEntity(final String log, final Date now) {
+    public LogEntity(final String log) {
 
         final String[] splits = log.split(SECTION_SEPARATOR);
 
-        id = new ObjectId(now);
         timestamp = Long.parseLong(splits[0]);
         severity = this.undoNormalization(splits[1]);
         thread = this.undoNormalization(splits[2]);
@@ -103,45 +66,31 @@ public final class LogEntity {
     }
 
     ///
-    private List<String> formatStacktraceForDb(final StackTraceElementProxy[] stacktrace) {
+    @Override
+    public boolean respectsFilter(final SearchFilter searchFilter) {
 
-        if(stacktrace == null) return new ArrayList<>();
-        final List<String> formattedStacktrace = new ArrayList<>(stacktrace.length);
+        final long startTimestamp = searchFilter.getStartTimestamp();
+        final long endTimestamp = searchFilter.getEndTimestamp();
 
-        for(int i = 0; i < stacktrace.length; i++) {
+        boolean extraConditions = true;
 
-            final StackTraceElementProxy proxy = stacktrace[i];
-            formattedStacktrace.add(proxy != null ? proxy.toString() : null);
-        }
+        if(searchFilter instanceof final LogSearchFilter logSearchFilter) {
 
-        return formattedStacktrace;
-    }
+            if(logSearchFilter.getSeverities() != null) extraConditions &= logSearchFilter.getSeverities().contains(severity);
+            if(logSearchFilter.getThreadPattern() != null) extraConditions &= thread.contains(logSearchFilter.getThreadPattern());
+            if(logSearchFilter.getLoggerPattern() != null) extraConditions &= logger.contains(logSearchFilter.getLoggerPattern());
+            if(logSearchFilter.getMessagePattern() != null) extraConditions &= message.contains(logSearchFilter.getMessagePattern());
 
-    ///..
-    private void formatStacktraceForDb(final IThrowableProxy exception, final List<String> stacktrace) {
+            if(logSearchFilter.getExceptionClassPattern() != null && exception != null) {
 
-        if(exception != null) {
-
-            final String className = exception.getClassName();
-            final String msg = exception.getMessage();
-            final IThrowableProxy cause = exception.getCause();
-
-            if(cause != null) {
-
-                if(cause.getClassName().equals(CauseContainer.class.getName())) stacktrace.add("$" + className + ": (" + cause.getMessage() + ") ~ " + msg);
-                else stacktrace.add("$" + className + ": " + msg);
-
-                this.formatStacktraceForDb(cause.getCause(), stacktrace);
-            }
-
-            else {
-
-                stacktrace.add("$" + className + ": " + msg);
+                extraConditions &= exception.getClassName().contains(logSearchFilter.getExceptionClassPattern());
             }
         }
+
+        return (timestamp >= startTimestamp && timestamp <= endTimestamp) && extraConditions;
     }
 
-    ///..
+    ///
     private String undoNormalization(final String input) {
 
         if(NULL_REPLACEMENT.equals(input)) return null;

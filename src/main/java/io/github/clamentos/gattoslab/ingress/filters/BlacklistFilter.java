@@ -2,10 +2,9 @@ package io.github.clamentos.gattoslab.ingress.filters;
 
 ///
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
-import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyEntity;
-import io.github.clamentos.gattoslab.configuration.dynamic.DynamicPropertyType;
-import io.github.clamentos.gattoslab.configuration.dynamic.pojos.BlacklistDynamicProperty;
-import io.github.clamentos.gattoslab.configuration.dynamic.pojos.BlacklistIpEntry;
+import io.github.clamentos.gattoslab.configuration.dynamic.entities.BlacklistDynamicProperty;
+import io.github.clamentos.gattoslab.configuration.dynamic.entities.BlacklistIpEntry;
+import io.github.clamentos.gattoslab.configuration.dynamic.entities.DynamicPropertyType;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
@@ -17,6 +16,7 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.util.Headers;
 
 ///..
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.List;
@@ -38,15 +38,14 @@ public final class BlacklistFilter {
     ///
     public void isAllowed(final HttpServerExchange exchange) throws ApiSecurityException {
 
-        final DynamicPropertyEntity<BlacklistDynamicProperty> blacklist = dynamicProperties.get(DynamicPropertyType.BLACKLIST);
-        if(blacklist == null) return;
+        final BlacklistDynamicProperty property = (BlacklistDynamicProperty) dynamicProperties.get(DynamicPropertyType.BLACKLIST);
+        if(property == null) return;
 
-        final BlacklistDynamicProperty property = blacklist.getValue();
         final InetAddress ip = exchange.getSourceAddress().getAddress();
         final String userAgent = HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING);
 
-        this.isIpAllowed(ip, property.getIpv4s(), userAgent);
-        this.isIpAllowed(ip, property.getIpv6s(), userAgent);
+        if(ip instanceof Inet4Address) this.isIpAllowed(ip, property.getIpv4s(), userAgent);
+        else this.isIpAllowed(ip, property.getIpv6s(), userAgent);
 
         final Set<String> userAgentContains = property.getUserAgentContains();
         if(userAgentContains.isEmpty()) return;

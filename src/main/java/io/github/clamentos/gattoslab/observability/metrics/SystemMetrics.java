@@ -8,6 +8,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
+import java.nio.file.FileStore;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -126,8 +129,22 @@ public final class SystemMetrics implements Closeable {
 
         if(dumpCounter.get() < sampleCounterValue) {
 
+            long storageUsedTmp = -1;
+
+            try {
+
+                final FileStore fileStore = Files.getFileStore(Paths.get("/"));
+                storageUsedTmp = fileStore.getTotalSpace() - fileStore.getUnallocatedSpace();
+            }
+
+            catch(final IOException exc) {
+
+                log.error("Could not get filesystem usage because", exc);
+            }
+
             final SystemMetricsEntity entity = new SystemMetricsEntity(
 
+                System.currentTimeMillis(),
                 virtualThreads.get(),
                 platformThreads.get(),
                 classesLoaded.get(),
@@ -144,7 +161,8 @@ public final class SystemMetrics implements Closeable {
                 memoryMXBean.getNonHeapMemoryUsage().getUsed(),
                 directBuffers.get(),
                 directBuffersMemoryUsed.get(),
-                memoryMXBean.getHeapMemoryUsage().getUsed()
+                memoryMXBean.getHeapMemoryUsage().getUsed(),
+                storageUsedTmp
             );
 
             fileReads.set(0);

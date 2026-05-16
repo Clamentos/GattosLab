@@ -15,7 +15,7 @@ public final class UserAgentAggregationEntity {
     private final String userAgent;
     private final long firstInvocation;
     private final long lastInvocation;
-    private final long count;
+    private final int count;
 
     ///
 }

@@ -18,12 +18,12 @@ public final class PathInvocationAggregationEntity {
     private final String path;
     private final long firstInvocation;
     private final long lastInvocation;
-    private final long count;
+    private final int count;
 
     @Getter(onMethod = @__({@JsonProperty("isOthers")}))
     private final boolean isOthers;
 
-    private final short[] httpStatuses;
+    private final int[] httpStatuses;
 
     ///
 }

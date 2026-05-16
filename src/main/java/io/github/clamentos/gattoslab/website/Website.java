@@ -76,7 +76,6 @@ public final class Website {
         this.addPath(websiteStructure, Apis.SYSTEM_METRICS_ENDPOINT, supportedPostMethod);
         this.addPath(websiteStructure, Apis.SESSION_METADATA_ENDPOINT, supportedGetMethod);
         this.addPath(websiteStructure, Apis.LOGS_ENDPOINT, supportedPostMethod);
-        this.addPath(websiteStructure, Apis.FALLBACK_LOGS_ENDPOINT, supportedGetMethod);
 
         log.info("Loading and compressing the site into memory complete. Before: {}, after: {}", uncompressedSize, compressedSize);
         log.info("Website structure: {}", websiteStructure.toString());

@@ -68,13 +68,6 @@ public final class ObservabilityController {
         this.finalizeCompressedResponse(exchange, sender);
     }
 
-    ///..
-    public void getFallbackLogs(final HttpServerExchange exchange, final JsonGenerator generator) throws Exception {
-
-        final ResponseSender sender = logsService.getFallbackLogs(generator);
-        this.finalizeCompressedResponse(exchange, sender);
-    }
-
     ///.
     private void finalizeCompressedResponse(final HttpServerExchange exchange, final ResponseSender sender) throws Exception {
 

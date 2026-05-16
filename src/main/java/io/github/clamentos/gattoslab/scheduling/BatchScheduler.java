@@ -63,7 +63,7 @@ public final class BatchScheduler implements Closeable {
         try {
 
             halt = true;
-            if(!scheduler.join(shutdownTimeout)) log.warn("Timed-out while joining");
+            if(!scheduler.join(shutdownTimeout.multipliedBy(Math.max(workers.size(), 1)))) log.warn("Timed-out while joining");
         }
 
         catch(final InterruptedException _) {
@@ -89,14 +89,13 @@ public final class BatchScheduler implements Closeable {
         }
 
         log.info("Exiting, joining {} workers", workers.size());
-        final Duration waitFor = shutdownTimeout.dividedBy(Math.max(workers.size(), 1)).minusMillis(100L);
 
         for(final Thread worker : workers.values()) {
 
             try {
 
                 log.info("Joining {}", worker.getName());
-                if(!worker.join(waitFor)) log.warn("Timed-out while joining {}", worker.getName());
+                if(!worker.join(shutdownTimeout)) log.warn("Timed-out while joining {}", worker.getName());
             }
 
             catch(final InterruptedException _) {

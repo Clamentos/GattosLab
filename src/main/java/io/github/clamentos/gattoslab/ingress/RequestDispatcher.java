@@ -120,13 +120,6 @@ public final class RequestDispatcher {
 
             return false;
 
-            case Apis.FALLBACK_LOGS_ENDPOINT:
-
-                if(requestMethod == HttpMethod.GET) this.doDispatch(observabilityController::getFallbackLogs, exchange);
-                else throw this.rejectInvalidHttpMethod(requestMethod, website.getContent(Apis.FALLBACK_LOGS_ENDPOINT).getSupportedMethods());
-
-            return false;
-
             default:
 
                 websiteController.serveContent(exchange);

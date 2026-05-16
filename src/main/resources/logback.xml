@@ -2,21 +2,63 @@
 <configuration>
 
     <!---->
-    <appender name = "MONGO_LOGS" class = "io.github.clamentos.gattoslab.observability.logging.MongoAppender"></appender>
+    <appender name = "STANDARD_LOGS" class = "ch.qos.logback.core.rolling.RollingFileAppender">
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <rollingPolicy class = "ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+
+            <fileNamePattern>./observability/logs/gattoslab-logs-%d{yyyy-MM-dd-HH}-%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+
+        </rollingPolicy>
+
+        <encoder class = "io.github.clamentos.gattoslab.observability.logging.LogsEncoder"/>
+    
+    </appender>
+
+    <appender name = "REQUEST_METRICS_APPENDER" class = "ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <rollingPolicy class = "ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+
+            <fileNamePattern>./observability/request_metrics/gattoslab-request-metrics-%d{yyyy-MM-dd-HH}-%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+
+        </rollingPolicy>
+
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            <pattern>%msg%n</pattern>
         </encoder>
+    
+    </appender>
+
+    <appender name = "SYSTEM_METRICS_APPENDER" class = "ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <rollingPolicy class = "ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+
+            <fileNamePattern>./observability/system_metrics/gattoslab-system-metrics-%d{yyyy-MM-dd-HH}-%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    
     </appender>
 
     <!---->
-    <logger name = "console_logger" level="INFO" additivity = "false">
-        <appender-ref ref = "CONSOLE"/>
+    <logger name = "REQUEST_METRICS_LOGGER" level = "TRACE" additivity = "false">
+        <appender-ref ref="REQUEST_METRICS_APPENDER"/>
+    </logger>
+
+    <logger name = "SYSTEM_METRICS_LOGGER" level = "TRACE" additivity = "false">
+        <appender-ref ref="SYSTEM_METRICS_APPENDER"/>
     </logger>
 
     <root level = "INFO">
-        <appender-ref ref = "MONGO_LOGS"/>
+        <appender-ref ref = "STANDARD_LOGS"/>
     </root>
 
     <!---->

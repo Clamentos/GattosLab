@@ -40,7 +40,7 @@ function isOk(value) {
     return value !== "" && value !== null && value !== undefined;
 }
 
-function getChartOptions(title, xCallback, yCallback, tooltipTitleCallback, tooltipCallback) {
+function getChartOptions(title) {
 
     const options = {
 
@@ -93,14 +93,6 @@ function getChartOptions(title, xCallback, yCallback, tooltipTitleCallback, tool
         }
     };
 
-    if(xCallback !== undefined) options.scales.x["ticks"] = { callback: xCallback };
-    if(yCallback !== undefined) options.scales.y["ticks"] = { callback: yCallback };
-
-    if(tooltipTitleCallback !== undefined && tooltipCallback !== undefined) {
-
-        options.plugins["tooltip"]["callbacks"] = { title: tooltipTitleCallback, label: tooltipCallback };
-    }
-
     return options;
 }
 
@@ -117,35 +109,5 @@ function renderLineChart(chartList, hook, title, chartData) {
         },
 
         options: getChartOptions(title)
-    }));
-}
-
-function renderBubbleChart(chartList, hook, title, chartData, latencyBuckets) {
-
-    chartList.push(new Chart(document.getElementById(hook), {
-
-        type: "bubble",
-
-        data: {
-
-            datasets: chartData.datasets
-        },
-
-        options: getChartOptions(
-
-            title,
-            (value, _, __) => formatDate(new Date(value)),
-
-            (value, _, __) => {
-
-                const val = Number.parseInt(value);
-
-                if(val % 1 === 0) return latencyBuckets[val];
-                else return "-";
-            },
-
-            (context) => `${formatDate(new Date(context[0].raw.x))}`,
-            (context) => `${context.dataset.label}: ${Math.round(Math.exp(context.raw.r / bubbleSizeScale))}`
-        )
     }));
 }

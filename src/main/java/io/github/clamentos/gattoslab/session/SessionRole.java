@@ -22,11 +22,10 @@ import lombok.Getter;
 public enum SessionRole {
 
     ///
-    ADMIN("admin");
+    ADMIN;
 
     ///
     private static final String SOURCE_DECODE = "SessionRole.decode";
-    private final String propertySection;
 
     ///
     public static SessionRole decode(final HttpServerExchange exchange) throws ApiSecurityException {

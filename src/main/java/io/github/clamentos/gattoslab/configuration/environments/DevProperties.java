@@ -26,29 +26,14 @@ public final class DevProperties extends ApplicationProperties {
     private final Duration corsMaxAge;
 
     ///..
-    private final String dbConnectionString;
-    private final int dbMinPoolSize;
-    private final int dbMaxPoolSize;
-    private final Duration dbMaintenanceFrequency;
-    private final Duration dbMaxConnectionIdleTime;
-    private final Duration dbConnectTimeout;
-    private final Duration dbReadTimeout;
-
-    ///..
     private final String dynamicPropertiesRefreshSchedule;
 
     ///..
-    private final Duration logsRetention;
-    private final String logsRetentionSchedule;
     private final String logsSquashSchedule;
 
     ///..
     private final String metricsDumpToDbSchedule;
-    private final boolean isRequestMetricsEnabled;
-    private final Duration requestMetricsRetention;
-    private final String metricsRetentionSchedule;
     private final int metricsSiphonCapacity;
-    private final Duration systemMetricsRetention;
     private final String systemMetricsSampling;
     private final String systemMetricsPolling;
 
@@ -93,32 +78,18 @@ public final class DevProperties extends ApplicationProperties {
     ///
     public DevProperties() {
 
-        batchSchedulerShutdownTimeout = Duration.ofSeconds(5);
+        batchSchedulerShutdownTimeout = Duration.ofSeconds(2);
 
         isCorsEnabled = true;
         corsAllowedOrigins = Set.of("https://localhost:8443");
         corsMaxAge = Duration.ofDays(7);
 
-        dbConnectionString = "mongodb://localhost:27017/GattosLabMongoDB";
-        dbMinPoolSize = 4;
-        dbMaxPoolSize = 16;
-        dbMaintenanceFrequency = Duration.ofMinutes(1);
-        dbMaxConnectionIdleTime = Duration.ofMinutes(5);
-        dbConnectTimeout = Duration.ofSeconds(30);
-        dbReadTimeout = Duration.ofSeconds(20);
-
         dynamicPropertiesRefreshSchedule = CommonCrons.EVERY_MINUTE;
 
-        logsRetention = Duration.ofDays(31);
-        logsRetentionSchedule = CommonCrons.EVERY_DAY;
         logsSquashSchedule = CommonCrons.EVERY_MINUTE;
 
         metricsDumpToDbSchedule = CommonCrons.EVERY_MINUTE;
-        isRequestMetricsEnabled = true;
-        requestMetricsRetention = Duration.ofDays(31);
-        metricsRetentionSchedule = CommonCrons.EVERY_DAY;
         metricsSiphonCapacity = 1000;
-        systemMetricsRetention = Duration.ofDays(31);
         systemMetricsSampling = CommonCrons.EVERY_5_SECONDS;
         systemMetricsPolling = CommonCrons.EVERY_SECOND;
 

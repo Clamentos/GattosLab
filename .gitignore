@@ -5,6 +5,7 @@ target/
 *.log
 *.p12
 /*.txt
+/observability
 
 ### VS Code ###
 .vscode/

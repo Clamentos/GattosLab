@@ -17,7 +17,6 @@ public final class Apis {
     public static final String SYSTEM_METRICS_ENDPOINT = "/admin/api/observability/system-metrics";
     public static final String SESSION_METADATA_ENDPOINT = "/admin/api/observability/sessions-metadata";
     public static final String LOGS_ENDPOINT = "/admin/api/observability/logs";
-    public static final String FALLBACK_LOGS_ENDPOINT = "/admin/api/observability/fallback-logs";
 
     ///..
     public static final String FE_ROOT = "/";
