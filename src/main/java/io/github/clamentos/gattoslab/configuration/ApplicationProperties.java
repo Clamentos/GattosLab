@@ -19,6 +19,7 @@ public abstract class ApplicationProperties {
 
     ///..
     public abstract Duration getBatchSchedulerShutdownTimeout();
+    public abstract Duration getServerShutdownTimeout();
 
     ///..
     public abstract boolean isCorsEnabled();

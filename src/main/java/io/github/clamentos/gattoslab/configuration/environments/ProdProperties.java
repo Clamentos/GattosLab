@@ -19,6 +19,7 @@ public final class ProdProperties extends ApplicationProperties {
 
     ///
     private final Duration batchSchedulerShutdownTimeout;
+    private final Duration serverShutdownTimeout;
 
     ///..
     private final boolean isCorsEnabled;
@@ -79,6 +80,7 @@ public final class ProdProperties extends ApplicationProperties {
     public ProdProperties() throws IllegalArgumentException {
 
         batchSchedulerShutdownTimeout = Duration.ofSeconds(2);
+        serverShutdownTimeout = Duration.ofSeconds(5);
 
         isCorsEnabled = true;
         corsAllowedOrigins = Set.of("https://gattoslab.dev", "https://www.gattoslab.dev");

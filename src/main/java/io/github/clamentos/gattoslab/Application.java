@@ -221,9 +221,7 @@ public class Application {
         serverBuilder.setServerOption(UndertowOptions.MAX_COOKIES, 8);
         serverBuilder.setServerOption(UndertowOptions.MAX_BUFFERED_REQUEST_SIZE, 4096);
         serverBuilder.setServerOption(UndertowOptions.ENABLE_RFC6265_COOKIE_VALIDATION, true);
-        serverBuilder.setServerOption(UndertowOptions.MAX_CACHED_HEADER_SIZE, 128);
-        serverBuilder.setServerOption(UndertowOptions.HTTP_HEADERS_CACHE_SIZE, 32);
-        serverBuilder.setServerOption(UndertowOptions.SHUTDOWN_TIMEOUT, 10000);
+        serverBuilder.setServerOption(UndertowOptions.SHUTDOWN_TIMEOUT, (int)applicationProperties.getServerShutdownTimeout().toMillis());
         serverBuilder.setServerOption(UndertowOptions.TRACK_ACTIVE_REQUESTS, false);
 
         if(sslContext != null) {
