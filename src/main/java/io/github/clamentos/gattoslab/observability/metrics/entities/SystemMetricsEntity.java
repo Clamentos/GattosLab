@@ -21,7 +21,6 @@ public final class SystemMetricsEntity implements SearchableEntity {
 
     ///
     private final long timestamp;
-    private final long virtualThreads;
     private final long platformThreads;
     private final long classesLoaded;
     private final long fileReads;
@@ -39,13 +38,13 @@ public final class SystemMetricsEntity implements SearchableEntity {
     private final long directBuffersMemoryUsed;
     private final long heapUsed;
     private final long storageUsed;
+    private final long requestMetricsEquilibrium;
 
     ///
     @JsonCreator
     public SystemMetricsEntity(
 
         @JsonProperty("timestamp") final long timestamp,
-        @JsonProperty("virtualThreads") final long virtualThreads,
         @JsonProperty("platformThreads") final long platformThreads,
         @JsonProperty("classesLoaded") final long classesLoaded,
         @JsonProperty("fileReads") final long fileReads,
@@ -62,11 +61,11 @@ public final class SystemMetricsEntity implements SearchableEntity {
         @JsonProperty("directBuffersUsed") final long directBuffersUsed,
         @JsonProperty("directBuffersMemoryUsed") final long directBuffersMemoryUsed,
         @JsonProperty("heapUsed") final long heapUsed,
-        @JsonProperty("storageUsed") final long storageUsed
+        @JsonProperty("storageUsed") final long storageUsed,
+        @JsonProperty("requestMetricsEquilibrium") final long requestMetricsEquilibrium
     ) {
 
         this.timestamp = timestamp;
-        this.virtualThreads = virtualThreads;
         this.platformThreads = platformThreads;
         this.classesLoaded = classesLoaded;
         this.fileReads = fileReads;
@@ -84,6 +83,7 @@ public final class SystemMetricsEntity implements SearchableEntity {
         this.directBuffersMemoryUsed = directBuffersMemoryUsed;
         this.heapUsed = heapUsed;
         this.storageUsed = storageUsed;
+        this.requestMetricsEquilibrium = requestMetricsEquilibrium;
     }
 
     ///
@@ -97,14 +97,14 @@ public final class SystemMetricsEntity implements SearchableEntity {
     @Override
     public String toString() {
 
-        return "{\"timestamp\":" + timestamp + ",\"virtualThreads\":" + virtualThreads
+        return "{\"timestamp\":" + timestamp
                 + ",\"platformThreads\":" + platformThreads + ",\"classesLoaded\":" + classesLoaded + ",\"fileReads\":"
                 + fileReads + ",\"fileWrites\":" + fileWrites + ",\"socketReads\":" + socketReads + ",\"socketWrites\":"
                 + socketWrites + ",\"gcCounts\":" + gcCounts + ",\"gcPause\":" + gcPause + ",\"cpuLoadJvmUser\":"
                 + cpuLoadJvmUser + ",\"cpuLoadJvmSystem\":" + cpuLoadJvmSystem + ",\"cpuLoadMachineTotal\":"
                 + cpuLoadMachineTotal + ",\"systemMemoryUsed\":" + systemMemoryUsed + ",\"metaSpaceUsed\":" + metaSpaceUsed
                 + ",\"directBuffersUsed\":" + directBuffersUsed + ",\"directBuffersMemoryUsed\":" + directBuffersMemoryUsed
-                + ",\"heapUsed\":" + heapUsed + ",\"storageUsed\":" + storageUsed + "}";
+                + ",\"heapUsed\":" + heapUsed + ",\"storageUsed\":" + storageUsed + ",\"requestMetricsEquilibrium\":" + requestMetricsEquilibrium + "}";
     }
 
     ///

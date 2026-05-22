@@ -1,6 +1,5 @@
 Chart.defaults.color = "#FFFFFF";
-Chart.defaults.datasets.line.fill = true;
-Chart.defaults.datasets.bubble.fill = true;
+Chart.defaults.datasets.line.fill = false;
 Chart.defaults.elements.line.borderWidth = 1;
 Chart.defaults.elements.point.pointRadius = 0;
 
@@ -62,6 +61,7 @@ function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
                 renderLineChart(activeCharts, "SystemCpuChart", "CPU utilization %", json.cpu);
                 renderLineChart(activeCharts, "SystemMemoryChart", "Memory utilization", json.memory);
                 renderLineChart(activeCharts, "StorageChart", "Storage utilization", json.storage);
+                renderLineChart(activeCharts, "RequestMetricsEquilibriumChart", "Request metrics equilibrium", json.requestMetricsEquilibrium);
             });
         }
 

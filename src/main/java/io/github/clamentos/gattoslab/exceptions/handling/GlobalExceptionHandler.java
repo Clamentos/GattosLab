@@ -3,21 +3,28 @@ package io.github.clamentos.gattoslab.exceptions.handling;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
+import io.github.clamentos.gattoslab.exceptions.BlacklistedException;
+import io.github.clamentos.gattoslab.exceptions.EarlyTerminationException;
 import io.github.clamentos.gattoslab.exceptions.IllegalHttpMethodException;
 import io.github.clamentos.gattoslab.exceptions.RedirectException;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
 import io.github.clamentos.gattoslab.exceptions.ValidationException;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
+import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
+import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEventType;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import io.undertow.io.UndertowOutputStream;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderMap;
+import io.undertow.util.Headers;
 import io.undertow.util.StatusCodes;
 
 ///..
 import java.io.IOException;
+import java.net.InetAddress;
 
 ///..
 import lombok.extern.slf4j.Slf4j;
@@ -37,31 +44,39 @@ public final class GlobalExceptionHandler {
 
     ///..
     private final JsonMapper jsonMapper;
+    private final SquashedLogsContainer squashedLogsContainer;
     private final ObservabilityService observabilityService;
 
     ///
-    public GlobalExceptionHandler(final ApplicationProperties applicationProperties, final JsonMapper jsonMapper, final ObservabilityService observabilityService) {
+    public GlobalExceptionHandler(
+
+        final ApplicationProperties applicationProperties,
+        final JsonMapper jsonMapper,
+        final SquashedLogsContainer squashedLogsContainer,
+        final ObservabilityService observabilityService
+    ) {
 
         retryAfterStr = Long.toString(applicationProperties.getRateLimitRetryAfter().toSeconds());
 
         this.jsonMapper = jsonMapper;
+        this.squashedLogsContainer = squashedLogsContainer;
         this.observabilityService = observabilityService;
     }
 
     ///
-    public boolean handle(final Exception exception, final HttpServerExchange exchange) {
+    public void handle(final Exception exception, final HttpServerExchange exchange) {
 
-        return this.handleInternal(exception, exchange, false);
+        this.handleInternal(exception, exchange, false);
     }
 
     ///..
-    public boolean handleWithReset(final Exception exception, final HttpServerExchange exchange) {
+    public void handleWithReset(final Exception exception, final HttpServerExchange exchange) {
 
-        return this.handleInternal(exception, exchange, true);
+        this.handleInternal(exception, exchange, true);
     }
 
-    ///
-    private boolean handleInternal(final Exception exception, final HttpServerExchange exchange, final boolean resetStream) {
+    ///.
+    private void handleInternal(final Exception exception, final HttpServerExchange exchange, final boolean resetStream) {
 
         if(!exchange.isResponseStarted()) {
 
@@ -72,9 +87,22 @@ public final class GlobalExceptionHandler {
                 switch(exception) {
 
                     case final ApiSecurityException ex -> this.respond(exchange, StatusCodes.FORBIDDEN, ex, "Forbidden");
+
+                    case final BlacklistedException ex -> {
+
+                        this.squashedLog(exchange, SquashLogEventType.BLACKLISTED);
+                        this.respond(exchange, StatusCodes.FORBIDDEN, ex, "Forbidden");
+                    }
+
+                    case final EarlyTerminationException _ -> {
+
+                        exchange.setStatusCode(StatusCodes.NO_CONTENT);
+                        exchange.endExchange();
+                    }
+
                     case final IOException ex -> this.respond(exchange, StatusCodes.INTERNAL_SERVER_ERROR, ex, "File database error");
                     case final IllegalHttpMethodException ex -> this.respond(exchange, StatusCodes.METHOD_NOT_ALLOWED, ex, "Method not allowed");
-                    case final JacksonException ex -> this.respond(exchange, StatusCodes.BAD_REQUEST, ex, "Nonsensical body");
+                    case final JacksonException ex -> this.respond(exchange, StatusCodes.BAD_REQUEST, ex, "Nonsensical request");
 
                     case final RedirectException ex -> {
 
@@ -85,10 +113,12 @@ public final class GlobalExceptionHandler {
                     case final TooManyRequestsException ex -> {
 
                         final HeaderMap retryAfterHeader = HttpUtils.addRetryAfter(new HeaderMap(), retryAfterStr);
+
+                        this.squashedLog(exchange, SquashLogEventType.RATE_LIMIT);
                         this.respond(exchange, StatusCodes.TOO_MANY_REQUESTS, ex, "Rate limit triggered", retryAfterHeader);
                     }
 
-                    case final ValidationException ex -> this.respond(exchange, StatusCodes.BAD_REQUEST, ex, "Nonsensical body");
+                    case final ValidationException ex -> this.respond(exchange, StatusCodes.BAD_REQUEST, ex, "Nonsensical request");
                     default -> this.respond(exchange, StatusCodes.INTERNAL_SERVER_ERROR, exception, "Unhandled error");
                 }
             }
@@ -100,6 +130,8 @@ public final class GlobalExceptionHandler {
 
                 exchange.setStatusCode(StatusCodes.INTERNAL_SERVER_ERROR);
             }
+
+            observabilityService.updateRequestMetrics(exchange);
         }
 
         else {
@@ -110,8 +142,6 @@ public final class GlobalExceptionHandler {
 
                 exchange.putAttachment(HttpUtils.BROKEN_PIPE, true);
                 observabilityService.updateRequestMetrics(exchange);
-
-                return true;
             }
 
             else {
@@ -119,8 +149,6 @@ public final class GlobalExceptionHandler {
                 log.warn("Response already started. Exception to be handled for REQID: {} is", exchange.getRequestId(), exception);
             }
         }
-
-        return false;
     }
 
     ///.
@@ -134,6 +162,15 @@ public final class GlobalExceptionHandler {
     throws JacksonException {
 
         HttpUtils.respondRest(exchange, statusCode, jsonMapper.writeValueAsString(new ErrorBody(title, exception, exchange)), extraHeaders);
+    }
+
+    ///..
+    private void squashedLog(final HttpServerExchange exchange, final SquashLogEventType eventType) {
+
+        final InetAddress ip = exchange.getSourceAddress().getAddress();
+        final String fingerprint = GenericUtils.composeFingerprint(ip, HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING));
+
+        squashedLogsContainer.squash(eventType, fingerprint);
     }
 
     ///

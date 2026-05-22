@@ -74,7 +74,7 @@ public final class FileDatabase {
 
             try(final Stream<String> lines = Files.lines(file)) {
 
-                lines.forEach(line -> {
+                lines.filter(line -> !line.isEmpty()).forEach(line -> {
 
                     final T entity = this.parseEntity(line, clazz);
                     if(entity.respectsFilter(searchFilter)) entities.add(entity);
@@ -102,7 +102,7 @@ public final class FileDatabase {
 
             final List<DynamicPropertyEntity> entities = new ArrayList<>();
 
-            lines.forEach(line -> {
+            lines.filter(line -> !line.isEmpty()).forEach(line -> {
 
                 final DynamicPropertyEntity entity = this.parseEntity(line, DynamicPropertyEntity.class);
                 if(entity.respectsFilter(null)) entities.add(entity);

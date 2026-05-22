@@ -1,5 +1,5 @@
 Chart.defaults.color = "#FFFFFF";
-Chart.defaults.datasets.line.fill = true;
+Chart.defaults.datasets.line.fill = false;
 Chart.defaults.datasets.bubble.fill = true;
 Chart.defaults.elements.line.borderWidth = 1;
 Chart.defaults.elements.point.pointRadius = 0;

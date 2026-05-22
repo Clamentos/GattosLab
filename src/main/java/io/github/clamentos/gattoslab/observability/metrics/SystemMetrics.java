@@ -30,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 public final class SystemMetrics implements Closeable {
 
     ///
-    private final AtomicLong virtualThreads;
     private final AtomicLong platformThreads;
 
     private final AtomicLong classesLoaded;
@@ -52,6 +51,9 @@ public final class SystemMetrics implements Closeable {
     private final AtomicLong directBuffers;
     private final AtomicLong directBuffersMemoryUsed;
 
+    private final AtomicLong requestMetricsEquilibrium;
+
+    ///..
     private final AtomicLong sampleCounter;
     private final AtomicLong dumpCounter;
 
@@ -62,7 +64,6 @@ public final class SystemMetrics implements Closeable {
     ///
     public SystemMetrics(final long samplingPeriod) {
 
-        virtualThreads = new AtomicLong();
         platformThreads = new AtomicLong();
         classesLoaded = new AtomicLong();
         fileReads = new AtomicLong();
@@ -77,6 +78,7 @@ public final class SystemMetrics implements Closeable {
         systemMemoryUsed = new AtomicLong();
         directBuffers = new AtomicLong();
         directBuffersMemoryUsed = new AtomicLong();
+        requestMetricsEquilibrium = new AtomicLong();
 
         sampleCounter = new AtomicLong();
         dumpCounter = new AtomicLong();
@@ -84,8 +86,6 @@ public final class SystemMetrics implements Closeable {
         memoryMXBean = ManagementFactory.getMemoryMXBean();
         recordingStream = new RecordingStream();
 
-        this.enableRecording("jdk.VirtualThreadStart", _ -> virtualThreads.incrementAndGet());
-        this.enableRecording("jdk.VirtualThreadEnd", _ -> virtualThreads.decrementAndGet());
         this.enableRecording("jdk.ThreadStart", _ -> platformThreads.incrementAndGet());
         this.enableRecording("jdk.ThreadEnd", _ -> platformThreads.decrementAndGet());
 
@@ -123,6 +123,18 @@ public final class SystemMetrics implements Closeable {
     }
 
     ///
+    public void requestStarted() {
+
+        requestMetricsEquilibrium.incrementAndGet();
+    }
+
+    ///..
+    public void requestMetricCreated() {
+
+        requestMetricsEquilibrium.decrementAndGet();
+    }
+
+    ///..
     public SystemMetricsEntity toEntity() {
 
         final long sampleCounterValue = sampleCounter.get();
@@ -145,7 +157,6 @@ public final class SystemMetrics implements Closeable {
             final SystemMetricsEntity entity = new SystemMetricsEntity(
 
                 System.currentTimeMillis(),
-                virtualThreads.get(),
                 platformThreads.get(),
                 classesLoaded.get(),
                 fileReads.get(),
@@ -162,7 +173,8 @@ public final class SystemMetrics implements Closeable {
                 directBuffers.get(),
                 directBuffersMemoryUsed.get(),
                 memoryMXBean.getHeapMemoryUsage().getUsed(),
-                storageUsedTmp
+                storageUsedTmp,
+                requestMetricsEquilibrium.get()
             );
 
             fileReads.set(0);

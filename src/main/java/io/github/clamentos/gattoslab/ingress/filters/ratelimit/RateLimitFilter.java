@@ -3,17 +3,22 @@ package io.github.clamentos.gattoslab.ingress.filters.ratelimit;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exceptions.TooManyRequestsException;
-import io.github.clamentos.gattoslab.http.HttpUtils;
-import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
-import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEventType;
+import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
-import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import io.undertow.server.HttpServerExchange;
-import io.undertow.util.Headers;
+import io.undertow.servlet.spec.HttpServletRequestImpl;
 
 ///..
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+
+///..
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Iterator;
 import java.util.Map;
@@ -26,48 +31,65 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 
 ///
-public final class RateLimitFilter {
+public final class RateLimitFilter implements Filter {
 
     ///
     private final int maxTokensPerIp;
     private final int blockCounterStart;
 
     ///..
-    private final SquashedLogsContainer squashedLogsContainer;
+    private final GlobalExceptionHandler globalExceptionHandler;
 
     ///..
     private final Map<InetAddress, RateLimitEntry> tokensByIp;
 
     ///
-    public RateLimitFilter(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler, final SquashedLogsContainer squashedLogsContainer)
-    throws IllegalArgumentException {
+    public RateLimitFilter(
+
+        final ApplicationProperties applicationProperties,
+        final BatchScheduler batchScheduler,
+        final GlobalExceptionHandler globalExceptionHandler
+
+    )throws IllegalArgumentException {
 
         final int schedule = (int)batchScheduler.schedule(this::replenish, "RateLimitFilter::replenish", applicationProperties.getRateLimitReplenishRate());
 
         maxTokensPerIp = applicationProperties.getRateLimitMaxTokensPerIp();
         blockCounterStart = (int)(applicationProperties.getRateLimitRetryAfter().toMillis() / schedule);
 
-        this.squashedLogsContainer = squashedLogsContainer;
+        this.globalExceptionHandler = globalExceptionHandler;
 
         tokensByIp = new ConcurrentHashMap<>();
     }
 
     ///
-    public void rateLimit(final HttpServerExchange exchange) throws TooManyRequestsException {
+    @Override
+    public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
 
-        final InetAddress ip = exchange.getSourceAddress().getAddress();
-        final RateLimitEntry entry = tokensByIp.computeIfAbsent(ip, _ -> new RateLimitEntry(maxTokensPerIp, blockCounterStart));
+        final HttpServerExchange exchange = ((HttpServletRequestImpl)request).getExchange();
 
-        if(entry.isRateLimited()) {
+        try {
 
-            final String fingerprint = GenericUtils.composeFingerprint(ip, HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING));
-            squashedLogsContainer.squash(SquashLogEventType.RATE_LIMIT, fingerprint);
+            this.isAllowed(exchange);
+            chain.doFilter(request, response);
+        }
 
-            throw new TooManyRequestsException("Rate limit reached", "RateLimitFilter.rateLimit");
+        catch(final TooManyRequestsException exc) {
+
+            globalExceptionHandler.handle(exc, exchange);
         }
     }
 
     ///.
+    private void isAllowed(final HttpServerExchange exchange) throws TooManyRequestsException {
+
+        final InetAddress ip = exchange.getSourceAddress().getAddress();
+        final RateLimitEntry entry = tokensByIp.computeIfAbsent(ip, _ -> new RateLimitEntry(maxTokensPerIp, blockCounterStart));
+
+        if(entry.isRateLimited()) throw new TooManyRequestsException("Rate limit reached", "RateLimitFilter.rateLimit");
+    }
+
+    ///..
     private void replenish() {
 
         final Iterator<Map.Entry<InetAddress, RateLimitEntry>> entries = tokensByIp.entrySet().iterator();

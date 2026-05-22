@@ -19,6 +19,7 @@ public final class SystemMetricsCharts {
     private final LineChart cpu;
     private final LineChart memory;
     private final LineChart storage;
+    private final LineChart requestMetricsEquilibrium;
 
     ///
 }

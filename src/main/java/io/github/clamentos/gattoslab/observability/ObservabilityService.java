@@ -279,7 +279,6 @@ public class ObservabilityService implements Closeable {
 
         final int actualSize = metricsAggregationMap.size();
 
-        final long[] virtualThreads = new long[actualSize];
         final long[] platformThreads = new long[actualSize];
         final long[] classes = new long[actualSize];
         final long[] fileReads = new long[actualSize];
@@ -297,6 +296,7 @@ public class ObservabilityService implements Closeable {
         final long[] directBuffersMemoryUsed = new long[actualSize];
         final long[] heapUsed = new long[actualSize];
         final long[] storageUsed = new long[actualSize];
+        final long[] requestMetricsEquilibrium = new long[actualSize];
 
         int index = 0;
 
@@ -306,7 +306,6 @@ public class ObservabilityService implements Closeable {
 
                 final int count = entry.getValue().size();
 
-                long virtualThreadsTmp = 0;
                 long platformThreadsTmp = 0;
                 long classesTmp = 0;
                 long fileReadsTmp = 0;
@@ -324,10 +323,10 @@ public class ObservabilityService implements Closeable {
                 long directBuffersMemoryUsedTmp = 0;
                 long heapUsedTmp = 0;
                 long storageUsedTmp = 0;
+                long requestMetricsEquilibriumTmp = 0;
 
                 for(final SystemMetricsEntity entity : entry.getValue()) {
 
-                    virtualThreadsTmp = virtualThreadsTmp + entity.getVirtualThreads();
                     platformThreadsTmp = platformThreadsTmp + entity.getPlatformThreads();
                     classesTmp = classesTmp + entity.getClassesLoaded();
                     fileReadsTmp = fileReadsTmp + entity.getFileReads();
@@ -345,9 +344,9 @@ public class ObservabilityService implements Closeable {
                     directBuffersMemoryUsedTmp = directBuffersMemoryUsedTmp + entity.getDirectBuffersMemoryUsed();
                     heapUsedTmp = heapUsedTmp + entity.getHeapUsed();
                     storageUsedTmp = storageUsedTmp + entity.getStorageUsed();
+                    requestMetricsEquilibriumTmp = requestMetricsEquilibriumTmp + entity.getRequestMetricsEquilibrium();
                 }
 
-                virtualThreads[index] = Math.ceilDiv(virtualThreadsTmp, count);
                 platformThreads[index] = Math.ceilDiv(platformThreadsTmp, count);
                 classes[index] = Math.ceilDiv(classesTmp, count);
                 fileReads[index] = fileReadsTmp;
@@ -365,6 +364,7 @@ public class ObservabilityService implements Closeable {
                 directBuffersMemoryUsed[index] = Math.ceilDiv(directBuffersMemoryUsedTmp, count);
                 heapUsed[index] = Math.ceilDiv(heapUsedTmp, count);
                 storageUsed[index] = Math.ceilDiv(storageUsedTmp, count);
+                requestMetricsEquilibrium[index] = Math.ceilDiv(requestMetricsEquilibriumTmp, count);
             }
 
             index++;
@@ -372,7 +372,7 @@ public class ObservabilityService implements Closeable {
 
         return () -> generator.writePOJO(new SystemMetricsCharts(
 
-            new LineChart(labels, List.of(new ChartDataset<>("Virtual", virtualThreads), new ChartDataset<>("Platform", platformThreads))),
+            new LineChart(labels, List.of(new ChartDataset<>("Platform", platformThreads))),
             new LineChart(labels, List.of(new ChartDataset<>("Loaded classes", classes))),
 
             new LineChart(labels, List.of(
@@ -401,8 +401,15 @@ public class ObservabilityService implements Closeable {
                 new ChartDataset<>("Heap used", heapUsed)
             )),
 
-            new LineChart(labels, List.of(new ChartDataset<>("Storage used", storageUsed)))
+            new LineChart(labels, List.of(new ChartDataset<>("Storage used", storageUsed))),
+            new LineChart(labels, List.of(new ChartDataset<>("In-vs-logged", requestMetricsEquilibrium)))
         ));
+    }
+
+    ///..
+    public void requestStarted() {
+
+        systemMetrics.requestStarted();
     }
 
     ///..
@@ -424,7 +431,9 @@ public class ObservabilityService implements Closeable {
             if(!success) GenericUtils.silentSleep(1L);
             else break;
         }
-	}
+
+        systemMetrics.requestMetricCreated();
+    }
 
     ///..
     public void close() throws IOException {

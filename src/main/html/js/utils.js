@@ -37,7 +37,7 @@ function normalizeTimeRange(startStr, endStr, todayStartDate) {
 
 function isOk(value) {
 
-    return value !== "" && value !== null && value !== undefined;
+    return value !== null && value !== undefined && value !== "";
 }
 
 function getChartOptions(title) {
@@ -79,7 +79,7 @@ function getChartOptions(title) {
 
                 grid: {
 
-                    color: "rgba(255, 255, 255, 0.15)"
+                    color: "rgba(255, 255, 255, 0.10)"
                 }
             },
 
@@ -87,7 +87,7 @@ function getChartOptions(title) {
 
                 grid: {
 
-                    color: "rgba(255, 255, 255, 0.15)"
+                    color: "rgba(255, 255, 255, 0.10)"
                 }
             }
         }

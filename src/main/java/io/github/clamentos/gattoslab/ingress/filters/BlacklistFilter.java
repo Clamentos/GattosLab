@@ -5,17 +5,24 @@ import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
 import io.github.clamentos.gattoslab.configuration.dynamic.entities.BlacklistDynamicProperty;
 import io.github.clamentos.gattoslab.configuration.dynamic.entities.BlacklistIpEntry;
 import io.github.clamentos.gattoslab.configuration.dynamic.entities.DynamicPropertyType;
-import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
+import io.github.clamentos.gattoslab.exceptions.BlacklistedException;
+import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.http.HttpUtils;
-import io.github.clamentos.gattoslab.observability.logging.SquashedLogsContainer;
-import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEventType;
-import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import io.undertow.server.HttpServerExchange;
+import io.undertow.servlet.spec.HttpServletRequestImpl;
 import io.undertow.util.Headers;
 
 ///..
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+
+///..
+import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.util.Arrays;
@@ -29,14 +36,32 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 
 ///
-public final class BlacklistFilter {
+public final class BlacklistFilter implements Filter {
 
     ///
     private final DynamicProperties dynamicProperties;
-    private final SquashedLogsContainer squashedLogContainer;
+    private final GlobalExceptionHandler globalExceptionHandler;
 
     ///
-    public void isAllowed(final HttpServerExchange exchange) throws ApiSecurityException {
+    @Override
+    public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
+
+        final HttpServerExchange exchange = ((HttpServletRequestImpl)request).getExchange();
+
+        try {
+
+            this.isAllowed(exchange);
+            chain.doFilter(request, response);
+        }
+
+        catch(final BlacklistedException exc) {
+
+            globalExceptionHandler.handle(exc, exchange);
+        }
+    }
+
+    ///.
+    private void isAllowed(final HttpServerExchange exchange) throws BlacklistedException {
 
         final BlacklistDynamicProperty property = (BlacklistDynamicProperty) dynamicProperties.get(DynamicPropertyType.BLACKLIST);
         if(property == null) return;
@@ -44,24 +69,25 @@ public final class BlacklistFilter {
         final InetAddress ip = exchange.getSourceAddress().getAddress();
         final String userAgent = HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING);
 
-        if(ip instanceof Inet4Address) this.isIpAllowed(ip, property.getIpv4s(), userAgent);
-        else this.isIpAllowed(ip, property.getIpv6s(), userAgent);
+        if(ip instanceof Inet4Address) this.isIpAllowed(ip, property.getIpv4s());
+        else this.isIpAllowed(ip, property.getIpv6s());
 
         final Set<String> userAgentContains = property.getUserAgentContains();
         if(userAgentContains.isEmpty()) return;
 
         for(final String piece : userAgentContains) {
 
-            if(userAgent.contains(piece)) throw this.createException(ip, userAgent); 
+            if(userAgent.contains(piece)) throw this.createException();
         }
     }
 
-    ///.
-    private void isIpAllowed(final InetAddress ip, final List<BlacklistIpEntry> ranges, final String userAgent) throws ApiSecurityException {
+    ///..
+    private void isIpAllowed(final InetAddress ip, final List<BlacklistIpEntry> ranges)
+    throws BlacklistedException {
 
         for(final BlacklistIpEntry range : ranges) {
 
-            if(this.isInRange(ip, range.getStart(), range.getEnd())) throw this.createException(ip, userAgent);
+            if(this.isInRange(ip, range.getStart(), range.getEnd())) throw this.createException();
         }
     }
 
@@ -96,10 +122,9 @@ public final class BlacklistFilter {
     }
 
     ///..
-    private ApiSecurityException createException(final InetAddress ip, final String userAgent) {
+    private BlacklistedException createException() {
 
-        squashedLogContainer.squash(SquashLogEventType.BLACKLISTED, GenericUtils.composeFingerprint(ip, userAgent));
-        return new ApiSecurityException("Blacklisted", "BlacklistFilter.createException");
+        return new BlacklistedException("Blacklisted", "BlacklistFilter.createException");
     }
 
     ///

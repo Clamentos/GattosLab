@@ -4,6 +4,7 @@ package io.github.clamentos.gattoslab.ingress.filters;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exceptions.ApiSecurityException;
 import io.github.clamentos.gattoslab.exceptions.RedirectException;
+import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
 import io.github.clamentos.gattoslab.http.HttpUtils;
 import io.github.clamentos.gattoslab.session.SessionRole;
 import io.github.clamentos.gattoslab.session.SessionService;
@@ -14,9 +15,18 @@ import io.github.clamentos.gattoslab.website.Website;
 ///..
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.Cookie;
+import io.undertow.servlet.spec.HttpServletRequestImpl;
 import io.undertow.util.Headers;
 
 ///..
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+
+///..
+import java.io.IOException;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 
 ///
-public final class SecurityFilter {
+public final class SecurityFilter implements Filter {
 
     ///
     private static final String SOURCE_AUTHORIZE = "SecurityFilter.authorize";
@@ -39,19 +49,46 @@ public final class SecurityFilter {
 
     ///..
     private final SessionService sessionService;
+    private final GlobalExceptionHandler globalExceptionHandler;
 
     ///
-    public SecurityFilter(final ApplicationProperties applicationProperties, final SessionRole roleToCheck, final SessionService sessionService, final Website website) {
+    public SecurityFilter(
+
+        final ApplicationProperties applicationProperties,
+        final SessionRole roleToCheck,
+        final SessionService sessionService,
+        final GlobalExceptionHandler globalExceptionHandler,
+        final Website website
+    ) {
 
         this.roleToCheck = roleToCheck;
         cookieName = applicationProperties.getSessionsCookieName() + roleToCheck.name();
         protectedPaths = website.getPaths().stream().filter(p -> p.startsWith("/admin")).collect(Collectors.toSet());
 
         this.sessionService = sessionService;
+        this.globalExceptionHandler = globalExceptionHandler;
     }
 
     ///
-    public void authorize(final HttpServerExchange exchange) throws ApiSecurityException, RedirectException {
+    @Override
+    public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
+
+        final HttpServerExchange exchange = ((HttpServletRequestImpl)request).getExchange();
+
+        try {
+
+            this.isAllowed(exchange);
+            chain.doFilter(request, response);
+        }
+
+        catch(final ApiSecurityException | RedirectException exc) {
+
+            globalExceptionHandler.handle(exc, exchange);
+        }
+    }
+
+    ///
+    private void isAllowed(final HttpServerExchange exchange) throws ApiSecurityException, RedirectException {
 
         final String path = exchange.getRequestPath();
         if(roleToCheck == SessionRole.ADMIN && !protectedPaths.contains(path)) return;

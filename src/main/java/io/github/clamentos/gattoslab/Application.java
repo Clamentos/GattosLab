@@ -9,9 +9,13 @@ import io.github.clamentos.gattoslab.configuration.ProfileResolver;
 import io.github.clamentos.gattoslab.configuration.dynamic.DynamicProperties;
 import io.github.clamentos.gattoslab.configuration.environments.Environment;
 import io.github.clamentos.gattoslab.exceptions.handling.GlobalExceptionHandler;
-import io.github.clamentos.gattoslab.ingress.IngressHandler;
 import io.github.clamentos.gattoslab.ingress.RequestDispatcher;
+import io.github.clamentos.gattoslab.ingress.filters.AttachmentFilter;
 import io.github.clamentos.gattoslab.ingress.filters.BlacklistFilter;
+import io.github.clamentos.gattoslab.ingress.filters.CorsFilter;
+import io.github.clamentos.gattoslab.ingress.filters.SecurityFilter;
+import io.github.clamentos.gattoslab.ingress.filters.ratelimit.RateLimitFilter;
+import io.github.clamentos.gattoslab.lifecycle.DeploymentInstanceHandle;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
 import io.github.clamentos.gattoslab.observability.ObservabilityController;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
@@ -24,8 +28,10 @@ import io.github.clamentos.gattoslab.observability.logging.squash.SquashLogEvent
 import io.github.clamentos.gattoslab.persistence.FileDatabase;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.session.SessionController;
+import io.github.clamentos.gattoslab.session.SessionRole;
 import io.github.clamentos.gattoslab.session.SessionService;
 import io.github.clamentos.gattoslab.utils.ThreadSpawner;
+import io.github.clamentos.gattoslab.utils.VirtualThreadExecutor;
 import io.github.clamentos.gattoslab.website.Website;
 import io.github.clamentos.gattoslab.website.WebsiteController;
 
@@ -33,19 +39,30 @@ import io.github.clamentos.gattoslab.website.WebsiteController;
 import io.undertow.Undertow;
 import io.undertow.UndertowOptions;
 import io.undertow.Undertow.Builder;
+import io.undertow.servlet.Servlets;
+import io.undertow.servlet.api.DeploymentInfo;
+import io.undertow.servlet.api.DeploymentManager;
+import io.undertow.servlet.api.FilterInfo;
+import io.undertow.servlet.api.ServletContainer;
+import io.undertow.servlet.api.ServletInfo;
+
+///..
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ServletException;
 
 ///..
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.util.ArrayList;
 import java.util.List;
 
 ///..
@@ -71,33 +88,6 @@ public class Application {
         prepareOutputFiles();
 
         final ApplicationProperties applicationProperties = new ProfileResolver(args.length > 0 ? args[0] : null).getApplicationProperties();
-        final List<Object> beansContainer = prepareBeans(applicationProperties);
-        final Undertow server = prepareWebserver(applicationProperties, (IngressHandler) beansContainer.getLast());
-
-        log.info("Starting webserver...");
-        server.start();
-        log.info("Webserver started");
-
-        beansContainer.set(beansContainer.size() - 1, server);
-        Runtime.getRuntime().addShutdownHook(ThreadSpawner.createVirtualThread("gattos-lab-sh", new ShutdownHook(beansContainer)));
-    }
-
-    ///.
-    private static void prepareOutputFiles() throws IOException {
-
-        final long pid = ProcessHandle.current().pid();
-
-        try(final FileWriter pidFile = new FileWriter("./pid.txt")) {
-
-            pidFile.write(Long.toString(pid));
-        }
-
-        log.info("Application PID: {}", pid);
-        log.info("Classpath: {}", System.getProperty("java.class.path"));
-    }
-
-    ///..
-    public static List<Object> prepareBeans(final ApplicationProperties applicationProperties) throws IOException {
 
         final JsonMapper jsonMapper = JsonMapper.builder()
 
@@ -117,13 +107,12 @@ public class Application {
         final SquashedLogsContainer squashedLogsContainer = new SquashedLogsContainer(applicationProperties, batchScheduler, squashes);
 
         final DynamicProperties dynamicProperties = new DynamicProperties(applicationProperties, batchScheduler, fileDatabase);
-        final BlacklistFilter blacklistFilter = new BlacklistFilter(dynamicProperties, squashedLogsContainer);
         final LogsService logsService = new LogsService(fileDatabase);
         final Website website = new Website(applicationProperties);
         final WebsiteController websiteController = new WebsiteController(website, squashedLogsContainer);
         final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, batchScheduler, website, fileDatabase);
         final ObservabilityController observabilityController = new ObservabilityController(observabilityService, sessionService, logsService, jsonMapper);
-        final GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler(applicationProperties, jsonMapper, observabilityService);
+        final GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler(applicationProperties, jsonMapper, squashedLogsContainer, observabilityService);
 
         final RequestDispatcher requestDispatcher = new RequestDispatcher(
 
@@ -136,40 +125,89 @@ public class Application {
             observabilityService
         );
 
-        final IngressHandler ingressHandler = new IngressHandler(
+        final AttachmentFilter attachmentFilter = new AttachmentFilter(observabilityService, globalExceptionHandler);
+        final BlacklistFilter blacklistFilter = new BlacklistFilter(dynamicProperties, globalExceptionHandler);
+        final RateLimitFilter rateLimitFilter = new RateLimitFilter(applicationProperties, batchScheduler, globalExceptionHandler);
+        final CorsFilter corsFilter = new CorsFilter(applicationProperties, globalExceptionHandler);
+        final SecurityFilter securityFilter = new SecurityFilter(applicationProperties, SessionRole.ADMIN, sessionService, globalExceptionHandler, website);
+        final Undertow server = prepareWebserver(applicationProperties, requestDispatcher, attachmentFilter, blacklistFilter, rateLimitFilter, corsFilter, securityFilter);
 
-            applicationProperties,
-            blacklistFilter,
-            batchScheduler,
-            squashedLogsContainer,
-            sessionService,
-            observabilityService,
-            requestDispatcher,
-            globalExceptionHandler,
-            website
-        );
+        log.info("Starting webserver...");
+        server.start();
+        log.info("Webserver started");
 
-        final List<Object> closableBeans = new ArrayList<>();
+        final ShutdownHook shutdownHook = new ShutdownHook(List.of(observabilityService, squashedLogsContainer, batchScheduler, server));
+        Runtime.getRuntime().addShutdownHook(ThreadSpawner.createVirtualThread("gattos-lab-sh", shutdownHook));
+    }
 
-        closableBeans.add(observabilityService);
-        closableBeans.add(squashedLogsContainer);
-        closableBeans.add(batchScheduler);
-        closableBeans.add(ingressHandler);
+    ///.
+    private static void prepareOutputFiles() throws IOException {
 
-        return closableBeans;
+        final long pid = ProcessHandle.current().pid();
+
+        try(final FileWriter pidFile = new FileWriter("./pid.txt")) {
+
+            pidFile.write(Long.toString(pid));
+        }
+
+        log.info("Application PID: {}", pid);
+        log.info("Classpath: {}", System.getProperty("java.class.path"));
+
+        final Path dynamicPropertiesPath = Path.of("./observability/dynamic_properties/gattoslab.conf");
+
+        Files.createDirectories(dynamicPropertiesPath.getParent());
+        if(Files.notExists(dynamicPropertiesPath)) Files.createFile(dynamicPropertiesPath);
     }
 
     ///..
-    private static Undertow prepareWebserver(final ApplicationProperties applicationProperties, final IngressHandler ingressHandler)
-    throws CertificateException, IOException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, UnrecoverableKeyException {
+    private static Undertow prepareWebserver(
 
-        /*Servlets.deployment()
+        final ApplicationProperties applicationProperties,
+        final RequestDispatcher requestDispatcher,
+        final AttachmentFilter attachmentFilter,
+        final BlacklistFilter blacklistFilter,
+        final RateLimitFilter rateLimitFilter,
+        final CorsFilter corsFilter,
+        final SecurityFilter securityFilter
+
+    ) throws CertificateException, IOException, KeyManagementException, KeyStoreException, NoSuchAlgorithmException, ServletException, UnrecoverableKeyException {
+
+        final DeploymentInfo deploymentInfo = Servlets.deployment()
 
             .setExecutor(new VirtualThreadExecutor("gattos-lab-ws"))
             .setAsyncExecutor(new VirtualThreadExecutor("gattos-lab-wsa"))
-        ;*/
+            .setContextPath("/*")
+            .setClassLoader(Application.class.getClassLoader())
+            .setDeploymentName("gattoslab-servlet")
+            .addFilter(new FilterInfo("gattoslab-attchment-filter", AttachmentFilter.class, () -> new DeploymentInstanceHandle<>(attachmentFilter)))
+            .addFilter(new FilterInfo("gattoslab-blacklist-filter", BlacklistFilter.class, () -> new DeploymentInstanceHandle<>(blacklistFilter)))
+            .addFilterUrlMapping("gattoslab-attchment-filter", "/*", DispatcherType.REQUEST)
+            .addFilterUrlMapping("gattoslab-blacklist-filter", "/*", DispatcherType.REQUEST)
+            .addServlet(new ServletInfo("gattoslab-request-dispatcher", RequestDispatcher.class, () -> new DeploymentInstanceHandle<>(requestDispatcher)).addMapping("/*"))
+        ;
 
-        final Builder serverBuilder = Undertow.builder().setHandler(ingressHandler);
+        if(applicationProperties.isRateLimitEnabled()) {
+
+            deploymentInfo.addFilter(new FilterInfo("gattoslab-ratelimit-filter", RateLimitFilter.class, () -> new DeploymentInstanceHandle<>(rateLimitFilter)));
+            deploymentInfo.addFilterUrlMapping("gattoslab-ratelimit-filter", "/*", DispatcherType.REQUEST);
+        }
+
+        if(applicationProperties.isCorsEnabled()) {
+
+            deploymentInfo.addFilter(new FilterInfo("gattoslab-cors-filter", CorsFilter.class, () -> new DeploymentInstanceHandle<>(corsFilter)));
+            deploymentInfo.addFilterUrlMapping("gattoslab-cors-filter", "/*", DispatcherType.REQUEST);
+        }
+
+        if(applicationProperties.isSessionsEnabled()) {
+
+            deploymentInfo.addFilter(new FilterInfo("gattoslab-security-filter", SecurityFilter.class, () -> new DeploymentInstanceHandle<>(securityFilter)));
+            deploymentInfo.addFilterUrlMapping("gattoslab-security-filter", "/*", DispatcherType.REQUEST);
+        }
+
+        final DeploymentManager deploymentManager = ServletContainer.Factory.newInstance().addDeployment(deploymentInfo);
+        deploymentManager.deploy();
+
+        final Builder serverBuilder = Undertow.builder().setHandler(deploymentManager.start());
         final SSLContext sslContext = createSSLContext(applicationProperties.isSslEnabled(), applicationProperties.getSslKeystorePassword(), applicationProperties);
 
         serverBuilder.setServerOption(UndertowOptions.MAX_HEADER_SIZE, 8192);

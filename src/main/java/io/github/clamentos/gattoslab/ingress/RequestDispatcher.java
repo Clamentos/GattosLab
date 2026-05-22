@@ -17,6 +17,14 @@ import io.github.clamentos.gattoslab.website.WebsiteController;
 
 ///..
 import io.undertow.server.HttpServerExchange;
+import io.undertow.servlet.spec.HttpServletRequestImpl;
+
+///..
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 
 ///..
 import java.util.Set;
@@ -27,11 +35,11 @@ import tools.jackson.core.JsonGenerator;
 import tools.jackson.databind.json.JsonMapper;
 
 ///
-public final class RequestDispatcher {
+public final class RequestDispatcher implements Servlet {
 
     ///
     private final JsonMapper jsonMapper;
-    private final GlobalExceptionHandler exceptionHandler;
+    private final GlobalExceptionHandler globalExceptionHandler;
 
     ///..
     private final Website website;
@@ -42,11 +50,14 @@ public final class RequestDispatcher {
     ///..
     private final ObservabilityService observabilityService;
 
+    ///..
+    private ServletConfig config; // Not needed; only to comply with the Servlet interface
+
     ///
     public RequestDispatcher(
 
         final JsonMapper jsonMapper,
-        final GlobalExceptionHandler exceptionHandler,
+        final GlobalExceptionHandler globalExceptionHandler,
         final Website website,
         final SessionController sessionController,
         final WebsiteController websiteController,
@@ -55,7 +66,7 @@ public final class RequestDispatcher {
     ) {
 
         this.jsonMapper = jsonMapper;
-        this.exceptionHandler = exceptionHandler;
+        this.globalExceptionHandler = globalExceptionHandler;
 
         this.website = website;
         this.sessionController = sessionController;
@@ -66,7 +77,55 @@ public final class RequestDispatcher {
     }
 
     ///
-    public boolean dispatch(final HttpServerExchange exchange) throws ApiSecurityException, IllegalHttpMethodException, JacksonException {
+    @Override
+    public void init(final ServletConfig config) throws ServletException {
+
+        this.config = config;
+    }
+
+    ///..
+    @Override
+    public ServletConfig getServletConfig() {
+
+        return config;
+    }
+
+    ///..
+    @Override
+    public String getServletInfo() {
+
+        return "";
+    }
+
+    ///..
+    @Override
+    public void destroy() {
+
+        // Cleanup is handled by the global shutdown hook.
+    }
+
+    ///..
+    @Override
+    public void service(final ServletRequest request, final ServletResponse response) {
+
+        if(request instanceof final HttpServletRequestImpl undertowHttpRequest) {
+
+            final HttpServerExchange exchange = undertowHttpRequest.getExchange();
+
+            try {
+
+                if(this.dispatch(undertowHttpRequest.getExchange())) observabilityService.updateRequestMetrics(exchange);
+            }
+
+            catch(final Exception exc) {
+
+                globalExceptionHandler.handle(exc, exchange);
+            }
+        }
+    }
+
+    ///.
+    private boolean dispatch(final HttpServerExchange exchange) throws ApiSecurityException, IllegalHttpMethodException, JacksonException {
 
         final HttpMethod requestMethod = exchange.getAttachment(HttpUtils.DECODED_HTTP_METHOD);
 
@@ -128,7 +187,7 @@ public final class RequestDispatcher {
         }
     }
 
-    ///.
+    ///..
     // NOTE: Try with resources breaks this implementation:
     // When an exception is triggered, "generator" is immediately closed before the catch, thus closing the underlying undertow stream.
     // This makes it impossible to utilize the stream for sending an error response because the exchange will be in the "response already sent" state
@@ -139,8 +198,6 @@ public final class RequestDispatcher {
 
         exchange.dispatch(() -> {
 
-            boolean skipUpdateMetrics = false;
-            boolean skipClose = false;
             JsonGenerator generator = null;
 
             exchange.startBlocking();
@@ -149,25 +206,21 @@ public final class RequestDispatcher {
 
                 generator = jsonMapper.createGenerator(new CompressingOutputStream(exchange.getOutputStream()));
                 serviceMethod.execute(exchange, generator);
-                generator.flush();
-                generator.close();
+                observabilityService.updateRequestMetrics(exchange);
             }
 
             catch(final Exception exc) {
 
-                skipUpdateMetrics = exceptionHandler.handleWithReset(exc, exchange);
-                skipClose = true;
+                globalExceptionHandler.handleWithReset(exc, exchange);
             }
 
             finally {
 
-                if(generator != null && !skipClose) {
+                if(generator != null) {
 
                     generator.flush();
                     generator.close();
                 }
-
-                if(!skipUpdateMetrics) observabilityService.updateRequestMetrics(exchange);
             }
         });
     }
