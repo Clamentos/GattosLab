@@ -4,7 +4,7 @@
 
 Simple, *mostly static*, website about my personal projects that uses the following technologies:
 
-- Java 26 with Spring Boot and MongoDB for the backend.
+- Java 25/26 with Undertow for the backend.
 - Vanilla HTML, CSS and JavaScript for the frontend.
 - Hosted on a Hetzner VPS.
 
