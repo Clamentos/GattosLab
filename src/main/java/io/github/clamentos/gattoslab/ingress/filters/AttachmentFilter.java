@@ -39,12 +39,13 @@ public final class AttachmentFilter implements Filter {
     public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
 
         final HttpServerExchange exchange = ((HttpServletRequestImpl)request).getExchange();
+
         observabilityService.requestStarted();
+        exchange.putAttachment(HttpUtils.START_TIME_EPOCH_MS, System.currentTimeMillis());
 
         try {
 
             exchange.putAttachment(HttpUtils.DECODED_HTTP_METHOD, HttpMethod.decode(exchange.getRequestMethod()));
-            exchange.putAttachment(HttpUtils.START_TIME_EPOCH_MS, System.currentTimeMillis());
             chain.doFilter(request, response);
         }
 
