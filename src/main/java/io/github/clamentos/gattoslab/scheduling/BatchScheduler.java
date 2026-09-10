@@ -2,108 +2,118 @@ package io.github.clamentos.gattoslab.scheduling;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.utils.ThreadSpawner;
 
 ///..
 import java.io.Closeable;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-
-///..
-import lombok.extern.slf4j.Slf4j;
-
-///
-@Slf4j
+import java.util.concurrent.atomic.AtomicBoolean;
 
 ///
 public final class BatchScheduler implements Closeable {
 
     ///
-    private final Duration shutdownTimeout;
+    private final Logger logger;
+    private final Logger cronLogger;
 
     ///..
-    private final Thread scheduler;
-
     private final List<SimpleCron> jobs;
     private final Map<Long, Thread> workers;
 
-    private volatile boolean halt = false;
+    ///..
+    private final Thread scheduler;
+    private final AtomicBoolean isClosed;
 
     ///
-    public BatchScheduler(final ApplicationProperties applicationProperties) {
+    public BatchScheduler() {
 
-        shutdownTimeout = applicationProperties.getBatchSchedulerShutdownTimeout();
+        this.logger = new Logger();
+        this.cronLogger = new Logger(SimpleCron.class.getSimpleName());
 
-        jobs = new CopyOnWriteArrayList<>();
-        scheduler = ThreadSpawner.spawnVirtualThread("gattos-lab-bs", this::triggerJobs);
+        this.jobs = new ArrayList<>();
+        this.workers = new ConcurrentHashMap<>();
 
-        workers = new ConcurrentHashMap<>();
+        this.isClosed = new AtomicBoolean();
+        this.scheduler = GenericUtils.spawnVirtualThread("gattos-lab-batch-scheduler-task", this::triggerJobs);
     }
 
     ///
-    public long schedule(final Runnable task, final String name, final String simpleCron) throws IllegalArgumentException {
+    public synchronized long schedule(final Runnable task, final String name, final String simpleCron) {
 
-        final SimpleCron cron = new SimpleCron(task, name, simpleCron);
-        jobs.add(cron);
+        final SimpleCron cron = new SimpleCron(this.cronLogger, simpleCron, task, name);
+        final long period = cron.getPeriod();
 
-        log.info("Scheduled task: {}, period: {}ms", name, cron.getPeriod());
-        return cron.getPeriod();
+        this.jobs.add(cron);
+        this.logger.info("Scheduled task '" + name + "', period: " + period + "ms");
+
+        return period;
     }
 
     ///..
     @Override
     public void close() {
 
-        log.info("Begin shutdown...");
+        this.logger.info("Begin shutdown...");
 
         try {
 
-            halt = true;
-            if(!scheduler.join(shutdownTimeout.multipliedBy(Math.max(workers.size(), 1)))) log.warn("Timed-out while joining");
+            this.isClosed.set(true);
+
+            final Duration timeout = ApplicationProperties.SCHEDULER_SHUTDOWN_TIMEOUT.multipliedBy(Math.max(this.workers.size(), 1));
+            if(!this.scheduler.join(timeout)) this.logger.warning("Timed-out while joining");
         }
 
         catch(final InterruptedException _) {
 
-            log.error("Interrupted wile joining, force quitting");
+            this.logger.error("Interrupted wile joining, force quitting");
             Thread.currentThread().interrupt();
         }
 
-        log.info("End shutdown");
+        this.logger.info("End shutdown");
     }
 
     ///.
     private final void triggerJobs() {
 
+        final long sleep = ApplicationProperties.SCHEDULER_POLL_PERIOD.toMillis();
         final long[] idRef = new long[]{0};
 
-        while(!halt) {
+        while(!this.isClosed.get()) {
 
             final long now = System.currentTimeMillis();
-            for(final SimpleCron job : jobs) job.trigger(now, idRef, workers);
+            final int length = this.jobs.size();
 
-            GenericUtils.silentSleep(200L);
+            for(int i = 0; i < length; i++) {
+
+                this.jobs.get(i).trigger(now, idRef, this.workers);
+            }
+
+            GenericUtils.silentSleep(sleep);
         }
 
-        log.info("Exiting, joining {} workers", workers.size());
+        this.logger.info("Exiting, joining " + this.workers.size() + " workers");
 
-        for(final Thread worker : workers.values()) {
+        for(final Thread worker : this.workers.values()) {
 
             try {
 
-                log.info("Joining {}", worker.getName());
-                if(!worker.join(shutdownTimeout)) log.warn("Timed-out while joining {}", worker.getName());
+                final String name = worker.getName();
+
+                this.logger.info("Joining '" + name + "'");
+                if(!worker.join(ApplicationProperties.SCHEDULER_SHUTDOWN_TIMEOUT)) this.logger.warning("Timed-out while joining '" + name + "'");
             }
 
             catch(final InterruptedException _) {
 
-                log.error("Interrupted wile joining, force quitting");
+                this.logger.error("Interrupted wile joining, force quitting");
                 Thread.currentThread().interrupt();
 
-                break;
+                return;
             }
         }
     }

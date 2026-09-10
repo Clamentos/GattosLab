@@ -1,26 +1,22 @@
 package io.github.clamentos.gattoslab.scheduling;
 
 ///
-import io.github.clamentos.gattoslab.exceptions.CauseContainer;
-import io.github.clamentos.gattoslab.utils.ThreadSpawner;
+import io.github.clamentos.gattoslab.observability.logging.Logger;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.util.Map;
 
 ///..
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-///
-@Slf4j
 
 ///
 public final class SimpleCron {
 
     ///
-    private static final String SOURCE_DECODE = "SimpleCron.decodePeriod";
+    private final Logger logger;
 
-    ///
+    ///..
     private final Runnable task;
     private final String name;
 
@@ -28,43 +24,40 @@ public final class SimpleCron {
     @Getter
     private final long period;
 
-    private long nextTrigger;
+    private long nextTriggerTimestamp;
 
     ///
-    public SimpleCron(final Runnable task, final String name, final String simpleCron) throws IllegalArgumentException {
+    public SimpleCron(final Logger logger, final String simpleCron, final Runnable task, final String name) throws IllegalArgumentException {
 
-        /*
-            Very simple cron scheduling (no offsets): <time-unit><amount>
+        this.logger = logger;
 
-            time-units:
-
-                s -> seconds
-                m -> minutes
-                h -> hours
-
-            scheduling uncertainty: +- 200ms (depends how fast the scheduler thread spins)
-        */
-
-        period = decodePeriod(simpleCron);
+        this.period = this.decodePeriod(simpleCron);
         this.task = task;
         this.name = name;
 
         final long now = System.currentTimeMillis();
-        nextTrigger = now + period - (now % period);
+        this.nextTriggerTimestamp = now + this.period - (now % this.period);
     }
 
     ///..
-    public Thread trigger(final long timestamp, final long[] idRef, final Map<Long, Thread> workers) {
+    public void trigger(final long timestamp, final long[] idRef, final Map<Long, Thread> workers) {
 
-        if(timestamp >= nextTrigger) {
+        if(timestamp >= this.nextTriggerTimestamp) {
 
             final long id = idRef[0];
-            nextTrigger += period;
+            this.nextTriggerTimestamp += this.period;
 
-            final Thread worker = ThreadSpawner.createVirtualThread("gattos-lab-bsw-" + id + "-" + name, () -> {
+            final Thread worker = GenericUtils.createVirtualThread(this.name + "-" + id, () -> {
 
-                try { task.run(); }
-                catch(final RuntimeException exc) { log.error("Uncaught exception in scheduled task {}", name, exc); }
+                try {
+
+                    this.task.run();
+                }
+
+                catch(final RuntimeException exc) {
+
+                    this.logger.error("Uncaught exception in scheduled task '" + this.name + "'", exc);
+                }
 
                 workers.remove(id);
             });
@@ -72,22 +65,18 @@ public final class SimpleCron {
             workers.put(id, worker);
             worker.start();
             idRef[0]++;
-
-            return worker;
         }
-
-        return null;
     }
 
     ///.
-    public static long decodePeriod(final String simpleCron) throws IllegalArgumentException {
+    private long decodePeriod(final String simpleCron) throws IllegalArgumentException {
 
         if(simpleCron.length() >= 2) {
 
             final char unit = simpleCron.charAt(0);
-
             final long amount = Long.parseLong(simpleCron.substring(1));
-            if(amount <= 0) throw new IllegalArgumentException("Amount must be greater than 0", new CauseContainer(SOURCE_DECODE));
+
+            if(amount <= 0) throw new IllegalArgumentException("Amount must be greater than 0");
 
             switch(unit) {
 
@@ -95,13 +84,13 @@ public final class SimpleCron {
                 case 'm': return amount * 1000 * 60;
                 case 'h': return amount * 1000 * 60 * 60;
 
-                default: throw new IllegalArgumentException("Unknown time unit '" + unit + "'", new CauseContainer(SOURCE_DECODE));
+                default: throw new IllegalArgumentException("Unknown time unit '" + unit + "'");
             }
         }
 
         else {
 
-            throw new IllegalArgumentException("Malformed cron expression '" + simpleCron + "'", new CauseContainer(SOURCE_DECODE));
+            throw new IllegalArgumentException("Malformed cron expression '" + simpleCron + "'");
         }
     }
 

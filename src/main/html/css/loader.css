@@ -17,7 +17,7 @@
     top: 0;
     left: 0;
     content: '';
-    background: #0079a2;
+    background: #ffb86c;
     box-sizing: border-box;
     animation: animloader 1s linear infinite;
 }

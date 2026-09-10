@@ -8,20 +8,22 @@ function fetchAndRenderSessionMetadata() {
     const tableBody = document.getElementById("session-table-hook");
     tableBody.replaceChildren();
 
-    fetch("/admin/api/observability/sessions-metadata", { method: "GET" }).then((response) => {
+    fetch("/api/authentication/sessions", { method: "GET" }).then((response) => {
 
         if(response.status === 200) {
 
-            response.json().then(json => {
+            response.text().then(text => {
 
-                document.getElementById("session-count").innerText = `Sessions count: ${json.length}`;
-                for(const entry of json) appendRow(entry, tableBody);
+                const lines = text.split('\n');
+
+                document.getElementById("session-count").innerText = `Sessions count: ${lines.length}`;
+                for(const entry of lines) appendRow(entry, tableBody);
             });
         }
 
         else {
 
-            response.json().then(errorBody => pushError(errorBody));
+            response.text().then(errorBody => pushError(errorBody));
         }
     })
     .catch(error_ => pushError(error_))
@@ -30,33 +32,24 @@ function fetchAndRenderSessionMetadata() {
 
 function appendRow(entry, table) {
 
+    /*fingerprint|expiresAt*/
+    const splits = entry.split('|');
+
     const tr = document.createElement("div");
     tr.className = "table-data-row";
 
-    const role = document.createElement("div");
     const fingerprint = document.createElement("div");
-    const createdAt = document.createElement("div");
     const expiresAt = document.createElement("div");
 
-    role.className = "table-data-elem";
-    role.style = "width: 25%";
-    role.innerText = entry.role;
-
     fingerprint.className = "table-data-elem";
-    fingerprint.style = "width: 25%";
-    fingerprint.innerText = entry.fingerprint;
-
-    createdAt.className = "table-data-elem";
-    createdAt.style = "width: 25%; text-align: center";
-    createdAt.innerText = formatDate(new Date(entry.createdAt));
+    fingerprint.style = "width: 75%";
+    fingerprint.innerText = splits[0];
 
     expiresAt.className = "table-data-elem";
     expiresAt.style = "width: 25%; text-align: center";
-    expiresAt.innerText = formatDate(new Date(entry.expiresAt));
+    expiresAt.innerText = formatDate(new Date(Number.parseInt(splits[1])));
 
-    tr.appendChild(role);
     tr.appendChild(fingerprint);
-    tr.appendChild(createdAt);
     tr.appendChild(expiresAt);
 
     table.appendChild(tr);

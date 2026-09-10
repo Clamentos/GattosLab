@@ -1,501 +1,612 @@
 package io.github.clamentos.gattoslab.observability;
 
 ///
-import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.eventbus.EventBus;
-import io.github.clamentos.gattoslab.exceptions.ValidationException;
-import io.github.clamentos.gattoslab.http.HttpUtils;
-import io.github.clamentos.gattoslab.http.ResponseSender;
-import io.github.clamentos.gattoslab.observability.filters.AggregatedSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.RequestMetricsSearchFilter;
-import io.github.clamentos.gattoslab.observability.filters.SearchFilter;
-import io.github.clamentos.gattoslab.observability.metrics.ObservabilityContext;
-import io.github.clamentos.gattoslab.observability.metrics.SystemMetrics;
-import io.github.clamentos.gattoslab.observability.metrics.entities.PathInvocationAggregationEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsAggregateEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.UserAgentAggregationEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.charts.ChartDataset;
-import io.github.clamentos.gattoslab.observability.metrics.entities.charts.RequestMetricsCharts;
-import io.github.clamentos.gattoslab.observability.metrics.entities.charts.SystemMetricsCharts;
-import io.github.clamentos.gattoslab.observability.metrics.entities.charts.LineChart;
-import io.github.clamentos.gattoslab.persistence.EntityType;
-import io.github.clamentos.gattoslab.persistence.FileDatabase;
-import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
-import io.github.clamentos.gattoslab.scheduling.SimpleCron;
-import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.website.Website;
+import com.sun.net.httpserver.HttpExchange;
 
 ///..
-import io.undertow.server.HttpServerExchange;
-import io.undertow.util.Headers;
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
+import io.github.clamentos.gattoslab.datastructures.Siphon;
+import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.observability.logging.Logger;
+import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
+import io.github.clamentos.gattoslab.observability.metrics.SystemMetricsService;
+import io.github.clamentos.gattoslab.observability.metrics.entities.CrawlAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.LineChartEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.LineChartEntry;
+import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.UserAgentAggregationEntity;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-///..
-import lombok.extern.slf4j.Slf4j;
-
-///..
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-///..
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.JsonGenerator;
-
 ///
-@Slf4j()
-
-///
-public class ObservabilityService implements Closeable {
+public final class ObservabilityService implements Closeable {
 
     ///
-    private static final int MAX_TIMESTAMPS = 10000;
-    private static final String SOURCE_VALIDATE = "ObservabilityService.validateSearchFilter";
-    private static final Logger REQUEST_METRICS_LOGGER = LoggerFactory.getLogger("REQUEST_METRICS_LOGGER");
-    private static final Logger SYSTEM_METRICS_LOGGER = LoggerFactory.getLogger("SYSTEM_METRICS_LOGGER");
+    private final Logger logger;
 
     ///..
-    private final int siphonCapacity;
-    private final Set<String> monitoredPaths;
+    private final ObservabilityFile<RequestMetricsEntity> requestMetricsFile;
+    private final ObservabilityFile<SystemMetricsEntity> systemMetricsFile;
 
-    ///..
-    private final FileDatabase fileDatabase;
+    private final Siphon<RequestMetricsEntity> primarySiphon;
+    private final Siphon<RequestMetricsEntity> secondarySiphon;
+    private final AtomicReference<Siphon<RequestMetricsEntity>> currentSiphonReference;
 
-    ///..
-    private final SystemMetrics systemMetrics;
-    private final EventBus eventBus;
-    private final AtomicBoolean isHandlingEvent;
-
-    private final AtomicReference<ObservabilityContext> primaryContext;
-    private final AtomicReference<ObservabilityContext> secondaryContext;
+    private final SystemMetricsService systemMetricsService;
+    private final ObservabilityDatabase observabilityDatabase;
 
     ///
-    public ObservabilityService(
+    public ObservabilityService(final BatchScheduler batchScheduler) throws IOException {
 
-        final ApplicationProperties applicationProperties,
-        final BatchScheduler batchScheduler,
-        final Website website,
-        final FileDatabase fileDatabase
+        this.logger = new Logger();
 
-    ) throws IllegalArgumentException {
+        this.requestMetricsFile = new ObservabilityFile<>(ApplicationProperties.REQUEST_METRICS_FILE_PATH, 13);
+        this.systemMetricsFile = new ObservabilityFile<>(ApplicationProperties.SYSTEM_METRICS_FILE_PATH, 39);
 
-        eventBus = new EventBus(this::dumpMetrics);
-        systemMetrics = new SystemMetrics(SimpleCron.decodePeriod(applicationProperties.getSystemMetricsSampling()));
+        final Class<RequestMetricsEntity> type = RequestMetricsEntity.class;
 
-        batchScheduler.schedule(this::sampleSystemMetrics, "ObservabilityService::sampleSystemMetrics", applicationProperties.getSystemMetricsPolling());
-        batchScheduler.schedule(eventBus::trigger, "ObservabilityService::trigger", applicationProperties.getMetricsDumpToDbSchedule());
+        this.primarySiphon = new Siphon<>(type, ApplicationProperties.METRICS_SIPHON_CAPACITY, RequestMetricsEntity::new, this::drainSiphonTask);
+        this.secondarySiphon = new Siphon<>(type, ApplicationProperties.METRICS_SIPHON_CAPACITY, RequestMetricsEntity::new, this::drainSiphonTask);
+        this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
 
-        siphonCapacity = applicationProperties.getMetricsSiphonCapacity();
-        monitoredPaths = website.getPaths();
+        this.systemMetricsService = new SystemMetricsService(batchScheduler.schedule(
 
-        this.fileDatabase = fileDatabase;
-
-        primaryContext = new AtomicReference<>(new ObservabilityContext(eventBus, siphonCapacity));
-        secondaryContext = new AtomicReference<>(new ObservabilityContext(eventBus, siphonCapacity));
-
-        isHandlingEvent = new AtomicBoolean();
-    }
-
-    ///
-    public ResponseSender getRequestMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter)
-    throws IOException, JacksonException, ValidationException {
-
-        this.validateSearchFilter(searchFilter, true);
-
-        final long bucketSize = searchFilter.getBucketSize();
-        final long[] labels = new long[(int)((searchFilter.getEndTimestamp() - searchFilter.getStartTimestamp()) / bucketSize) + 1];
-        for(int i = 0; i < labels.length; i++) labels[i] = (i * bucketSize) + searchFilter.getStartTimestamp();
-
-        final List<RequestMetricsEntity> entities = fileDatabase.fetchByFilter(EntityType.REQUEST_METRICS, searchFilter, RequestMetricsEntity.class);
-        final Map<String, Map<Long, RequestMetricsAggregateEntity>> metricsAggregationMap = new HashMap<>();
-
-        for(final RequestMetricsEntity entity : entities) {
-
-            final int bucketIndex = (int)((entity.getTimestamp() - searchFilter.getStartTimestamp()) / bucketSize);
-            final String key = Integer.toString(entity.getHttpStatus()) + (entity.isOthers() ? "<others>" : entity.getPath());
-
-            metricsAggregationMap.computeIfAbsent(key, _ -> new TreeMap<>()).computeIfAbsent(labels[bucketIndex], _ -> new RequestMetricsAggregateEntity()).update(entity);
-            metricsAggregationMap.computeIfAbsent("TOTAL", _ -> new TreeMap<>()).computeIfAbsent(labels[bucketIndex], _ -> new RequestMetricsAggregateEntity()).update(entity);
-        }
-
-        for(final Map<Long, RequestMetricsAggregateEntity> innerMetricsAggregationMap : metricsAggregationMap.values()) {
-
-            for(int i = 0; i < labels.length; i++) {
-
-                innerMetricsAggregationMap.putIfAbsent(labels[i], null);
-            }
-        }
-
-        final List<ChartDataset<long[]>> rateDatasets = new ArrayList<>();
-        final List<ChartDataset<long[]>> latencyDatasets = new ArrayList<>();
-
-        for(final Map.Entry<String, Map<Long, RequestMetricsAggregateEntity>> metricsMapEntry : metricsAggregationMap.entrySet()) {
-
-            final Collection<RequestMetricsAggregateEntity> innerEntities = metricsMapEntry.getValue().values();
-            final long[] rateData = new long[innerEntities.size()];
-            final long[] latencyData = new long[innerEntities.size()];
-
-            int index = 0;
-
-            for(final Map.Entry<Long, RequestMetricsAggregateEntity> entry : metricsMapEntry.getValue().entrySet()) {
-
-                final RequestMetricsAggregateEntity entity = entry.getValue();
-
-                if(entity != null) {
-
-                    rateData[index] = entity.getRate();
-                    latencyData[index] = entity.getLatencySum() / entity.getRate();
-                }
-
-                else {
-
-                    rateData[index] = 0;
-                    latencyData[index] = 0;
-                }
-
-                index++;
-            }
-
-            final String key = metricsMapEntry.getKey();
-
-            rateDatasets.add(new ChartDataset<>(key, rateData));
-            latencyDatasets.add(new ChartDataset<>(key, latencyData));
-        }
-
-        return () -> generator.writePOJO(new RequestMetricsCharts(new LineChart(labels, rateDatasets), new LineChart(labels, latencyDatasets)));
-    }
-
-    ///..
-    public ResponseSender getInvocationMetrics(final JsonGenerator generator, final RequestMetricsSearchFilter searchFilter)
-    throws IOException, JacksonException, ValidationException {
-
-        this.validateSearchFilter(searchFilter, false);
-
-        final List<RequestMetricsEntity> entities = fileDatabase.fetchByFilter(EntityType.REQUEST_METRICS, searchFilter, RequestMetricsEntity.class);
-        final Map<String, List<RequestMetricsEntity>> pathsAggregationMap = new HashMap<>();
-        final Map<String, List<RequestMetricsEntity>> userAgentsAggregationMap = new HashMap<>();
-
-        for(final RequestMetricsEntity entity : entities) {
-
-            pathsAggregationMap.computeIfAbsent(entity.getPath(), _ -> new ArrayList<>()).add(entity);
-            userAgentsAggregationMap.computeIfAbsent(entity.getUserAgent(), _ -> new ArrayList<>()).add(entity);
-        }
-
-        final List<PathInvocationAggregationEntity> pathAggregates = new ArrayList<>();
-        final List<UserAgentAggregationEntity> userAgentAggregates = new ArrayList<>();
-
-        for(final Map.Entry<String, List<RequestMetricsEntity>> entry : pathsAggregationMap.entrySet()) {
-
-            long firstInvocation = Long.MAX_VALUE;
-            long lastInvocation = Long.MIN_VALUE;
-            Set<Integer> httpStatuses = new HashSet<>();
-            int count = 0;
-
-            for(final RequestMetricsEntity entity : entry.getValue()) {
-
-                firstInvocation = Math.min(firstInvocation, entity.getTimestamp());
-                lastInvocation = Math.max(lastInvocation, entity.getTimestamp());
-                httpStatuses.add(entity.getHttpStatus());
-                count++;
-            }
-
-            int idx = 0;
-            final int[] httpStatusesArr = new int[httpStatuses.size()];
-            for(final Integer httpStatus : httpStatuses) httpStatusesArr[idx++] = httpStatus;
-            pathAggregates.add(new PathInvocationAggregationEntity(entry.getKey(), firstInvocation, lastInvocation, count, entry.getValue().get(0).isOthers(), httpStatusesArr));
-        }
-
-        for(final Map.Entry<String, List<RequestMetricsEntity>> entry : userAgentsAggregationMap.entrySet()) {
-
-            long firstInvocation = Long.MAX_VALUE;
-            long lastInvocation = Long.MIN_VALUE;
-            int count = 0;
-
-            for(final RequestMetricsEntity entity : entry.getValue()) {
-
-                firstInvocation = Math.min(firstInvocation, entity.getTimestamp());
-                lastInvocation = Math.max(lastInvocation, entity.getTimestamp());
-                count++;
-            }
-
-            userAgentAggregates.add(new UserAgentAggregationEntity(entry.getKey(), firstInvocation, lastInvocation, count));
-        }
-
-        pathAggregates.sort((a, b) -> b.getCount() - a.getCount());
-        userAgentAggregates.sort((a, b) -> b.getCount() - a.getCount());
-
-        return () -> {
-
-            generator.writeStartObject();
-
-            generator.writeArrayPropertyStart("paths");
-            for(final PathInvocationAggregationEntity pathAggregate : pathAggregates) generator.writePOJO(pathAggregate);
-            generator.writeEndArray();
-
-            generator.writeArrayPropertyStart("userAgents");
-            for(final UserAgentAggregationEntity userAgentAggregate : userAgentAggregates) generator.writePOJO(userAgentAggregate);
-            generator.writeEndArray();
-
-            generator.writeEndObject();
-        };
-    }
-
-    ///..
-    public ResponseSender getSystemMetrics(final JsonGenerator generator, final AggregatedSearchFilter searchFilter) throws IOException, JacksonException, ValidationException {
-
-        this.validateSearchFilter(searchFilter, true);
-
-        final long bucketSize = searchFilter.getBucketSize();
-        final long[] labels = new long[(int)((searchFilter.getEndTimestamp() - searchFilter.getStartTimestamp()) / bucketSize) + 1];
-        final Map<Long, List<SystemMetricsEntity>> metricsAggregationMap = new TreeMap<>();
-
-        for(int i = 0; i < labels.length; i++) {
-
-            labels[i] = (i * bucketSize) + searchFilter.getStartTimestamp();
-            metricsAggregationMap.putIfAbsent(labels[i], null);
-        }
-
-        final List<SystemMetricsEntity> entities = fileDatabase.fetchByFilter(EntityType.SYSTEM_METRICS, searchFilter, SystemMetricsEntity.class);
-
-        for(final SystemMetricsEntity entity : entities) {
-
-            final int bucketIndex = (int)((entity.getTimestamp() - searchFilter.getStartTimestamp()) / bucketSize);
-            metricsAggregationMap.computeIfAbsent(labels[bucketIndex], _ -> new ArrayList<>()).add(entity);
-        }
-
-        final int actualSize = metricsAggregationMap.size();
-
-        final long[] platformThreads = new long[actualSize];
-        final long[] classes = new long[actualSize];
-        final long[] fileReads = new long[actualSize];
-        final long[] fileWrites = new long[actualSize];
-        final long[] socketReads = new long[actualSize];
-        final long[] socketWrites = new long[actualSize];
-        final long[] gcCounts = new long[actualSize];
-        final long[] gcPause = new long[actualSize];
-        final long[] cpuUser = new long[actualSize];
-        final long[] cpuSystem = new long[actualSize];
-        final long[] cpuMachine = new long[actualSize];
-        final long[] systemMemoryUsed = new long[actualSize];
-        final long[] metaSpaceUsed = new long[actualSize];
-        final long[] directBuffersUsed = new long[actualSize];
-        final long[] directBuffersMemoryUsed = new long[actualSize];
-        final long[] heapUsed = new long[actualSize];
-        final long[] storageUsed = new long[actualSize];
-        final long[] requestMetricsEquilibrium = new long[actualSize];
-
-        int index = 0;
-
-        for(final Map.Entry<Long, List<SystemMetricsEntity>> entry : metricsAggregationMap.entrySet()) {
-
-            if(entry.getValue() != null) {
-
-                final int count = entry.getValue().size();
-
-                long platformThreadsTmp = 0;
-                long classesTmp = 0;
-                long fileReadsTmp = 0;
-                long fileWritesTmp = 0;
-                long socketReadsTmp = 0;
-                long socketWritesTmp = 0;
-                long gcCountsTmp = 0;
-                long gcPauseTmp = 0;
-                long cpuUserTmp = 0;
-                long cpuSystemTmp = 0;
-                long cpuMachineTmp = 0;
-                long systemMemoryUsedTmp = 0;
-                long metaSpaceUsedTmp = 0;
-                long directBuffersUsedTmp = 0;
-                long directBuffersMemoryUsedTmp = 0;
-                long heapUsedTmp = 0;
-                long storageUsedTmp = 0;
-                long requestMetricsEquilibriumTmp = 0;
-
-                for(final SystemMetricsEntity entity : entry.getValue()) {
-
-                    platformThreadsTmp = platformThreadsTmp + entity.getPlatformThreads();
-                    classesTmp = classesTmp + entity.getClassesLoaded();
-                    fileReadsTmp = fileReadsTmp + entity.getFileReads();
-                    fileWritesTmp = fileWritesTmp + entity.getFileWrites();
-                    socketReadsTmp = socketReadsTmp + entity.getSocketReads();
-                    socketWritesTmp = socketWritesTmp + entity.getSocketWrites();
-                    gcCountsTmp = gcCountsTmp + entity.getGcCounts();
-                    gcPauseTmp = gcPauseTmp + entity.getGcPause();
-                    cpuUserTmp = cpuUserTmp + entity.getCpuLoadJvmUser();
-                    cpuSystemTmp = cpuSystemTmp + entity.getCpuLoadJvmSystem();
-                    cpuMachineTmp = cpuMachineTmp + entity.getCpuLoadMachineTotal();
-                    systemMemoryUsedTmp = systemMemoryUsedTmp + entity.getSystemMemoryUsed();
-                    metaSpaceUsedTmp = metaSpaceUsedTmp + entity.getMetaSpaceUsed();
-                    directBuffersUsedTmp = directBuffersUsedTmp + entity.getDirectBuffersUsed();
-                    directBuffersMemoryUsedTmp = directBuffersMemoryUsedTmp + entity.getDirectBuffersMemoryUsed();
-                    heapUsedTmp = heapUsedTmp + entity.getHeapUsed();
-                    storageUsedTmp = storageUsedTmp + entity.getStorageUsed();
-                    requestMetricsEquilibriumTmp = requestMetricsEquilibriumTmp + entity.getRequestMetricsEquilibrium();
-                }
-
-                platformThreads[index] = Math.ceilDiv(platformThreadsTmp, count);
-                classes[index] = Math.ceilDiv(classesTmp, count);
-                fileReads[index] = fileReadsTmp;
-                fileWrites[index] = fileWritesTmp;
-                socketReads[index] = socketReadsTmp;
-                socketWrites[index] = socketWritesTmp;
-                gcCounts[index] = gcCountsTmp;
-                gcPause[index] = gcPauseTmp;
-                cpuUser[index] = Math.ceilDiv(cpuUserTmp, count);
-                cpuSystem[index] = Math.ceilDiv(cpuSystemTmp, count);
-                cpuMachine[index] = Math.ceilDiv(cpuMachineTmp, count);
-                systemMemoryUsed[index] = Math.ceilDiv(systemMemoryUsedTmp, count);
-                metaSpaceUsed[index] = Math.ceilDiv(metaSpaceUsedTmp, count);
-                directBuffersUsed[index] = Math.ceilDiv(directBuffersUsedTmp, count);
-                directBuffersMemoryUsed[index] = Math.ceilDiv(directBuffersMemoryUsedTmp, count);
-                heapUsed[index] = Math.ceilDiv(heapUsedTmp, count);
-                storageUsed[index] = Math.ceilDiv(storageUsedTmp, count);
-                requestMetricsEquilibrium[index] = Math.ceilDiv(requestMetricsEquilibriumTmp, count);
-            }
-
-            index++;
-        }
-
-        return () -> generator.writePOJO(new SystemMetricsCharts(
-
-            new LineChart(labels, List.of(new ChartDataset<>("Platform", platformThreads))),
-            new LineChart(labels, List.of(new ChartDataset<>("Loaded classes", classes))),
-
-            new LineChart(labels, List.of(
-
-                new ChartDataset<>("File reads", fileReads),
-                new ChartDataset<>("File writes", fileWrites),
-                new ChartDataset<>("Socket reads", socketReads),
-                new ChartDataset<>("Socket writes", socketWrites)
-            )),
-
-            new LineChart(labels, List.of(new ChartDataset<>("GC count", gcCounts), new ChartDataset<>("GC pause (ms)", gcPause))),
-
-            new LineChart(labels, List.of(
-
-                new ChartDataset<>("JVM user", cpuUser),
-                new ChartDataset<>("JVM system", cpuSystem),
-                new ChartDataset<>("Machine total", cpuMachine)
-            )),
-
-            new LineChart(labels, List.of(
-
-                new ChartDataset<>("System memory total", systemMemoryUsed),
-                new ChartDataset<>("Metaspace used", metaSpaceUsed),
-                new ChartDataset<>("Direct buffers count", directBuffersUsed),
-                new ChartDataset<>("Direct buffers used", directBuffersMemoryUsed),
-                new ChartDataset<>("Heap used", heapUsed)
-            )),
-
-            new LineChart(labels, List.of(new ChartDataset<>("Storage used", storageUsed))),
-            new LineChart(labels, List.of(new ChartDataset<>("In-vs-logged", requestMetricsEquilibrium)))
+            this::pollSystemMetricsTask,
+            "gattos-lab-system-metrics-poll-task",
+            ApplicationProperties.SYSTEM_METRICS_POLL_CRON
         ));
+
+        this.observabilityDatabase = new ObservabilityDatabase(
+
+            LoggerRoot.getInstance().getLogFile(),
+            this.requestMetricsFile,
+            this.systemMetricsFile
+        );
+
+        batchScheduler.schedule(
+
+            () -> this.currentSiphonReference.get().drain(),
+            "gattos-lab-metrics-drain-task",
+            ApplicationProperties.METRICS_DRAIN_CRON
+        );
+
+        batchScheduler.schedule(
+
+            this::retentionTask,
+            "gattos-lab-observability-retention-task",
+            ApplicationProperties.OBSERVABILITY_RETENTION_CRON
+        );
     }
 
-    ///..
+    ///
     public void requestStarted() {
 
-        systemMetrics.requestStarted();
+        this.systemMetricsService.requestStarted();
     }
 
     ///..
-    public void updateRequestMetrics(final HttpServerExchange exchange) {
+    public void requestEnded(final HttpExchange exchange) {
 
-        final String path = exchange.getRequestPath();
+        this.requestEndedInternal(exchange, (short)exchange.getResponseCode());
+    }
 
-        while(true) {
+    ///..
+    public void requestPartiallyEnded(final HttpExchange exchange) {
 
-            final boolean success = primaryContext.get().updateMetrics(
+        this.requestEndedInternal(exchange, (short)HttpStatus.TRUNCATED.getCode());
+    }
 
-                path,
-                HttpUtils.getHeaderValue(exchange.getRequestHeaders(), Headers.USER_AGENT_STRING),
-                !monitoredPaths.contains(path),
-                exchange.getAttachment(HttpUtils.START_TIME_EPOCH_MS),
-                exchange.getStatusCode()
-            );
+    ///..
+    public byte[] getLogs(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
-            if(!success) GenericUtils.silentSleep(1L);
-            else break;
+        /*
+            filter:
+                startTime|endTime|severity|threadPattern|loggerPattern|messagePattern|exceptionClassPattern
+                reqd     |reqd   |ok or ""|ok or ""     |ok or ""     |ok or ""      |ok or ""
+        */
+
+        final List<String> filter = this.validateAndExtractQuery(exchange, 7);
+
+        final List<String> logs = this.observabilityDatabase.readLogs(
+
+            Long.parseLong(filter.get(0)),
+            Long.parseLong(filter.get(1)),
+            filter.get(2),
+            filter.get(3),
+            filter.get(4),
+            filter.get(5),
+            filter.get(6)
+        );
+
+        final int length = logs.size();
+        final FastAsciiJoiner joiner = new FastAsciiJoiner(length << 1);
+
+        for(int i = 0; i < length; i++) {
+
+            joiner.add(logs.get(i));
+            joiner.add("\n");
         }
 
-        systemMetrics.requestMetricCreated();
+        joiner.deleteLast();
+        return joiner.toByteArray();
     }
 
     ///..
-    public void close() throws IOException {
+    public byte[] getRequestMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException, NumberFormatException {
 
-        log.info("Begin shutdown...");
+        /*
+            filter:
+                startTime|endTime|bucketSize
+                reqd     |reqd   |reqd
+        */
 
-        this.dumpMetrics();
-        systemMetrics.close();
+        final List<String> filter = this.validateAndExtractQuery(exchange, 3);
 
-        log.info("End shutdown");
+        final long startTimestamp = Long.parseLong(filter.get(0));
+        final long endTimestamp = Long.parseLong(filter.get(1));
+        final long bucketSize = Long.parseLong(filter.get(2));
+
+        final List<String> requests = this.observabilityDatabase.readRequests(startTimestamp, endTimestamp, "", "");
+        final int length = requests.size();
+
+        // bucket -> status -> entity
+        final Map<Long, Map<String, RequestMetricsAggregationEntity>> aggregationMap = new HashMap<>();
+        final Set<String> allStatuses = new HashSet<>();
+
+        for(int i = 0; i < length; i++) {
+
+            final String request = requests.get(i);
+            final List<String> splits = GenericUtils.fastSplit(request, ApplicationProperties.FIELD_SEPARATOR);
+            final long bucket = (Long.parseLong(splits.get(1)) / bucketSize) * bucketSize;
+            final String status = HttpStatus.decode(Integer.parseInt(splits.get(6))).toString();
+
+            final RequestMetricsAggregationEntity aggregation = aggregationMap
+
+                .computeIfAbsent(bucket, _ -> new HashMap<>())
+                .computeIfAbsent(status, _ -> new RequestMetricsAggregationEntity())
+            ;
+
+            aggregation.setCount(aggregation.getCount() + 1);
+            aggregation.setLatencySum(aggregation.getLatencySum() + Long.parseLong(splits.get(2)));
+            allStatuses.add(status);
+        }
+
+        final long minNormalizedBucket = (startTimestamp / bucketSize) * bucketSize;
+        final long maxNormalizedBucket = (endTimestamp / bucketSize) * bucketSize;
+        final int timelineLength = (int)((maxNormalizedBucket - minNormalizedBucket) / bucketSize) + 1;
+
+        if(timelineLength > ApplicationProperties.MAX_OBSERVABILITY_CHART_LENGTH) {
+
+            throw new IllegalArgumentException("Chart too big, requested: " + timelineLength);
+        }
+
+        final long[] timeline = new long[timelineLength];
+        long counter = minNormalizedBucket;
+
+        for(int i = 0; i < timelineLength; i++) {
+
+            timeline[i] = counter;
+            counter += bucketSize;
+        }
+
+        final int allStatusesSize = allStatuses.size();
+        final LineChartEntry[] rpsDatasets = new LineChartEntry[allStatusesSize];
+        final LineChartEntry[] latencyDatasets = new LineChartEntry[allStatusesSize];
+        int idx = 0;
+
+        for(final String status : allStatuses) {
+
+            rpsDatasets[idx] = new LineChartEntry(status, timelineLength);
+            latencyDatasets[idx] = new LineChartEntry(status, timelineLength);
+
+            idx++;
+        }
+
+        for(int i = 0; i < timelineLength; i++) {
+
+            final Map<String, RequestMetricsAggregationEntity> innerMap = aggregationMap.get(timeline[i]);
+
+            if(innerMap != null) {
+
+                for(int j = 0; j < allStatusesSize; j++) {
+
+                    final RequestMetricsAggregationEntity aggregation = innerMap.get(rpsDatasets[j].getLabel());
+
+                    if(aggregation != null) {
+
+                        final int aggregationCount = aggregation.getCount();
+
+                        rpsDatasets[j].getData()[i] = aggregationCount;
+                        latencyDatasets[j].getData()[i] = Math.ceilDiv(aggregation.getLatencySum(), aggregationCount);
+                    }
+                }
+            }
+        }
+
+        final FastAsciiJoiner json = new FastAsciiJoiner((((allStatusesSize * 6) + 3) << 1) + 4);
+        final LineChartEntity rpsChart = new LineChartEntity(timeline, rpsDatasets);
+        final LineChartEntity latencyChart = new LineChartEntity(timeline, latencyDatasets);
+
+        json.add("{\"rates\":");
+        rpsChart.appendBytes(json);
+        json.add(",");
+        json.add("\"latencies\":");
+        latencyChart.appendBytes(json);
+        json.add("}");
+
+        return json.toByteArray();
+    }
+
+    ///..
+    public byte[] getSystemMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException, NumberFormatException {
+
+        /*
+            filter:
+                startTime|endTime|bucketSize
+                reqd     |reqd   |reqd
+        */
+
+        final List<String> filter = this.validateAndExtractQuery(exchange, 3);
+
+        final long startTimestamp = Long.parseLong(filter.get(0));
+        final long endTimestamp = Long.parseLong(filter.get(1));
+        final long bucketSize = Long.parseLong(filter.get(2));
+
+        final List<String> systemMetrics = this.observabilityDatabase.readSystemMetrics(startTimestamp, endTimestamp);
+        final int length = systemMetrics.size();
+
+        // bucket -> status -> entity
+        final Map<Long, SystemMetricsAggregationEntity> aggregationMap = new HashMap<>();
+
+        for(int i = 0; i < length; i++) {
+
+            final String request = systemMetrics.get(i);
+            final List<String> splits = GenericUtils.fastSplit(request, ApplicationProperties.FIELD_SEPARATOR);
+            final long bucket = (Long.parseLong(splits.get(1)) / bucketSize) * bucketSize;
+
+            final SystemMetricsAggregationEntity aggregation = aggregationMap.computeIfAbsent(bucket, _ -> new SystemMetricsAggregationEntity());
+
+            aggregation.setPlatformThreads(aggregation.getPlatformThreads() + Long.parseLong(splits.get(2)));
+            aggregation.setClassesLoaded(aggregation.getClassesLoaded() + Long.parseLong(splits.get(3)));
+            aggregation.setFileReads(aggregation.getFileReads() + Long.parseLong(splits.get(4)));
+            aggregation.setFileWrites(aggregation.getFileWrites() + Long.parseLong(splits.get(5)));
+            aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(6)));
+            aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(7)));
+            aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(8)));
+            aggregation.setGcPause(aggregation.getGcPause() + Long.parseLong(splits.get(9)));
+            aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(10)));
+            aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(11)));
+            aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(12)));
+            aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(13)));
+            aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(14)));
+            aggregation.setDirectBuffersUsed(aggregation.getDirectBuffersUsed() + Long.parseLong(splits.get(15)));
+            aggregation.setDirectBuffersMemoryUsed(aggregation.getDirectBuffersMemoryUsed() + Long.parseLong(splits.get(16)));
+            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(17)));
+            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(18)));
+            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(19)));
+            aggregation.setCount(aggregation.getCount() + 1);
+        }
+
+        final long minNormalizedBucket = (startTimestamp / bucketSize) * bucketSize;
+        final long maxNormalizedBucket = (endTimestamp / bucketSize) * bucketSize;
+        final int timelineLength = (int)((maxNormalizedBucket - minNormalizedBucket) / bucketSize) + 1;
+
+        if(timelineLength > ApplicationProperties.MAX_OBSERVABILITY_CHART_LENGTH) {
+
+            throw new IllegalArgumentException("Chart too big, requested: " + timelineLength);
+        }
+
+        final long[] timeline = new long[timelineLength];
+        long counter = minNormalizedBucket;
+
+        for(int i = 0; i < timelineLength; i++) {
+
+            timeline[i] = counter;
+            counter += bucketSize;
+        }
+
+        final int numProbes = SystemMetricsAggregationEntity.probes.length;
+        final LineChartEntry[] datasets = new LineChartEntry[numProbes];
+
+        for(int i = 0; i < numProbes; i++) {
+
+            datasets[i] = new LineChartEntry(SystemMetricsAggregationEntity.probes[i], timelineLength);
+        }
+
+        for(int i = 0; i < timelineLength; i++) {
+
+            final SystemMetricsAggregationEntity aggregation = aggregationMap.get(timeline[i]);
+
+            if(aggregation != null) {
+
+                datasets[0].getData()[i] = Math.ceilDiv(aggregation.getPlatformThreads(), aggregation.getCount());
+                datasets[1].getData()[i] = Math.ceilDiv(aggregation.getClassesLoaded(), aggregation.getCount());
+                datasets[2].getData()[i] = aggregation.getFileReads();
+                datasets[3].getData()[i] = aggregation.getFileWrites();
+                datasets[4].getData()[i] = aggregation.getSocketReads();
+                datasets[5].getData()[i] = aggregation.getSocketWrites();
+                datasets[6].getData()[i] = aggregation.getGcCounts();
+                datasets[7].getData()[i] = aggregation.getGcPause();
+                datasets[8].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), aggregation.getCount());
+                datasets[9].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), aggregation.getCount());
+                datasets[10].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), aggregation.getCount());
+                datasets[11].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), aggregation.getCount());
+                datasets[12].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), aggregation.getCount());
+                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getDirectBuffersUsed(), aggregation.getCount());
+                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getDirectBuffersMemoryUsed(), aggregation.getCount());
+                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), aggregation.getCount());
+                datasets[16].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), aggregation.getCount());
+                datasets[17].getData()[i] = aggregation.getRequestMetricsEquilibrium();
+            }
+        }
+
+        final String[] chartNames = new String[]{
+
+            "threads",
+            "classes",
+            "ioResources",
+            "garbageCollection",
+            "cpuUtilization",
+            "memoryUtilization",
+            "storageUtilization",
+            "requestMetricsEquilibrium"
+        };
+
+        final int numCharts = chartNames.length;
+        final FastAsciiJoiner json = new FastAsciiJoiner(165);
+        final LineChartEntity[] charts = new LineChartEntity[numCharts];
+
+        charts[0] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[0]});
+        charts[1] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[1]});
+        charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[2], datasets[3], datasets[4], datasets[5]});
+        charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[6], datasets[7]});
+        charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[8], datasets[9], datasets[10]});
+        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[11], datasets[12], datasets[13], datasets[14], datasets[15]});
+        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[16]});
+        charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[17]});
+
+        json.add("{");
+
+        for(int i = 0; i < numCharts; i++) {
+
+            json.add("\"");
+            json.add(chartNames[i]);
+            json.add("\":");
+            charts[i].appendBytes(json);
+            json.add(",");
+        }
+
+        json.replaceLast("}");
+        return json.toByteArray();
+    }
+
+    ///..
+    public byte[] getCrawlMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException, NumberFormatException {
+
+        /*
+            filter:
+                startTime|endTime|isUnknown|userAgentPattern
+                reqd     |reqd   | ok or ""| ok or ""
+        */
+
+        final List<String> filter = this.validateAndExtractQuery(exchange, 4);
+
+        final List<String> requests = this.observabilityDatabase.readRequests(
+
+            Long.parseLong(filter.get(0)),
+            Long.parseLong(filter.get(1)),
+            filter.get(2),
+            filter.get(3)
+        );
+
+        final int length = requests.size();
+
+        final Map<String, CrawlAggregationEntity> crawlAggregation = new HashMap<>();
+        final Map<String, UserAgentAggregationEntity> userAgentAggregation = new HashMap<>();
+
+        for(int i = 0; i < length; i++) {
+
+            final List<String> splits = GenericUtils.fastSplit(requests.get(i), ApplicationProperties.FIELD_SEPARATOR);
+
+            final String path = splits.get(3);
+            final String userAgent = splits.get(4);
+            final long timestamp = Long.parseLong(splits.get(1));
+
+            final CrawlAggregationEntity crawl = crawlAggregation.computeIfAbsent(path, _ -> new CrawlAggregationEntity(
+
+                path,
+                Boolean.parseBoolean(splits.get(5))
+            ));
+
+            if(timestamp > crawl.getLastCalled()) crawl.setLastCalled(timestamp);
+            crawl.setNumberOfCalls(crawl.getNumberOfCalls() + 1);
+            crawl.getStatuses().add(splits.get(6));
+
+            final UserAgentAggregationEntity agent = userAgentAggregation.computeIfAbsent(userAgent, _ -> new UserAgentAggregationEntity(userAgent));
+
+            if(timestamp > agent.getLastSeen()) agent.setLastSeen(timestamp);
+            agent.setNumberOfCalls(agent.getNumberOfCalls() + 1);
+        }
+
+        final FastAsciiJoiner joiner = new FastAsciiJoiner((crawlAggregation.size() * 36) + (userAgentAggregation.size() * 6) + 1);
+        final List<CrawlAggregationEntity> sortedCrawls = new ArrayList<>(crawlAggregation.values());
+        final List<UserAgentAggregationEntity> sortedUserAgents = new ArrayList<>(userAgentAggregation.values());
+
+        sortedCrawls.sort((a, b) -> b.getNumberOfCalls() - a.getNumberOfCalls());
+        sortedUserAgents.sort((a, b) -> b.getNumberOfCalls() - a.getNumberOfCalls());
+
+        for(final CrawlAggregationEntity sortedCrawl : sortedCrawls) {
+
+            sortedCrawl.appendBytes(joiner);
+
+            if(sortedCrawl.getStatuses().isEmpty()) joiner.add("\n");
+            else joiner.replaceLast("\n");
+        }
+
+        joiner.add("\n");
+
+        for(final UserAgentAggregationEntity sortedUserAgent : sortedUserAgents) {
+
+            sortedUserAgent.appendBytes(joiner);
+            joiner.add("\n");
+        }
+
+        joiner.deleteLast();
+        return joiner.toByteArray();
+    }
+
+    ///..
+    @Override
+    public void close() {
+
+        this.logger.info("Begin shutdown...");
+
+        this.currentSiphonReference.get().drain();
+        this.systemMetricsService.close();
+
+        this.logger.info("End shutdown");
     }
 
     ///.
-    private void sampleSystemMetrics() {
+    private void requestEndedInternal(final HttpExchange exchange, final short statusCode) {
 
-        final SystemMetricsEntity entity = systemMetrics.toEntity();
-        if(entity != null) SYSTEM_METRICS_LOGGER.trace("{}", entity);
+        final Boolean isTracked = (Boolean)exchange.getAttribute(ApplicationProperties.REQUEST_TRACKED_ATTRIBUTE);
+        if(isTracked == Boolean.TRUE) return;
+
+        while(!(this.currentSiphonReference.get().update(entity -> this.updateRequestMetrics(entity, exchange, statusCode)))) {
+
+            GenericUtils.silentSleep(1);
+        }
+
+        this.systemMetricsService.requestMetricCreated();
+        exchange.setAttribute(ApplicationProperties.REQUEST_TRACKED_ATTRIBUTE, true);
     }
 
     ///..
-    private void dumpMetrics() {
+    private void updateRequestMetrics(final RequestMetricsEntity requestMetricsEntity, final HttpExchange exchange, final short statusCode) {
 
-        if(isHandlingEvent.compareAndSet(false, true)) {
+        final long startTime = (long)exchange.getAttribute(ApplicationProperties.REQUEST_START_TIME_ATTRIBUTE);
 
-            this.insertMetrics(this.swapContexts());
-            isHandlingEvent.set(false);
+        requestMetricsEntity.setId((long)exchange.getAttribute(ApplicationProperties.REQUEST_REQUEST_ID_ATTRIBUTE));
+        requestMetricsEntity.setTimestamp(startTime);
+        requestMetricsEntity.setLatency((int)(System.currentTimeMillis() - startTime));
+        requestMetricsEntity.setPath(exchange.getRequestURI().getPath());
+        requestMetricsEntity.setUserAgent((String)exchange.getAttribute(ApplicationProperties.REQUEST_USER_AGENT_ATTRIBUTE));
+        requestMetricsEntity.setUnknown(exchange.getAttribute(ApplicationProperties.REQUEST_RESOURCE_ATTRIBUTE) == null);
+        requestMetricsEntity.setHttpStatus(statusCode);
+    }
+
+    ///..
+    private List<String> validateAndExtractQuery(final HttpExchange exchange, final int numComponents) throws IllegalArgumentException {
+
+        final String query = GenericUtils.extractQueryParam(exchange.getRequestURI().getQuery(), "filter");
+        if(query == null) throw new IllegalArgumentException("Filter must be provided");
+
+        final List<String> filter = GenericUtils.fastSplit(query, ApplicationProperties.FIELD_SEPARATOR);
+
+        if(filter.size() != numComponents) {
+
+            throw new IllegalArgumentException("Filter must have " + numComponents + " components, got '" + filter + "'");
+        }
+
+        return filter;
+    }
+
+    ///..
+    private void drainSiphonTask(final List<RequestMetricsEntity> requestMetrics) {
+
+        if(!requestMetrics.isEmpty()) {
+
+            final Siphon<RequestMetricsEntity> previousSiphon;
+            if(this.currentSiphonReference.compareAndSet(this.primarySiphon, this.secondarySiphon)) previousSiphon = this.primarySiphon;
+
+            else {
+
+                this.currentSiphonReference.set(this.primarySiphon);
+                previousSiphon = this.secondarySiphon;
+            }
+
+            while(previousSiphon.isBusy()) {
+
+                GenericUtils.silentSleep(1);
+            }
+
+            try {
+
+                this.requestMetricsFile.write(requestMetrics);
+            }
+
+            catch(final IOException exc) {
+
+                this.logger.error("Could not write to request metrics file because", exc);
+            }
         }
     }
 
     ///..
-    private ObservabilityContext swapContexts() {
+    private void pollSystemMetricsTask() {
 
-        final ObservabilityContext primary = primaryContext.get();
+        if(this.systemMetricsService != null) {
 
-        primaryContext.set(secondaryContext.get());
-        secondaryContext.set(primary);
+            final SystemMetricsEntity systemMetric = this.systemMetricsService.sample();
 
-        return primary;
+            if(systemMetric != null) {
+
+                try {
+
+                    this.systemMetricsFile.write(List.of(systemMetric));
+                }
+
+                catch(final IOException exc) {
+
+                    this.logger.error("Could not write to system metrics file because", exc);
+                }
+            }
+        }
     }
 
     ///..
-    private void insertMetrics(final ObservabilityContext context) {
+    private void retentionTask() {
 
-        while(!context.isNoOneThere()) GenericUtils.silentSleep(1L);
-        for(final RequestMetricsEntity entity : context.drainSiphon()) REQUEST_METRICS_LOGGER.trace("{}", entity);
-        context.reset();
+        final long days = ApplicationProperties.OBSERVABILITY_DATA_RETENTION.toDays();
+        int numDeleted = 0;
+
+        numDeleted += this.applyRetention(LoggerRoot.getInstance().getLogFile(), days);
+        numDeleted += this.applyRetention(requestMetricsFile, days);
+        numDeleted += this.applyRetention(systemMetricsFile, days);
+
+        if(numDeleted > 0) this.logger.info("Deleted " + numDeleted + " observability files");
     }
 
     ///..
-    private void validateSearchFilter(final SearchFilter temporalSearchFilter, final boolean isBucketRequired) throws ValidationException {
+    private int applyRetention(final ObservabilityFile<?> observabilityFile, final long days) {
 
-        final long startTimestamp = temporalSearchFilter.getStartTimestamp();
-        final long endTimestamp = temporalSearchFilter.getEndTimestamp();
+        try {
 
-        if(startTimestamp > endTimestamp) throw new ValidationException("Field 'endTimestamp' cannot be smaller than 'startTimestamp'", SOURCE_VALIDATE);
+            return observabilityFile.deleteAll(LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID).minusDays(days).truncatedTo(ChronoUnit.HOURS));
+        }
 
-        if((temporalSearchFilter instanceof final AggregatedSearchFilter casted) && isBucketRequired) {
+        catch(final IOException exc) {
 
-            if(casted.getBucketSize() <= 0) throw new ValidationException("Field 'bucketSize' must be greater than 0", SOURCE_VALIDATE);
-
-            final long numTimestamps = ((casted.getEndTimestamp() - casted.getStartTimestamp()) / casted.getBucketSize()) + 1;
-            if(numTimestamps > MAX_TIMESTAMPS) throw new ValidationException("Too many timestamps: " + numTimestamps, SOURCE_VALIDATE);
+            this.logger.error("Could not delete old files from '" + observabilityFile.toString() + "', because", exc);
+            return 0;
         }
     }
 

@@ -1,53 +1,91 @@
 package io.github.clamentos.gattoslab.lifecycle;
 
 ///
-import io.undertow.Undertow;
+import io.github.clamentos.gattoslab.observability.logging.Logger;
 
 ///..
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.List;
-
-///..
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-///
-@AllArgsConstructor
-@Slf4j
+import java.util.Map;
+import java.util.TreeMap;
 
 ///
 public class ShutdownHook implements Runnable {
 
     ///
-    private final List<Object> closables;
+    private final Logger logger;
+    private final Map<Integer, List<Object>> closeables;
 
     ///
+    public ShutdownHook() {
+
+        this.logger = new Logger();
+        this.closeables = new TreeMap<>();
+    }
+
+    ///
+    public void add(final Closeable closeable, final int priority) {
+
+        this.closeables.computeIfAbsent(priority, _ -> new ArrayList<>()).add(closeable);
+    }
+
+    ///..
+    public void add(final AutoCloseable autoCloseable, final int priority) {
+
+        this.closeables.computeIfAbsent(priority, _ -> new ArrayList<>()).add(autoCloseable);
+    }
+
+    ///..
     @Override
     public void run() {
 
-        log.info("Begin shutdown...");
-        for(final Object closable : closables) this.tryClose(closable);
-        log.info("End shutdown");
+        this.logger.info("Begin shutdown...");
+
+        for(final List<Object> closeableList : this.closeables.values()) {
+
+            final int length = closeableList.size();
+
+            for(int i = 0; i < length; i++) {
+
+                this.tryClose(closeableList.get(i));
+            }
+        }
+
+        this.logger.info("End shutdown");
     }
 
     ///.
     private void tryClose(final Object closeable) {
 
+        if(closeable == null) {
+
+            this.logger.warning("Closeable was null");
+            return;
+        }
+
+        final String closeableClassName = closeable.getClass().getSimpleName();
+
         try {
 
             switch(closeable) {
 
-                case final Closeable cl -> cl.close();
-                case final Undertow un -> un.stop();
-                default -> log.warn("Unknown closable class {}", closeable.getClass().getSimpleName());
+                case final Closeable casted -> casted.close();
+                case final AutoCloseable casted -> casted.close();
+
+                default -> {
+
+                    this.logger.warning("Closeable was not actually a closeable, bot: '" + closeableClassName + "'");
+                    return;
+                }
             }
 
-            log.info("Closed {}", closeable.getClass().getSimpleName());
+            this.logger.info("Closed '" + closeableClassName + "'");
         }
 
         catch(final Exception exc) {
 
-            log.error("Could not close {} because", closeable.getClass().getSimpleName(), exc);
+            this.logger.error("Could not close '" + closeableClassName + "' because", exc);
         }
     }
 

@@ -1,44 +1,45 @@
 package io.github.clamentos.gattoslab.http;
 
 ///
-import io.github.clamentos.gattoslab.exceptions.ValidationException;
-
-///..
-import io.undertow.util.HttpString;
-
-///..
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 ///
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Getter
 
 ///
 public enum HttpMethod {
 
     ///
-    GET(new HttpString("GET")),
-    POST(new HttpString("POST")),
-    PUT(new HttpString("PUT")),
-    PATCH(new HttpString("PATCH")),
-    DELETE(new HttpString("DELETE")),
-    OPTIONS(new HttpString("OPTIONS"));
+    GET("Allowed method: GET".getBytes()),
+    HEAD("Allowed method: HEAD".getBytes()),
+    OPTIONS("Allowed method: OPTIONS".getBytes()),
+    POST("Allowed method: POST".getBytes()),
+    PUT("Allowed method: PUT".getBytes()),
+    PATCH("Allowed method: PATCH".getBytes()),
+    DELETE("Allowed method: DELETE".getBytes());
 
     ///
-    private final HttpString method;
+    public static HttpMethod decode(final String method) {
 
-    ///
-    public static HttpMethod decode(final HttpString method) throws ValidationException {
+        switch(method) {
 
-        if(HttpMethod.GET.method.equals(method)) return HttpMethod.GET;
-        if(HttpMethod.POST.method.equals(method)) return HttpMethod.POST;
-        if(HttpMethod.PUT.method.equals(method)) return HttpMethod.PUT;
-        if(HttpMethod.PATCH.method.equals(method)) return HttpMethod.PATCH;
-        if(HttpMethod.DELETE.method.equals(method)) return HttpMethod.DELETE;
-        if(HttpMethod.OPTIONS.method.equals(method)) return HttpMethod.OPTIONS;
+            case "GET": return HttpMethod.GET;
+            case "HEAD": return HttpMethod.HEAD;
+            case "OPTIONS": return HttpMethod.OPTIONS;
+            case "POST": return HttpMethod.POST;
+            case "PUT": return HttpMethod.PUT;
+            case "PATCH": return HttpMethod.PATCH;
+            case "DELETE": return HttpMethod.DELETE;
 
-        throw new ValidationException("Unknown method '" + method + "'", "HttpMethod.decode");
+            default: return null;
+        }
     }
+
+    ///
+    private final byte[] allowedBody;
 
     ///
 }

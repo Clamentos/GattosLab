@@ -34,20 +34,9 @@ function onSubmitEvent(event) {
 
 function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
 
-    fetch("/admin/api/observability/system-metrics",
+    const filter = `${startTimestamp}|${endTimestamp}|${resolution}`;
 
-        {
-            method: "POST",
-            headers: new Headers({"content-type": "application/json"}),
-
-            body: JSON.stringify({
-
-                startTimestamp: startTimestamp,
-                endTimestamp: endTimestamp,
-                bucketSize: resolution
-            })
-        }
-    )
+    fetch(`/api/observability/system-metrics?filter=${encodeURI(filter)}`, {method: "GET"})
     .then(response => {
 
         if(response.status === 200) {
@@ -57,17 +46,17 @@ function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
                 renderLineChart(activeCharts, "SystemThreadChart", "JVM threads", json.threads);
                 renderLineChart(activeCharts, "SystemClassChart", "Loaded JVM classes", json.classes);
                 renderLineChart(activeCharts, "IoChart", "JVM IO resources", json.ioResources);
-                renderLineChart(activeCharts, "SystemGcChart", "JVM GC", json.gcs);
-                renderLineChart(activeCharts, "SystemCpuChart", "CPU utilization %", json.cpu);
-                renderLineChart(activeCharts, "SystemMemoryChart", "Memory utilization", json.memory);
-                renderLineChart(activeCharts, "StorageChart", "Storage utilization", json.storage);
+                renderLineChart(activeCharts, "SystemGcChart", "JVM GC", json.garbageCollection);
+                renderLineChart(activeCharts, "SystemCpuChart", "CPU utilization %", json.cpuUtilization);
+                renderLineChart(activeCharts, "SystemMemoryChart", "Memory utilization", json.memoryUtilization);
+                renderLineChart(activeCharts, "StorageChart", "Storage utilization", json.storageUtilization);
                 renderLineChart(activeCharts, "RequestMetricsEquilibriumChart", "Request metrics equilibrium", json.requestMetricsEquilibrium);
             });
         }
 
         else {
 
-            response.json().then(errorBody => pushError(errorBody));
+            response.text().then(errorBody => pushError(errorBody));
         }
     })
     .catch(error_ => pushError(error_))

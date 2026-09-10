@@ -4,7 +4,7 @@ today.setUTCHours(0, 0, 0, 0);
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 document.getElementById("end-timestamp").value = new Date(today.getTime() + 86400000).toISOString().slice(0, 16);
 
-fetchAndRenderLogs(today.getTime(), today.getTime() + 86400000, null, null, null);
+fetchAndRenderLogs(today.getTime(), today.getTime() + 86400000, "", "", "", "", "");
 
 function onSubmitEvent(event) {
 
@@ -24,11 +24,11 @@ function onSubmitEvent(event) {
 
         range.start,
         range.end,
-        formSeverities === "" ? null : formSeverities.split(","),
-        formThreadPattern === "" ? null : formThreadPattern,
-        formLoggerPattern === "" ? null : formLoggerPattern,
-        formMessagePattern === "" ? null : formMessagePattern,
-        formExceptionClassPattern === "" ? null : formExceptionClassPattern,
+        isOk(formSeverities) ? formSeverities.split(",") : "",
+        isOk(formThreadPattern) ? formThreadPattern : "",
+        isOk(formLoggerPattern) ? formLoggerPattern : "",
+        isOk(formMessagePattern) ? formMessagePattern : "",
+        isOk(formExceptionClassPattern) ? formExceptionClassPattern : "",
     );
 }
 
@@ -40,38 +40,31 @@ function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threadPatt
     const tableBody = document.getElementById("table-data-hook");
     tableBody.replaceChildren();
 
-    fetch("/admin/api/observability/logs",
+    const filter = `${startTimestamp}|${endTimestamp}|${severities}|${threadPattern}|${loggerPattern}|${messagePattern}|${exceptionClassPattern}`;
+
+    fetch(`/api/observability/logs?filter=${encodeURI(filter)}`,
 
         {
-            method: "POST",
-            headers: new Headers({"content-type": "application/json"}),
-
-            body: JSON.stringify({
-
-                startTimestamp: startTimestamp,
-                endTimestamp: endTimestamp,
-                severities: severities,
-                threadPattern: threadPattern,
-                loggerPattern: loggerPattern,
-                messagePattern: messagePattern,
-                exceptionClassPattern: exceptionClassPattern
-            })
+            method: "GET",
+            headers: new Headers({"content-type": "application/json"})
         }
     )
     .then((response) => {
 
         if(response.status === 200) {
 
-            response.json().then(json => {
+            response.text().then(text => {
 
-                document.getElementById("logs-count").innerText = `Logs count: ${json.length}`;
-                for(const log of json) appendRow(log, tableBody);
+                const lines = text.split('\n');
+
+                document.getElementById("logs-count").innerText = `Logs count: ${lines.length}`;
+                for(const log of lines) appendRow(log, tableBody);
             });
         }
 
         else {
 
-            response.json().then(errorBody => pushError(errorBody));
+            response.text().then(errorBody => pushError(errorBody));
         }
     })
     .catch(error_ => pushError(error_))
@@ -80,11 +73,14 @@ function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threadPatt
 
 function appendRow(log, table) {
 
+    /*id|timestamp|severity|thread|logger|message|exception*/
+    const splits = log.split('|');
+
     const tr = document.createElement("div");
     tr.className = "table-data-row";
 
-    if(log.severity === "ERROR") tr.style = "color: red";
-    if(log.severity === "WARN") tr.style = "color: orange";
+    if(splits[2] === "ERROR") tr.style = "color: red";
+    if(splits[2] === "WARNING") tr.style = "color: orange";
 
     const timestamp = document.createElement("div");
     const severity = document.createElement("div");
@@ -95,27 +91,27 @@ function appendRow(log, table) {
 
     timestamp.className = "table-data-elem";
     timestamp.style = "text-align: center; width: 6%";
-    timestamp.innerText = formatDate(new Date(log.timestamp));
+    timestamp.innerText = formatDate(new Date(Number.parseInt(splits[1])));
 
     severity.className = "table-data-elem";
     severity.style = "text-align: center; width: 4%";
-    severity.innerText = log.severity;
+    severity.innerText = splits[2];
 
     message.className = "table-data-elem";
     message.style = "width: 45%";
-    message.innerText = log.message;
+    message.innerText = splits[5];
 
     logger.className = "table-data-elem";
     logger.style = "width: 15%";
-    logger.innerText = log.logger;
+    logger.innerText = splits[4];
 
     thread.className = "table-data-elem";
     thread.style = "width: 15%";
-    thread.innerText = log.thread;
+    thread.innerText = splits[3];
 
     exception.className = "table-data-elem";
     exception.style = "width: 15%";
-    exception.innerText = (log.exception !== null && log.exception !== undefined) ? formatException(log.exception) : "";
+    exception.innerText = splits[6].replaceAll('\u0002', '\n');
 
     tr.appendChild(timestamp);
     tr.appendChild(severity);
@@ -125,17 +121,4 @@ function appendRow(log, table) {
     tr.appendChild(exception);
 
     table.appendChild(tr);
-}
-
-function formatException(exception) {
-
-    const message = (exception.message !== null && exception.message !== undefined) ? exception.message : "";
-    let trace = "";
-
-    if(exception.stacktrace !== null && exception.stacktrace !== undefined) {
-
-        for(const entry of exception.stacktrace) trace += `${entry}\n`;
-    }
-
-    return `${exception.className}: ${message} trace: ${trace}`;
 }

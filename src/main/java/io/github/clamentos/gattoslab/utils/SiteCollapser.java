@@ -1,50 +1,48 @@
 package io.github.clamentos.gattoslab.utils;
 
+///
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
-import java.util.List;
-import java.util.Set;
 import java.util.Base64.Encoder;
-import java.util.stream.Collectors;
+import java.util.List;
 
+///..
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
+///
 public class SiteCollapser {
 
-    // FIXME: single line comments in js files with // are ignored by the minifier FOR SOME FUCKING REASON and they break everything (2h debugging)
     // html-minifier-next --input-dir ./src/main/resources/merged --output-dir ./src/main/resources/site --config-file=./resources/minifier-config.json
 
+    ///
     private static final String SOURCE_ROOT = "html";
     private static final String DESTINATION_ROOT = "merged";
 
+    ///
+    @SuppressWarnings("unused")
     public static void main(final String[] args) throws IOException {
 
-        final Set<String> paths = ResourceWalker.listSiteResourcePaths(SOURCE_ROOT)
-
-            .stream()
-            .filter(p -> p.contains("."))
-            .collect(Collectors.toSet())
-        ;
-
-        for(final String path : paths) {
+        for(final String path : ResourceWalker.listSiteResourcePaths(SOURCE_ROOT)) {
 
             processFile(path);
         }
     }
 
+    ///.
     private static void processFile(final String path) throws IOException {
 
-        final byte[] data = ResourceWalker.getResource(path).readAllBytes();
+        final byte[] data = readAllBytes(path);
 
         if(path.endsWith(".html")) placeFile(path, modifyHtml(path, data));
         else if(!path.endsWith(".css") && !path.endsWith(".js") && !path.endsWith(".svg")) placeFile(path, data);
     }
 
+    ///..
     private static byte[] modifyHtml(final String path, final byte[] data) throws IOException {
 
         final Path htmlPath = Path.of(path);
@@ -59,6 +57,7 @@ public class SiteCollapser {
         return html.toString().getBytes();
     }
 
+    ///..
     private static void placeFile(final String sourcePath, final byte[] content) throws IOException {
 
         final Path destinationPath = Path.of(DESTINATION_ROOT + sourcePath.substring(SOURCE_ROOT.length()));
@@ -72,6 +71,7 @@ public class SiteCollapser {
         }
     }
 
+    ///..
     private static String getPath(final Path hook, final String path) {
 
         String temp = path;
@@ -86,6 +86,7 @@ public class SiteCollapser {
         return result.resolve(temp).toString();
     }
 
+    ///..
     private static void concatenateCss(final Document html, final Path htmlPath) throws IOException {
 
         final StringBuilder sb = new StringBuilder();
@@ -94,7 +95,7 @@ public class SiteCollapser {
 
             final String cssRef = stylesheetElem.attr("href");
 
-            sb.append(new String(ResourceWalker.getResource(getPath(htmlPath.getParent(), cssRef)).readAllBytes()));
+            sb.append(new String(readAllBytes(getPath(htmlPath.getParent(), cssRef))));
             stylesheetElem.remove();
         }
 
@@ -105,6 +106,7 @@ public class SiteCollapser {
         htmlHead.appendChild(styleTag);
     }
 
+    ///..
     private static void concatenateSvg(final Document html, final Path htmlPath) throws IOException {
 
         final List<Element> imgs = html.getElementsByTag("img").stream().filter(e -> e.attribute("src").getValue().endsWith(".svg")).toList();
@@ -112,11 +114,12 @@ public class SiteCollapser {
 
         for(final Element img : imgs) {
 
-            final byte[] svgB64 = ResourceWalker.getResource(getPath(htmlPath.getParent(), img.attr("src"))).readAllBytes();
+            final byte[] svgB64 = readAllBytes(getPath(htmlPath.getParent(), img.attr("src")));
             img.attr("src", "data:image/svg+xml;utf8;base64, " + new String(encoder.encode(svgB64)));
         }
     }
 
+    ///..
     private static void concatenateJs(final Document html, final Path htmlPath) throws IOException {
 
         final List<Element> scripts = html.getElementsByTag("script").stream().toList();
@@ -124,10 +127,18 @@ public class SiteCollapser {
         for(final Element script : scripts) {
 
             final String jsRef = script.attr("src");
-            final String jsSource = new String(ResourceWalker.getResource(getPath(htmlPath.getParent(), jsRef)).readAllBytes());
+            final String jsSource = new String(readAllBytes(getPath(htmlPath.getParent(), jsRef)));
 
             script.removeAttr("src");
             script.text(jsSource);
         }
     }
+
+    ///..
+    private static byte[] readAllBytes(final String path) throws IOException {
+
+        return ClassLoader.getSystemResourceAsStream(path).readAllBytes();
+    }
+
+    ///
 }

@@ -1,0 +1,150 @@
+package io.github.clamentos.gattoslab.observability;
+
+///
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.observability.logging.entities.LogEvent;
+import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
+
+///..
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
+
+///
+public final class ObservabilityDatabase {
+
+    ///
+    private final ObservabilityFile<LogEvent> logFile;
+    private final ObservabilityFile<RequestMetricsEntity> requestMetricsFile;
+    private final ObservabilityFile<SystemMetricsEntity> systemMetricsFile;
+
+    ///
+    public ObservabilityDatabase(
+
+        final ObservabilityFile<LogEvent> logFile,
+        final ObservabilityFile<RequestMetricsEntity> requestMetricsFile,
+        final ObservabilityFile<SystemMetricsEntity> systemMetricsFile
+    ) {
+
+        this.logFile = logFile;
+        this.requestMetricsFile = requestMetricsFile;
+        this.systemMetricsFile = systemMetricsFile;
+    }
+
+    ///
+    public List<String> readLogs(
+
+        final long startTime,
+        final long endTime,
+        final String severity,
+        final String threadPattern,
+        final String loggerPattern,
+        final String messagePattern,
+        final String exceptionClassPattern
+
+    ) throws IOException, IllegalArgumentException {
+
+        return this.fetch(startTime, endTime, logFile, (line, start, end) -> {
+
+            final List<String> log = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
+            final long logTimestamp = Long.parseLong(log.get(1));
+
+            if(logTimestamp < start || logTimestamp > end) return false;
+            if(!severity.isEmpty() && !log.get(2).equals(severity)) return false;
+            if(!threadPattern.isEmpty() && !log.get(3).contains(threadPattern)) return false;
+            if(!loggerPattern.isEmpty() && !log.get(4).contains(loggerPattern)) return false;
+            if(!messagePattern.isEmpty() && !log.get(5).contains(messagePattern)) return false;
+
+            return exceptionClassPattern.isEmpty() || log.get(6).contains(exceptionClassPattern);
+        });
+    }
+
+    ///..
+    public List<String> readRequests(final long startTime, final long endTime, final String isUnknown, final String userAgentPattern)
+    throws IOException, IllegalArgumentException {
+
+        return this.fetch(startTime, endTime, requestMetricsFile, (line, start, end) -> {
+
+            final List<String> request = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
+            final long requestTimestamp = Long.parseLong(request.get(1));
+
+            if(requestTimestamp < start || requestTimestamp > end) return false;
+            if(!isUnknown.isEmpty() && !isUnknown.equals(request.get(5))) return false;
+
+            return userAgentPattern.isEmpty() || request.get(4).contains(userAgentPattern);
+        });
+    }
+
+    ///..
+    public List<String> readSystemMetrics(final long startTime, final long endTime) throws IOException, IllegalArgumentException {
+
+        return this.fetch(startTime, endTime, systemMetricsFile, (line, start, end) -> {
+
+            final List<String> request = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
+            final long requestTimestamp = Long.parseLong(request.get(1));
+
+            return requestTimestamp >= start && requestTimestamp <= end;
+        });
+    }
+
+    ///.
+    private List<String> fetch(
+        
+        final long startTime,
+        final long endTime,
+        final ObservabilityFile<?> observabilityFile,
+        final RecordFilter filter
+
+    ) throws IOException, IllegalArgumentException {
+
+        if(startTime > endTime) throw new IllegalArgumentException("'startTime' cannot be greater than 'endTime'");
+        final List<String> filteredRecords = new ArrayList<>(256);
+
+        try(final Stream<Path> files = Files.list(Path.of(observabilityFile.toString()))) {
+
+            for(final Path file : this.filterFiles(files, startTime, endTime)) {
+
+                try(final BufferedReader reader = Files.newBufferedReader(file)) {
+
+                    String line;
+
+                    while((line = reader.readLine()) != null) {
+
+                        if(filter.apply(line, startTime, endTime)) filteredRecords.add(line);
+                    }
+                }
+            }
+        }
+
+        return filteredRecords;
+    }
+
+    ///..
+    private List<Path> filterFiles(final Stream<Path> files, final long startTimeFilter, final long endTimeFilter) {
+
+        final LocalDateTime startTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(startTimeFilter), GenericUtils.DEFAULT_ZONE_ID);
+        final LocalDateTime endTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTimeFilter), GenericUtils.DEFAULT_ZONE_ID);
+        final String fileStartTimeSegment = startTime.toString().substring(0, 13);
+        final String fileEndTimeSegment = endTime.toString().substring(0, 13);
+
+        return files.filter(path -> {
+
+            String fileNameWithoutExtension = GenericUtils.fastSplit(path.getFileName().toString(), '.').get(0);
+            final int length = fileNameWithoutExtension.length();
+
+            fileNameWithoutExtension = fileNameWithoutExtension.substring(length - 13, length);
+            return fileNameWithoutExtension.compareTo(fileStartTimeSegment) >= 0 && fileNameWithoutExtension.compareTo(fileEndTimeSegment) <= 0;
+        })
+        .toList();
+    }
+
+    ///
+}

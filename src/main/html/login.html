@@ -47,18 +47,16 @@
                         <img src = "./images/login-img.svg" alt = ""/>
                     </div>
 
-                    <div class = "card-content-container" style = "padding-top: 10px">
+                    <div class = "card-content-container">
 
                         <h1 class = "card-title" style = "text-align: center">Login</h1>
 
                         <form onsubmit = "onSubmitEvent(event)">
 
-                            <select class = "login-input" name = "loginArea" required style = "margin-top: 0px">
-                                <option value = "ADMIN">Admin</option>
-                            </select>
-
                             <input
+                                id = "login-password-input"
                                 class = "login-input"
+                                aria-label = "login-password-input"
                                 type = "password"
                                 name = "password"
                                 placeholder = "Password..."

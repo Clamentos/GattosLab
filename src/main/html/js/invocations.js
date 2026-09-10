@@ -4,7 +4,7 @@ today.setUTCHours(0, 0, 0, 0);
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 document.getElementById("end-timestamp").value = new Date(today.getTime() + 86400000).toISOString().slice(0, 16);
 
-fetchAndRenderInvocations(today.getTime(), today.getTime() + 86400000);
+fetchAndRenderInvocations(today.getTime(), today.getTime() + 86400000, "", "");
 
 function onSubmitEvent(event) {
 
@@ -12,9 +12,7 @@ function onSubmitEvent(event) {
 
     const formStartTimestamp = event.target.startTimestamp.value;
     const formEndTimestamp = event.target.endTimestamp.value;
-    const formOnlyOthers = event.target.onlyOthers.value;
-    const formPathPattern = event.target.pathPattern.value;
-    const formHttpStatuses = event.target.httpStatuses.value;
+    const formisUnknown = event.target.isUnknown.value;
     const formUserAgentPattern = event.target.userAgentPattern.value;
 
     const range = normalizeTimeRange(formStartTimestamp, formEndTimestamp, today);
@@ -23,14 +21,12 @@ function onSubmitEvent(event) {
 
         range.start,
         range.end,
-        formOnlyOthers === "" ? null : formOnlyOthers === "true",
-        formPathPattern === "" ? null : formPathPattern,
-        formHttpStatuses === "" ? null : String(formHttpStatuses).split(",").map(s => Number.parseInt(s)),
-        formUserAgentPattern === "" ? null : formUserAgentPattern
+        isOk(formisUnknown) ? formisUnknown : "",
+        isOk(formUserAgentPattern) ? formUserAgentPattern : ""
     );
 }
 
-function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pathPattern, httpStatuses, userAgentPattern) {
+function fetchAndRenderInvocations(startTimestamp, endTimestamp, isUnknown, userAgentPattern) {
 
     document.getElementById("submit-loader").style = "display: inline-block";
     document.getElementById("invocations-count").innerText = "Distinct paths: -";
@@ -42,31 +38,39 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
     invocationsTableBody.replaceChildren();
     userAgentsTableBody.replaceChildren();
 
-    fetch("/admin/api/observability/invocation-metrics",
+    const filter = `${startTimestamp}|${endTimestamp}|${isUnknown}|${userAgentPattern}`;
+
+    fetch(`/api/observability/crawl-metrics?filter=${encodeURI(filter)}`,
 
         {
-            method: "POST",
-            headers: new Headers({"content-type": "application/json"}),
-
-            body: JSON.stringify({
-
-                startTimestamp: startTimestamp,
-                endTimestamp: endTimestamp,
-                onlyOthers: onlyOthers,
-                pathPattern: pathPattern,
-                httpStatuses: httpStatuses,
-                userAgentPattern: userAgentPattern
-            })
+            method: "GET",
+            headers: new Headers({"content-type": "application/json"})
         }
     )
     .then((response) => {
 
         if(response.status === 200) {
 
-            response.json().then(json => {
+            response.text().then(text => {
 
-                const invocations = json.paths;
-                const userAgents = json.userAgents;
+                const lines = text.split('\n');
+                const invocations = [];
+                const userAgents = [];
+                let flag = true;
+
+                for(const line of lines) {
+
+                    if(line !== "") {
+
+                        if(flag) invocations.push(line);
+                        else userAgents.push(line);
+                    }
+
+                    else {
+
+                        flag = false;
+                    }
+                }
 
                 document.getElementById("invocations-count").innerText = `Distinct paths: ${invocations.length}`;
                 document.getElementById("user-agents-count").innerText = `Distinct user agents: ${userAgents.length}`;
@@ -78,7 +82,7 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
 
         else {
 
-            response.json().then(errorBody => pushError(errorBody));
+            response.text().then(errorBody => pushError(errorBody));
         }
     })
     .catch(error_ => pushError(error_))
@@ -87,51 +91,49 @@ function fetchAndRenderInvocations(startTimestamp, endTimestamp, onlyOthers, pat
 
 function appendRow(entry, table, hook) {
 
+    /*path|isUnknown|lastCalled|numberOfCalls|statuses*/
+    /*userAgent|lastSeen|numberOfCalls*/
+    const splits = entry.split('|');
+
     const tr = document.createElement("div");
     tr.className = "table-data-row";
 
     const key = document.createElement("div");
     const count = document.createElement("div");
-    const firstInvocation = document.createElement("div");
     const lastInvocation = document.createElement("div");
 
     tr.appendChild(key);
     tr.appendChild(count);
-    tr.appendChild(firstInvocation);
     tr.appendChild(lastInvocation);
 
     key.className = "table-data-elem";
-    key.innerText = hook === "invocations-table-hook" ? entry.path : entry.userAgent;
+    key.innerText = splits[0];
 
     count.className = "table-data-elem";
     count.style = "width: 5%; text-align: end";
-    count.innerText = entry.count;
-
-    firstInvocation.className = "table-data-elem";
-    firstInvocation.style = "width: 10%; text-align: center";
-    firstInvocation.innerText = formatDate(new Date(entry.firstInvocation));
+    count.innerText = hook === "invocations-table-hook" ? splits[3] : splits[2];
 
     lastInvocation.className = "table-data-elem";
     lastInvocation.style = "width: 10%; text-align: center";
-    lastInvocation.innerText = formatDate(new Date(entry.lastInvocation));
+    lastInvocation.innerText = formatDate(new Date(Number.parseInt(hook === "invocations-table-hook" ? splits[2] : splits[1])));
 
     if(hook === "invocations-table-hook") {
 
-        if(entry.isOthers !== true) tr.style = "color: #00FF00";
+        if(splits[1] === "true") tr.style = "color: #FFFF00";
         const httpStatuses = document.createElement("div");
 
-        key.style = "width: 60%";
+        key.style = "width: 70%";
 
         httpStatuses.className = "table-data-elem";
         httpStatuses.style = "width: 15%";
-        httpStatuses.innerText = Array.from(entry.httpStatuses).join(", ");
+        httpStatuses.innerText = splits[4];
 
         tr.appendChild(httpStatuses);
     }
 
     else {
 
-        key.style = "width: 75%";
+        key.style = "width: 85%";
     }
 
     table.appendChild(tr);

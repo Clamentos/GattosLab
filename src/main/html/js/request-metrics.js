@@ -15,7 +15,7 @@ document.getElementById("start-timestamp").value = today.toISOString().slice(0, 
 document.getElementById("end-timestamp").value = new Date(today.getTime() + 86400000).toISOString().slice(0, 16);
 document.getElementById("submit-loader").style = "display: inline-block";
 
-fetchAndRenderPerformanceMetrics(today.getTime(), today.getTime() + 86400000, null, null, null, defaultTimeResolution);
+fetchAndRenderPerformanceMetrics(today.getTime(), today.getTime() + 86400000, defaultTimeResolution);
 
 function onSubmitEvent(event) {
 
@@ -27,9 +27,6 @@ function onSubmitEvent(event) {
 
     const formStartTimestamp = event.target.startTimestamp.value;
     const formEndTimestamp = event.target.endTimestamp.value;
-    const formOnlyOthers = event.target.onlyOthers.value;
-    const formPathPattern = event.target.pathPattern.value;
-    const httpStatuses = event.target.httpStatuses.value;
     const resolution = event.target.resolution.value;
 
     const range = normalizeTimeRange(formStartTimestamp, formEndTimestamp, today);
@@ -38,46 +35,29 @@ function onSubmitEvent(event) {
 
         range.start,
         range.end,
-        formOnlyOthers === "" ? null : formOnlyOthers === "true",
-        formPathPattern === "" ? null : formPathPattern,
-        httpStatuses === "" ? null : String(httpStatuses).split(",").map(s => Number.parseInt(s)),
         resolution === "" ? defaultTimeResolution : Number(resolution) * 1000
     );
 }
 
-function fetchAndRenderPerformanceMetrics(startTimestamp, endTimestamp, onlyOthers, pathPattern, httpStatuses, resolution) {
+function fetchAndRenderPerformanceMetrics(startTimestamp, endTimestamp, resolution) {
 
-    fetch("/admin/api/observability/request-metrics",
+    const filter = `${startTimestamp}|${endTimestamp}|${resolution}`;
 
-        {
-            method: "POST",
-            headers: new Headers({"content-type": "application/json"}),
-
-            body: JSON.stringify({
-
-                startTimestamp: startTimestamp,
-                endTimestamp: endTimestamp,
-                onlyOthers: onlyOthers,
-                pathPattern: pathPattern,
-                httpStatuses: httpStatuses,
-                bucketSize: resolution
-            })
-        }
-    )
+    fetch(`/api/observability/request-metrics?filter=${encodeURI(filter)}`, {method: "GET"})
     .then(response => {
 
         if(response.status === 200) {
 
             response.json().then(json => {
 
-                renderLineChart(activeCharts, "RequestsRateChart", "Request rates", json.rate);
-                renderLineChart(activeCharts, "RequestLatencyChart", "Request latencies", json.latency);
+                renderLineChart(activeCharts, "RequestsRateChart", "Request rates", json.rates);
+                renderLineChart(activeCharts, "RequestLatencyChart", "Request latencies", json.latencies);
             });
         }
 
         else {
 
-            response.json().then(errorBody => pushError(errorBody));
+            response.text().then(errorBody => pushError(errorBody));
         }
     })
     .catch(error_ => pushError(error_))

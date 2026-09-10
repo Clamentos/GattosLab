@@ -1,11 +1,10 @@
 function logout(role, redirect) {
 
-    fetch(`/api/session?role=${role}`, { method: "DELETE" }).then(response => {
+    fetch("/api/authentication/logout", { method: "DELETE" }).then(response => {
 
         if(response.status === 200) {
 
-            localStorage.clear("GattosLabRole");
-            localStorage.clear(`GattosLabSessionExpire${localStorage.getItem("GattosLabRole")}`);
+            localStorage.clear("GattosLabSessionExpire");
 
             if(redirect !== undefined && redirect !== null && response.status === 200) {
 

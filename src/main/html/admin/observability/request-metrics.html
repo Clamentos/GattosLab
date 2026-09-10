@@ -80,49 +80,6 @@
 
                     <div class = "form-input-group">
 
-                        <select class = "form-input" name = "onlyOthers">
-                            <option value = "">-</option>
-                            <option value = "true">Only unknown</option>
-                            <option value = "false">Only known</option>
-                        </select>
-
-                        <p class = "form-field-description">
-
-                            <strong>Only others:</strong>
-                            specify if bogus paths (non existent / unknown) should be included or not in the search filter.
-
-                        </p>
-
-                    </div>
-
-                    <div class = "form-input-group">
-
-                        <input class = "form-input" type = "text" name = "pathPattern">
-
-                        <p class = "form-field-description">
-
-                            <strong>Path pattern:</strong>
-                            specify the path pattern. Clearing this field will cause the search to ignore this filter.
-
-                        </p>
-
-                    </div>
-
-                    <div class = "form-input-group">
-
-                        <input class = "form-input" type = "text" name = "httpStatuses" placeholder = "200,404,...">
-
-                        <p class = "form-field-description">
-
-                            <strong>HTTP Statuses:</strong>
-                            specify the response statuses to be included in the search. To specify multiple, simply separate the values with a comma (no spaces). Clearing this field will cause the search to ignore this filter.
-
-                        </p>
-
-                    </div>
-
-                    <div class = "form-input-group">
-
                         <input class = "form-input" type = "number" name = "resolution" placeholder = "1,2,3,...">
 
                         <p class = "form-field-description">
@@ -152,7 +109,6 @@
 
     <script src = "../../js/utils.js" module></script>
     <script src = "../../js/error.js" module></script>
-    <script src = "../../js/refresh.js" module></script>
     <script src = "../../js/logout.js" module></script>
     <script src = "../../js/chartjsMin.js" module></script>
     <script src = "../../js/request-metrics.js" module></script>

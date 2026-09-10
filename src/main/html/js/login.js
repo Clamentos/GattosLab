@@ -3,9 +3,7 @@ function onSubmitEvent(event) {
     event.preventDefault();
     document.getElementById("submit-loader").style = "display: inline-block";
 
-    const role = event.target.loginArea.value;
-
-    fetch(`/api/session?role=${role}`, {
+    fetch("/api/authentication/login", {
 
         method: "POST",
         headers: { "Authorization": event.target.password.value }
@@ -16,9 +14,7 @@ function onSubmitEvent(event) {
 
             response.text().then(expire => {
 
-                localStorage.setItem("GattosLabRole", role);
-                localStorage.setItem(`GattosLabSessionExpire${role}`, String(expire));
-
+                localStorage.setItem("GattosLabSessionExpire", String(expire));
                 globalThis.location = "./admin/index.html";
             });
         }

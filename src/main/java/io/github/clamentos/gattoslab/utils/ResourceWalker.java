@@ -1,11 +1,7 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
-import io.github.clamentos.gattoslab.exceptions.CauseContainer;
-
-///..
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -14,8 +10,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -30,19 +24,10 @@ import lombok.NoArgsConstructor;
 public final class ResourceWalker {
 
     ///
-    private static final String SOURCE_LIST = "ResourceWalker.listSiteResourcePaths";
-
-    ///
-    public static InputStream getResource(final String path) {
-
-        return Thread.currentThread().getContextClassLoader().getResourceAsStream(path);
-    }
-
-    ///..
-    public static List<String> listSiteResourcePaths(final String rootPath) throws IOException {
+    public static String[] listSiteResourcePaths(final String rootPath) throws IOException {
 
         final URL url = Thread.currentThread().getContextClassLoader().getResource(rootPath);
-        if(url == null) throw new IOException("Could not find the resource at '" + rootPath + "'", new CauseContainer(SOURCE_LIST));
+        if(url == null) throw new IOException("Could not find the resource at '" + rootPath + "'");
 
         try {
 
@@ -54,14 +39,12 @@ public final class ResourceWalker {
 
         catch(final URISyntaxException exc) {
 
-            throw new IOException(GenericUtils.WRAPPED_EXCEPTION_MSG, new CauseContainer(SOURCE_LIST, exc));
+            throw new IOException("Could not access URI because", exc);
         }
     }
 
     ///..
-    private static List<String> listFromJar(final URI jarUri, final String rootPath) throws IOException {
-
-        final List<String> result = new ArrayList<>();
+    private static String[] listFromJar(final URI jarUri, final String rootPath) throws IOException {
 
         try(FileSystem filesystem = FileSystems.newFileSystem(jarUri, Map.of())) {
 
@@ -69,19 +52,18 @@ public final class ResourceWalker {
 
             try(final Stream<Path> stream = Files.walk(root)) {
 
-                stream
+                return stream
 
                     .filter(Files::isRegularFile)
-                    .forEach(p -> result.add(rootPath + "/" + root.relativize(p).toString().replace('\\', '/')))
+                    .map(p -> rootPath + "/" + root.relativize(p).toString())
+                    .toArray(String[]::new)
                 ;
             }
         }
-
-        return result;
     }
 
     ///..
-    private static List<String> listFromFileSystem(final URI uri, final String rootPath) throws IOException {
+    private static String[] listFromFileSystem(final URI uri, final String rootPath) throws IOException {
 
         final Path root = Paths.get(uri);
 
@@ -91,8 +73,8 @@ public final class ResourceWalker {
 
                 .filter(Files::isRegularFile)
                 .map(root::relativize)
-                .map(p -> rootPath + "/" + p.toString().replace('\\', '/'))
-                .toList()
+                .map(p -> rootPath + "/" + p.toString())
+                .toArray(String[]::new)
             ;
         }
     }
