@@ -1,16 +1,13 @@
 package io.github.clamentos.gattoslab.observability;
 
 ///
-import com.sun.net.httpserver.HttpExchange;
-
-///..
-import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.BasicHandler;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
 import io.github.clamentos.gattoslab.exchange.handling.components.Api;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
+import io.github.clamentos.gattoslab.http.server.HttpExchange;
 
 ///..
 import java.io.IOException;
@@ -29,14 +26,7 @@ public final class ObservabilityHandler extends BasicHandler {
     @Override
     protected void doHandle(final HttpExchange exchange) throws IOException {
 
-        final Api api = (Api)exchange.getAttribute(ApplicationProperties.REQUEST_RESOURCE_ATTRIBUTE);
-
-        if(api == null) {
-
-            super.respondNotFound(exchange);
-            return;
-        }
-
+        final Api api = (Api)exchange.getResource();
         if(super.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
         try {
@@ -63,7 +53,7 @@ public final class ObservabilityHandler extends BasicHandler {
 
                 return;
 
-                default: super.respondNotFound(exchange); return;
+                default: super.respond(exchange, HttpStatus.NOT_FOUND); return;
             }
         }
 

@@ -19,6 +19,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
+///..
+import lombok.Getter;
+
+///
+@Getter 
+
 ///
 public final class ResourceMappings {
 
@@ -52,6 +58,7 @@ public final class ResourceMappings {
             final AuthorizationAction authorizationAction = isPublic ? AuthorizationAction.ALLOW : AuthorizationAction.REDIRECT;
             final String diskPath = path.contains(ApplicationProperties.DISK_BASED_STATIC_RESOURCE_PATH_SEGMENT) ? path : null;
             final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
+
             MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
 
             if(mimeType == null) {

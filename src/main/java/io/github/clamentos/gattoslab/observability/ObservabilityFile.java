@@ -36,15 +36,15 @@ public final class ObservabilityFile<T extends Printable> {
     private final AtomicReference<LocalDateTime> nextRolloverTimestamp;
 
     ///
-    public ObservabilityFile(final String filePath, final int joinerSpacePerEntity) throws IOException {
+    public ObservabilityFile(final Path filePath, final int joinerSpacePerEntity) throws IOException {
 
         this.joinerSpacePerEntity = joinerSpacePerEntity;
 
-        final String latestFileName = this.findLatestFile(Path.of(filePath).getParent());
+        final String latestFileName = this.findLatestFile(filePath.getParent());
         final LocalDateTime nowDate = LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID);
         final String now = nowDate.toString().substring(0, 13);
 
-        this.fileNameComponents = GenericUtils.fastSplit(filePath, '.');
+        this.fileNameComponents = GenericUtils.fastSplit(filePath.toString(), '.');
 
         if(latestFileName != null) {
 

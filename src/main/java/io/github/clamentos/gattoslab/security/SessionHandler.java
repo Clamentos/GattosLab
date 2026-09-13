@@ -1,9 +1,6 @@
 package io.github.clamentos.gattoslab.security;
 
 ///
-import com.sun.net.httpserver.HttpExchange;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.BasicHandler;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
@@ -12,7 +9,9 @@ import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
+import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.util.List;
@@ -40,13 +39,7 @@ public final class SessionHandler extends BasicHandler {
     @Override
     public void doHandle(final HttpExchange exchange) {
 
-        final Api api = (Api)exchange.getAttribute(ApplicationProperties.REQUEST_RESOURCE_ATTRIBUTE);
-
-        if(api == null) {
-
-            super.respondNotFound(exchange);
-            return;
-        }
+        final Api api = (Api)exchange.getResource();
 
         switch(api) {
 
@@ -71,7 +64,7 @@ public final class SessionHandler extends BasicHandler {
             case LOGOUT:
 
                 if(super.rejectMethodNotAllowed(exchange, HttpMethod.DELETE)) return;
-                final List<String> cookies = exchange.getRequestHeaders().get(HttpHeader.COOKIE.getName());
+                final List<String> cookies = GenericUtils.fastSplit(exchange.getRequestHeaders().get(HttpHeader.COOKIE), ';');
 
                 if(cookies == null || cookies.isEmpty()) {
 
@@ -94,7 +87,7 @@ public final class SessionHandler extends BasicHandler {
 
             return;
 
-            default: super.respondNotFound(exchange); return;
+            default: super.respond(exchange, HttpStatus.NOT_FOUND); return;
         }
     }
 

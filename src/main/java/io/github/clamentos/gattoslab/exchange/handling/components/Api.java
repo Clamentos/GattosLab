@@ -19,7 +19,6 @@ public enum Api implements Resource {
     LOGIN("/api/authentication/login", AuthorizationAction.ALLOW),
     LOGOUT("/api/authentication/logout", AuthorizationAction.ALLOW),
     GET_SESSIONS("/api/authentication/sessions", AuthorizationAction.BLOCK),
-
     GET_LOGS("/api/observability/logs", AuthorizationAction.BLOCK),
     GET_REQUEST_METRICS("/api/observability/request-metrics", AuthorizationAction.BLOCK),
     GET_SYSTEM_METRICS("/api/observability/system-metrics", AuthorizationAction.BLOCK),

@@ -13,22 +13,20 @@ import lombok.Getter;
 public enum HttpStatus {
 
     ///
-    OK(200),
-    NO_CONTENT(204),
-    SEE_OTHER(303),
-    BAD_REQUEST(400),
-    UNAUTHORIZED(401),
-    FORBIDDEN(403),
-    NOT_FOUND(404),
-    METHOD_NOT_ALLOWED(405),
-    TOO_MANY_REQUESTS(429),
-    INTERNAL_SERVER_ERROR(500),
-    BAD_GATEWAY(502),
-    SERVICE_UNAVAILABLE(503),
-    GATEWAY_TIMEOUT(504),
+    OK(200, "HTTP/1.1 200 OK\r\n".getBytes()),
+    NO_CONTENT(204, "HTTP/1.1 204 No Content\r\n".getBytes()),
+    SEE_OTHER(303, "HTTP/1.1 303 See Other\r\n".getBytes()),
+    BAD_REQUEST(400, "HTTP/1.1 400 Bad Request\r\n".getBytes()),
+    UNAUTHORIZED(401, "HTTP/1.1 401 Unauthorized\r\n".getBytes()),
+    FORBIDDEN(403, "HTTP/1.1 403 Forbidden\r\n".getBytes()),
+    NOT_FOUND(404, "HTTP/1.1 404 Not Found\r\n".getBytes()),
+    METHOD_NOT_ALLOWED(405, "HTTP/1.1 405 Method Not Allowed\r\n".getBytes()),
+    TOO_MANY_REQUESTS(429, "HTTP/1.1 429 Too Many Requests\r\n".getBytes()),
+    INTERNAL_SERVER_ERROR(500, "HTTP/1.1 500 Internal Server Error\r\n".getBytes()),
+    SERVICE_UNAVAILABLE(503, "HTTP/1.1 503 Service Unavailable\r\n".getBytes()),
 
     ///..
-    TRUNCATED(599);
+    TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n".getBytes());
 
     ///
     public static HttpStatus decode(final int code) {
@@ -45,9 +43,7 @@ public enum HttpStatus {
             case 405: return HttpStatus.METHOD_NOT_ALLOWED;
             case 429: return HttpStatus.TOO_MANY_REQUESTS;
             case 500: return HttpStatus.INTERNAL_SERVER_ERROR;
-            case 502: return HttpStatus.BAD_GATEWAY;
             case 503: return HttpStatus.SERVICE_UNAVAILABLE;
-            case 504: return HttpStatus.GATEWAY_TIMEOUT;
             case 599: return HttpStatus.TRUNCATED;
 
             default: return null;
@@ -56,6 +52,7 @@ public enum HttpStatus {
 
     ///
     private final int code;
+    private final byte[] valueForResponse;
 
     ///
 }

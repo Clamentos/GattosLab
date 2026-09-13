@@ -1,14 +1,13 @@
 package io.github.clamentos.gattoslab.exchange.filters;
 
 ///
-import com.sun.net.httpserver.HttpExchange;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.filters.components.RateLimitEntry;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.http.server.Filter;
+import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
@@ -22,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 ///
-public final class RateLimitFilter extends Responder {
+public final class RateLimitFilter extends Responder implements Filter {
 
     ///
     private final SquashingLogger squashingLogger;
@@ -58,7 +57,8 @@ public final class RateLimitFilter extends Responder {
     }
 
     ///
-    public boolean isOk(final HttpExchange exchange) {
+    @Override
+    public boolean filter(final HttpExchange exchange) {
 
         if(this.tooManyIps.get()) {
 
@@ -68,7 +68,7 @@ public final class RateLimitFilter extends Responder {
 
         final RateLimitEntry rateLimitEntry = this.rateLimitMap.computeIfAbsent(
 
-            new HashCodedByteArray((byte[])exchange.getAttribute(ApplicationProperties.REQUEST_RAW_ADDRESS_ATTRIBUTE)),
+            new HashCodedByteArray(exchange.getRemoteAddress()),
             _ -> new RateLimitEntry(ApplicationProperties.RATE_LIMIT_AMOUNT, this.entryCounterStart)
         );
 
@@ -84,8 +84,7 @@ public final class RateLimitFilter extends Responder {
     ///.
     private void respondRateLimited(final HttpExchange exchange) {
 
-        this.squashingLogger.warning("Rate limited '" + GenericUtils.composeFingerprint(exchange) + "' # times");
-
+        this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Rate limited", exchange));
         super.respond(exchange, HttpStatus.TOO_MANY_REQUESTS, ApplicationProperties.RETRY_AFTER_HEADERS);
         exchange.close();
     }
@@ -105,7 +104,7 @@ public final class RateLimitFilter extends Responder {
 
         if(uniqueIps >= ApplicationProperties.MAX_IPS) {
 
-            this.squashingLogger.warning("Too many ips limit tripped # times");
+            this.squashingLogger.warning("Too many ips limit tripped " + ApplicationProperties.LOG_SQUASH_COUNTS_CHAR + " times");
             this.tooManyIps.set(true);
         }
 

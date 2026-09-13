@@ -1,12 +1,10 @@
 package io.github.clamentos.gattoslab.security;
 
 ///
-import com.sun.net.httpserver.HttpExchange;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
 import io.github.clamentos.gattoslab.http.HttpHeader;
+import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
@@ -75,7 +73,7 @@ public final class SessionService {
     ///
     public SecurityFailure login(final HttpExchange exchange) {
 
-        if(!this.loginPassword.equals(exchange.getRequestHeaders().getFirst(HttpHeader.AUTHORIZATION.getName()))) {
+        if(!this.loginPassword.equals(exchange.getRequestHeaders().get(HttpHeader.AUTHORIZATION))) {
 
             GenericUtils.silentSleep(ApplicationProperties.LOGIN_FAILURE_PAUSE_DURATION.toMillis());
             return SecurityFailure.INCORRECT_PASSWORD;
@@ -99,10 +97,10 @@ public final class SessionService {
             System.currentTimeMillis() + ApplicationProperties.SESSION_DURATION.toMillis()
         );
 
-        exchange.getResponseHeaders().add(
+        exchange.getResponseHeaders().put(
 
-            HttpHeader.SET_COOKIE.getName(),
-            ApplicationProperties.SESSION_COOKIE_NAME + "=" + session.getSessionId() + this.cookieProperties
+            HttpHeader.SET_COOKIE,
+            (ApplicationProperties.SESSION_COOKIE_NAME + "=" + session.getSessionId() + this.cookieProperties).getBytes()
         );
 
         this.sessions.put(session.getSessionId(), session);

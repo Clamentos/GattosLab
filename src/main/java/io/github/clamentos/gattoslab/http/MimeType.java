@@ -1,9 +1,6 @@
 package io.github.clamentos.gattoslab.http;
 
 ///
-import java.util.List;
-
-///..
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,18 +13,18 @@ import lombok.Getter;
 public enum MimeType {
 
     ///
-    HTML(List.of("text/html")),
-    CSS(List.of("text/css")),
-    PNG(List.of("image/png")),
-    JPG(List.of("image/jpg")),
-    JPEG(List.of("image/jpeg")),
-    SVG(List.of("image/svg+xml")),
-    XML(List.of("application/xml")),
-    TEXT(List.of("text/plain")),
-    ICO(List.of("image/x-icon")),
-    GIF(List.of("image/gif")),
-    JS(List.of("application/javascript")),
-    JSON(List.of("application/json"));
+    HTML("text/html".getBytes()),
+    CSS("text/css".getBytes()),
+    PNG("image/png".getBytes()),
+    JPG("image/jpg".getBytes()),
+    JPEG("image/jpeg".getBytes()),
+    SVG("image/svg+xml".getBytes()),
+    XML("application/xml".getBytes()),
+    TEXT("text/plain".getBytes()),
+    ICO("image/x-icon".getBytes()),
+    GIF("image/gif".getBytes()),
+    JS("application/javascript".getBytes()),
+    JSON("application/json".getBytes());
 
     ///
     public static MimeType decode(final String fileExtension) {
@@ -54,7 +51,7 @@ public enum MimeType {
     }
 
     ///
-    private final List<String> mimeValue;
+    private final byte[] valueForResponse;
 
     ///
 }

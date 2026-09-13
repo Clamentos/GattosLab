@@ -1,13 +1,12 @@
 package io.github.clamentos.gattoslab.observability;
 
 ///
-import com.sun.net.httpserver.HttpExchange;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetricsService;
@@ -104,13 +103,13 @@ public final class ObservabilityService implements Closeable {
     ///..
     public void requestEnded(final HttpExchange exchange) {
 
-        this.requestEndedInternal(exchange, (short)exchange.getResponseCode());
+        this.requestEndedInternal(exchange, exchange.getResponseStatus());
     }
 
     ///..
     public void requestPartiallyEnded(final HttpExchange exchange) {
 
-        this.requestEndedInternal(exchange, (short)HttpStatus.TRUNCATED.getCode());
+        this.requestEndedInternal(exchange, HttpStatus.TRUNCATED);
     }
 
     ///..
@@ -485,38 +484,37 @@ public final class ObservabilityService implements Closeable {
     }
 
     ///.
-    private void requestEndedInternal(final HttpExchange exchange, final short statusCode) {
+    private void requestEndedInternal(final HttpExchange exchange, final HttpStatus status) {
 
-        final Boolean isTracked = (Boolean)exchange.getAttribute(ApplicationProperties.REQUEST_TRACKED_ATTRIBUTE);
-        if(isTracked == Boolean.TRUE) return;
+        if(exchange.isTracked()) return;
 
-        while(!(this.currentSiphonReference.get().update(entity -> this.updateRequestMetrics(entity, exchange, statusCode)))) {
+        while(!(this.currentSiphonReference.get().update(entity -> this.updateRequestMetrics(entity, exchange, status)))) {
 
             GenericUtils.silentSleep(1);
         }
 
         this.systemMetricsService.requestMetricCreated();
-        exchange.setAttribute(ApplicationProperties.REQUEST_TRACKED_ATTRIBUTE, true);
+        exchange.setTracked(true);
     }
 
     ///..
-    private void updateRequestMetrics(final RequestMetricsEntity requestMetricsEntity, final HttpExchange exchange, final short statusCode) {
+    private void updateRequestMetrics(final RequestMetricsEntity requestMetricsEntity, final HttpExchange exchange, final HttpStatus status) {
 
-        final long startTime = (long)exchange.getAttribute(ApplicationProperties.REQUEST_START_TIME_ATTRIBUTE);
+        final long startTime = exchange.getStartTime();
 
-        requestMetricsEntity.setId((long)exchange.getAttribute(ApplicationProperties.REQUEST_REQUEST_ID_ATTRIBUTE));
+        requestMetricsEntity.setId(exchange.getRequestId());
         requestMetricsEntity.setTimestamp(startTime);
         requestMetricsEntity.setLatency((int)(System.currentTimeMillis() - startTime));
-        requestMetricsEntity.setPath(exchange.getRequestURI().getPath());
-        requestMetricsEntity.setUserAgent((String)exchange.getAttribute(ApplicationProperties.REQUEST_USER_AGENT_ATTRIBUTE));
-        requestMetricsEntity.setUnknown(exchange.getAttribute(ApplicationProperties.REQUEST_RESOURCE_ATTRIBUTE) == null);
-        requestMetricsEntity.setHttpStatus(statusCode);
+        requestMetricsEntity.setPath(exchange.getPath());
+        requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT));
+        requestMetricsEntity.setUnknown(exchange.getResource() == null);
+        requestMetricsEntity.setHttpStatus((short)status.getCode());
     }
 
     ///..
     private List<String> validateAndExtractQuery(final HttpExchange exchange, final int numComponents) throws IllegalArgumentException {
 
-        final String query = GenericUtils.extractQueryParam(exchange.getRequestURI().getQuery(), "filter");
+        final String query = GenericUtils.extractQueryParam(exchange.getPath(), "filter");
         if(query == null) throw new IllegalArgumentException("Filter must be provided");
 
         final List<String> filter = GenericUtils.fastSplit(query, ApplicationProperties.FIELD_SEPARATOR);

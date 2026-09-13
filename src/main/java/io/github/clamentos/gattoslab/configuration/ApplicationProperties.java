@@ -18,7 +18,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 ///..
@@ -36,114 +35,117 @@ public final class ApplicationProperties {
     public static final char ARRAY_SEPARATOR = ',';
     public static final char RANGE_SEPARATOR = '-';
     public static final char NEWLINE_REPLACEMENT = '\u0002';
-    public static final char NON_ASCII_REPLACEMENT = '?';
+    public static final char NON_ASCII_REPLACEMENT = '\u0007';
     public static final char LOG_SQUASH_COUNTS_CHAR = '#';
+    public static final char ENVIRONMENT_VARIABLE_PREFIX = '$';
     public static final String FIELD_SEPARATOR_STRING = Character.toString(FIELD_SEPARATOR);
     public static final String ARRAY_SEPARATOR_STRING = Character.toString(ARRAY_SEPARATOR);
-    public static final String CONFIG_FILE_COMMENT_PREFIX = "#";
-    public static final String ENVIRONMENT_VARIABLE_PREFIX = "$";
-    public static final String FINGERPRINT_SEPARATOR = ":";
-    public static final String EXCHANGE_STRING_SEPARATOR = "::";
-
-    ///..
-    public static final String REQUEST_START_TIME_ATTRIBUTE = "REQUEST_START_TIME";      // Long
-    public static final String REQUEST_REQUEST_ID_ATTRIBUTE = "REQUEST_ID";              // Long
-    public static final String REQUEST_USER_AGENT_ATTRIBUTE = "REQUEST_USER_AGENT";      // String
-    public static final String REQUEST_RESOURCE_ATTRIBUTE = "REQUEST_RESOURCE";          // Resource
-    public static final String REQUEST_RAW_ADDRESS_ATTRIBUTE = "REQUEST_RAW_ADDRESS";    // byte[]
-    public static final String REQUEST_HANDLED_ATTRIBUTE = "REQUEST_HANDLED";            // Boolean
-    public static final String REQUEST_TRACKED_ATTRIBUTE = "REQUEST_TRACKED";            // Boolean
-    public static final String REQUEST_METHOD_ATTRIBUTE = "REQUEST_METHOD";              // HttpMethod
+    public static final String FINGERPRINT_SEPARATOR = " >> ";
+    public static final String EXCHANGE_STRING_SEPARATOR = " >> ";
 
     ///..
     public static final String RATE_LIMIT_REPLENISH_CRON = "s1";
     public static final String SQUASHING_LOGGER_LOG_CRON = "m1";
     public static final String SESSION_SERVICE_MAINTENANCE_CRON = "m1";
     public static final String SYSTEM_METRICS_POLL_CRON = "s5";
-    public static final String METRICS_DRAIN_CRON = "s10";
+    public static final String METRICS_DRAIN_CRON = "s5";
     public static final String OBSERVABILITY_RETENTION_CRON = "m1";
-    public static final String BACKEND_STATUS_RESET_CRON = "m1";
+    public static final String SERVER_REGENERATION_CRON = "h24";
 
     ///..
-    public static final Duration CORS_DURATION = Duration.ofDays(7);
+    public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(5);
+    public static final Duration LOG_CLOSE_TIMEOUT = Duration.ofSeconds(5);
+    public static final Duration SCHEDULER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
+    public static final Duration CORS_DURATION = Duration.ofDays(1);
     public static final Duration CACHE_DURATION = Duration.ofDays(7);
     public static final Duration RATE_LIMIT_BLOCK_DURATION = Duration.ofMinutes(1);
-    public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(5);
-    public static final Duration OBSERVABILITY_DATA_RETENTION = Duration.ofDays(30);
-    public static final Duration LOG_CLOSE_TIMEOUT = Duration.ofSeconds(5);
-    public static final Duration LOG_SIPHON_DRAIN_TASK_SLEEP = Duration.ofSeconds(10);
-    public static final Duration SCHEDULER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
-    public static final Duration SCHEDULER_POLL_PERIOD = Duration.ofMillis(100);
-    public static final Duration SESSION_DURATION = Duration.ofHours(8);
+    public static final Duration SESSION_DURATION = Duration.ofHours(4);
     public static final Duration LOGIN_FAILURE_PAUSE_DURATION = Duration.ofMillis(500);
-    public static final Duration HTTP_THREADS_LINGER = Duration.ofSeconds(5);
+    public static final Duration OBSERVABILITY_DATA_RETENTION = Duration.ofDays(30);
+    public static final Duration SERVER_MAX_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
+    public static final Duration LOG_SIPHON_DRAIN_TASK_SLEEP = Duration.ofSeconds(5);
+    public static final Duration SCHEDULER_POLL_PERIOD = Duration.ofMillis(100);
+    public static final Duration SERVER_SWEEPER_POLL_PERIOD = Duration.ofSeconds(1);
     public static final String SESSION_COOKIE_NAME = "GattosLabSessionId";
+    public static final String UNKNOWN_LOGGER_PLACEHOLDER = "UNKNOWN_LOGGER";
+    public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
     public static final String REDIRECT_PATH = "/login.html";
     public static final String STATIC_SITE_RESOURCES_FOLDER = "site";
     public static final String PRIVILEGED_STATIC_RESOURCE_PATH_PREFIX = "/admin/";
     public static final String DISK_BASED_STATIC_RESOURCE_PATH_SEGMENT = "/disk/";
-    public static final String UNKNOWN_LOGGER_PLACEHOLDER = "UNKNOWN_LOGGER";
-    public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
-    public static final String LOG_FILE_PATH = "observability/logs/logs.log";
-    public static final String REQUEST_METRICS_FILE_PATH = "observability/request/request_metrics.log";
-    public static final String SYSTEM_METRICS_FILE_PATH = "observability/system/system_metrics.log";
+    public static final Path LOG_FILE_PATH = Path.of("observability/logs/logs.log");
+    public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
+    public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
     public static final Path PID_FILE_PATH = Path.of("./pid.txt");
-    public static final int MAX_IPS = 65536;
+    public static final int MAX_IPS = 1024;
     public static final int RATE_LIMIT_AMOUNT = 50; // every RATE_LIMIT_REPLENISH_CRON
-    public static final int SERVER_NUMBER_OF_HTTP_THREADS = 1;
-    public static final int SERVER_REQUEST_QUEUE_SIZE = 4096;
+    public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 1024;
     public static final int LOG_SIPHON_CAPACITY = 1024;
     public static final int METRICS_SIPHON_CAPACITY = 4096;
     public static final int MAX_SESSIONS = 16;
     public static final int SESSION_ID_SIZE = 40;
     public static final int MAX_OBSERVABILITY_CHART_LENGTH = 1024;
+    public static final int SERVER_IO_BUFFERS_SIZE = 4096;
+    public static final int MAX_REQUEST_SIZE = 262144;
 
-    public static final Set<String> EXCLUDED_FORWARDABLE_HEADERS = Set
+    ///..
+    public static final Map<HttpHeader, byte[]> LOGIN_REDIRECT_HEADERS = GenericUtils.headers(
 
-        .of("connection", "content-length", "expect", "host", "upgrade", "alt-used")
-        .stream()
-        .collect(Collectors.toCollection(() -> new TreeSet<>(String.CASE_INSENSITIVE_ORDER)))
-    ;
-
-    public static final Map<String, List<String>> LOGIN_REDIRECT_HEADERS = Map.of(HttpHeader.LOCATION.getName(), List.of(REDIRECT_PATH));
-    public static final Map<String, List<String>> CLEAR_SITE_DATA_HEADERS = Map.of(HttpHeader.CLEAR_SITE_DATA.getName(), List.of("cookies"));
-    public static final Map<String, List<String>> NO_CACHE_HEADERS = Map.of(HttpHeader.CACHE_CONTROL.getName(), List.of("no-cache"));
-
-    public static final Map<String, List<String>> RETRY_AFTER_HEADERS = Map.of(
-
-        HttpHeader.RETRY_AFTER.getName(),
-        List.of(Long.toString(RATE_LIMIT_BLOCK_DURATION.toSeconds()))
+        Map.entry(HttpHeader.LOCATION, REDIRECT_PATH.getBytes())
     );
 
-    public static final Map<String, List<String>> EXTRA_HEADERS = Map.of(
+    public static final Map<HttpHeader, byte[]> CLEAR_SITE_DATA_HEADERS = GenericUtils.headers(
 
-        HttpHeader.CONTENT_SECURITY_POLICY.getName(), List.of("require-trusted-types-for 'script'"),
-        HttpHeader.X_FRAME_OPTIONS.getName(), List.of("SAMEORIGIN"),
-        HttpHeader.STRICT_TRANSPORT_SECURITY.getName(), List.of("max-age=31536000; includeSubDomains")
+        Map.entry(HttpHeader.CLEAR_SITE_DATA, "cookies".getBytes())
     );
 
-    public static final Map<String, List<String>> GZIP_HEADERS = Map.of(
+    public static final Map<HttpHeader, byte[]> NO_CACHE_HEADERS = GenericUtils.headers(
 
-        HttpHeader.CONTENT_ENCODING.getName(), List.of("gzip")
+        Map.entry(HttpHeader.CACHE_CONTROL, "no-cache".getBytes())
     );
 
-    public static final Map<String, List<String>> GZIP_CACHE_HEADERS = GenericUtils.mergeMaps(
+    public static final Map<HttpHeader, byte[]> TRANSFER_CHUNKED_HEADERS = GenericUtils.headers(
 
-        GZIP_HEADERS,
-        Map.of(HttpHeader.CACHE_CONTROL.getName(), List.of("max-age=" + CACHE_DURATION.toSeconds(), "public"))
+        Map.entry(HttpHeader.TRANSFER_ENCODING, "chunked".getBytes())
     );
 
-    public static final Map<String, List<String>> CORS_HEADERS = GenericUtils.mutableMapOf(
+    public static final Map<HttpHeader, byte[]> RETRY_AFTER_HEADERS = GenericUtils.headers(
 
-        Map.entry(HttpHeader.ACCESS_CONTROL_ALLOW_METHODS.getName(), Arrays.stream(HttpMethod.values()).map(HttpMethod::toString).toList()),
-        Map.entry(HttpHeader.ACCESS_CONTROL_ALLOW_CREDENTIALS.getName(), List.of("true")),
-        Map.entry(HttpHeader.ACCESS_CONTROL_MAX_AGE.getName(), List.of(Long.toString(ApplicationProperties.CORS_DURATION.toSeconds())))
+        Map.entry(HttpHeader.RETRY_AFTER, Long.toString(RATE_LIMIT_BLOCK_DURATION.toSeconds()).getBytes())
+    );
+
+    public static final Map<HttpHeader, byte[]> EXTRA_HEADERS = GenericUtils.headers(
+
+        Map.entry(HttpHeader.CONTENT_SECURITY_POLICY, "require-trusted-types-for 'script'".getBytes()),
+        Map.entry(HttpHeader.X_FRAME_OPTIONS, "SAMEORIGIN".getBytes()),
+        Map.entry(HttpHeader.STRICT_TRANSPORT_SECURITY, "max-age=63072000; includeSubDomains".getBytes())
+    );
+
+    public static final Map<HttpHeader, byte[]> GZIP_HEADERS = GenericUtils.headers(Map.entry(HttpHeader.CONTENT_ENCODING, "gzip".getBytes()));
+
+    public static final Map<HttpHeader, byte[]> GZIP_CACHE_HEADERS = GenericUtils.headers(
+
+        Map.entry(HttpHeader.CONTENT_ENCODING, "gzip".getBytes()),
+        Map.entry(HttpHeader.CACHE_CONTROL, ("max-age=" + CACHE_DURATION.toSeconds() + ", public").getBytes())
+    );
+
+    public static final Map<HttpHeader, byte[]> CORS_HEADERS = GenericUtils.headers(
+
+        Map.entry(
+
+            HttpHeader.ACCESS_CONTROL_ALLOW_METHODS,
+            GenericUtils.concatenateAsCsv(Arrays.stream(HttpMethod.values()).toList()).getBytes()
+        ),
+
+        Map.entry(HttpHeader.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true".getBytes()),
+        Map.entry(HttpHeader.ACCESS_CONTROL_MAX_AGE, Long.toString(ApplicationProperties.CORS_DURATION.toSeconds()).getBytes())
     );
 
     ///.
+    private final String serverHost;
     private final int serverPort;
+    private final String sslCertificatePath;
     private final String sslKeyStorePassword;
-    private final String sslTrustStorePassword;
 
     ///..
     private final Set<String> allowedOrigins;
@@ -167,21 +169,24 @@ public final class ApplicationProperties {
         if(propertiesFile == null) throw new IllegalArgumentException("Properties file '" + fileName + "' not found");
         properties.load(propertiesFile);
 
+        this.serverHost = this.resolveProperty(properties, "serverHost", String.class);
+        if(this.serverHost == null || this.serverHost.isBlank()) throw new IllegalArgumentException("Server host address cannot be null or blank");
+
         this.serverPort = this.resolveProperty(properties, "serverPort", Integer.class);
         if(this.serverPort < 0 && this.serverPort > 65535) throw new IllegalArgumentException("Server port must be between 0 and 65535");
+
+        this.sslCertificatePath = this.resolveProperty(properties, "sslCertificatePath", String.class);
+
+        if(this.sslCertificatePath == null || this.sslCertificatePath.isBlank()) {
+
+            throw new IllegalArgumentException("SSL certificate path cannot be null or blank");
+        }
 
         this.sslKeyStorePassword = this.resolveProperty(properties, "sslKeyStorePassword", String.class);
 
         if(this.sslKeyStorePassword == null || this.sslKeyStorePassword.isBlank()) {
 
             throw new IllegalArgumentException("SSL key store password cannot be null or blank");
-        }
-
-        this.sslTrustStorePassword = this.resolveProperty(properties, "sslTrustStorePassword", String.class);
-
-        if(this.sslTrustStorePassword == null || this.sslTrustStorePassword.isBlank()) {
-
-            throw new IllegalArgumentException("SSL strust store password cannot be null or blank");
         }
 
         this.allowedOrigins = GenericUtils.fastSplit(this.resolveProperty(properties, "allowedOrigins", String.class), ARRAY_SEPARATOR)
@@ -204,19 +209,6 @@ public final class ApplicationProperties {
         this.blockedIpV4s = this.parseAddressRanges(this.resolveProperty(properties, "blockedIpV4s", String.class));
         this.blockedIpV6s = this.parseAddressRanges(this.resolveProperty(properties, "blockedIpV6s", String.class));
         this.illegalUserAgentContains = this.parseList(this.resolveProperty(properties, "illegalUserAgentContains", String.class));
-
-        System.getProperties().put("sun.net.httpserver.idleInterval", "60");
-        System.getProperties().put("sun.net.httpserver.maxIdleConnections", "50");
-        System.getProperties().put("sun.net.httpserver.drainAmount", "65536");
-        System.getProperties().put("sun.net.httpserver.maxReqHeaders", "50");
-        System.getProperties().put("sun.net.httpserver.maxReqHeaderSize", "8192");
-        System.getProperties().put("sun.net.httpserver.nodelay", "true");
-
-        System.getProperties().put("jdk.httpclient.bufsize", "8192");
-        System.getProperties().put("jdk.httpclient.connectionPoolSize", "4");
-        System.getProperties().put("jdk.httpclient.redirects.retrylimit", "2");
-        System.getProperties().put("jdk.http.maxHeaderSize", "8192");
-        System.getProperties().put("jdk.httpclient.keepalive.timeout", Long.toString(Duration.ofMinutes(1).toSeconds()));
     }
 
     ///
@@ -228,10 +220,10 @@ public final class ApplicationProperties {
         if(propertyValue.isEmpty()) {
 
             if(clazz == String.class) return clazz.cast("");
-            else if(clazz == Integer.class) throw new IllegalArgumentException("The property '" + propertyName + "' is not defined");
+            if(clazz == Integer.class) throw new IllegalArgumentException("The property '" + propertyName + "' is not defined");
         }
 
-        if(propertyValue.startsWith(ENVIRONMENT_VARIABLE_PREFIX)) {
+        if(propertyValue.charAt(0) == ENVIRONMENT_VARIABLE_PREFIX) {
 
             final String envName = propertyValue.substring(1);
 
@@ -240,7 +232,7 @@ public final class ApplicationProperties {
         }
 
         if(clazz == String.class) return clazz.cast(propertyValue);
-        else if(clazz == Integer.class) return clazz.cast(Integer.parseInt(propertyValue));
+        if(clazz == Integer.class) return clazz.cast(Integer.parseInt(propertyValue));
 
         throw new IllegalArgumentException("Unsupported class '" + clazz + "'");
     }

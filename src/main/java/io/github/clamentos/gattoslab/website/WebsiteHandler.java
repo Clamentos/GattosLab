@@ -1,21 +1,18 @@
 package io.github.clamentos.gattoslab.website;
 
 ///
-import com.sun.net.httpserver.HttpExchange;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.BasicHandler;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
-import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
 import io.github.clamentos.gattoslab.exchange.handling.components.StaticResource;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 
 ///..
 import java.io.InputStream;
-import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
@@ -32,20 +29,12 @@ public final class WebsiteHandler extends BasicHandler {
     @Override
     protected void doHandle(final HttpExchange exchange) {
 
-        final Resource resource = (Resource)exchange.getAttribute(ApplicationProperties.REQUEST_RESOURCE_ATTRIBUTE);
-
-        if(resource == null) {
-
-            super.respondNotFound(exchange);
-            return;
-        }
-
+        final StaticResource resource = (StaticResource)exchange.getResource();
         if(super.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
-        final StaticResource staticResource = (StaticResource)resource;
-        final String diskPath = staticResource.getDiskPath();
+        final String diskPath = resource.getDiskPath();
 
-        final Map<String, List<String>> headers = staticResource.isCacheable() ?
+        final Map<HttpHeader, byte[]> headers = resource.isCacheable() ?
 
             ApplicationProperties.GZIP_CACHE_HEADERS :
             ApplicationProperties.GZIP_HEADERS
@@ -57,7 +46,7 @@ public final class WebsiteHandler extends BasicHandler {
 
             if(rawDiskData == null) {
 
-                super.respondNotFound(exchange);
+                super.respond(exchange, HttpStatus.NOT_FOUND);
                 return;
             }
 
@@ -66,11 +55,11 @@ public final class WebsiteHandler extends BasicHandler {
                 exchange,
                 HttpStatus.OK,
                 headers,
-                staticResource.getMimeType(),
+                resource.getMimeType(),
 
-                () -> {
+                outputStream -> {
 
-                    final GZIPOutputStream compressor = new GZIPOutputStream(exchange.getResponseBody());
+                    final GZIPOutputStream compressor = new GZIPOutputStream(outputStream);
 
                     rawDiskData.transferTo(compressor);
                     compressor.finish();
@@ -81,7 +70,7 @@ public final class WebsiteHandler extends BasicHandler {
 
         else {
 
-            super.respond(exchange, HttpStatus.OK, headers, staticResource.getMimeType(), staticResource.getCompressedContent());
+            super.respond(exchange, HttpStatus.OK, headers, resource.getMimeType(), resource.getCompressedContent());
         }
     }
 

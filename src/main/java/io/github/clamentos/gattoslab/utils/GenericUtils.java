@@ -1,28 +1,22 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpExchange;
-
-///..
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.http.BodyStreamer;
 import io.github.clamentos.gattoslab.http.HttpHeader;
-import io.github.clamentos.gattoslab.http.HttpStatus;
-import io.github.clamentos.gattoslab.http.MimeType;
+import io.github.clamentos.gattoslab.http.server.HttpExchange;
 
 ///..
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
+import java.lang.Thread.Builder.OfVirtual;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 ///..
 import lombok.AccessLevel;
@@ -36,6 +30,7 @@ public final class GenericUtils {
 
     ///
     public static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
+    public static final OfVirtual OF_VIRTUAL = Thread.ofVirtual();
 
     ///..
     private static final String[] DATA_SIZE_UNITS = {"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
@@ -44,20 +39,11 @@ public final class GenericUtils {
     public static String composeFingerprint(final HttpExchange exchange) {
 
         final StringJoiner joiner = new StringJoiner(ApplicationProperties.FINGERPRINT_SEPARATOR);
-        final InetSocketAddress socketAddress = exchange.getRemoteAddress();
+        final byte[] address = exchange.getRemoteAddress();
 
-        if(socketAddress != null) {
+        joiner.add(composeAddressString(address));
+        joiner.add(normalizedForObservability(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT)));
 
-            final InetAddress address = socketAddress.getAddress();
-            if(address != null) joiner.add(address.getHostAddress());
-        }
-
-        else {
-
-            joiner.add("null");
-        }
-
-        joiner.add(normalizedForObservability(exchange.getRequestHeaders().getFirst(HttpHeader.USER_AGENT.getName())));
         return joiner.toString();
     }
 
@@ -78,17 +64,17 @@ public final class GenericUtils {
     ///..
     public static Thread spawnVirtualThread(final String name, final Runnable task) {
 
-        return Thread.ofVirtual().name(name).start(task);
+        return OF_VIRTUAL.name(name).start(task);
     }
 
     ///..
     public static Thread createVirtualThread(final String name, final Runnable task) {
 
-        return Thread.ofVirtual().name(name).unstarted(task);
+        return OF_VIRTUAL.name(name).unstarted(task);
     }
 
     ///..
-    public static List<String> fastSplit(final String input, final char delimiter) {
+    public static List<String> fastSplit(final CharSequence input, final char delimiter) {
 
         if(input == null) return null;
         if(input.isEmpty()) return List.of();
@@ -139,52 +125,6 @@ public final class GenericUtils {
     }
 
     ///..
-    public static void respondSimple(
-
-        final HttpExchange exchange,
-        final HttpStatus status,
-        final Map<String, List<String>> headers,
-        final MimeType mimeType,
-        final Object body
-
-    ) throws IOException {
-
-        exchange.setAttribute(ApplicationProperties.REQUEST_HANDLED_ATTRIBUTE, false);
-        final Headers responseHeaders = exchange.getResponseHeaders();
-
-        responseHeaders.putAll(ApplicationProperties.EXTRA_HEADERS);
-        responseHeaders.putAll(ApplicationProperties.NO_CACHE_HEADERS);
-        responseHeaders.putAll(headers);
-
-        if(body != null) {
-
-            responseHeaders.put(HttpHeader.CONTENT_TYPE.getName(), mimeType.getMimeValue());
-
-            if(body instanceof final byte[] byteArrayBody) {
-
-                exchange.sendResponseHeaders(status.getCode(), byteArrayBody.length);
-                exchange.getResponseBody().write(byteArrayBody);
-                exchange.getResponseBody().flush();
-            }
-
-            else if(body instanceof final BodyStreamer callback) {
-
-                exchange.sendResponseHeaders(status.getCode(), HttpExchange.RSPBODY_CHUNKED);
-                callback.stream();
-                exchange.getResponseBody().flush();
-            }
-        }
-
-        else {
-
-            exchange.sendResponseHeaders(status.getCode(), HttpExchange.RSPBODY_EMPTY);
-        }
-
-        exchange.getResponseBody().close();
-        exchange.setAttribute(ApplicationProperties.REQUEST_HANDLED_ATTRIBUTE, true);
-    }
-
-    ///..
     public static long ipV4ToLong(final byte[] address) {
 
         long value = 0;
@@ -219,8 +159,8 @@ public final class GenericUtils {
 
         return
 
-            String.valueOf(exchange.getAttribute(ApplicationProperties.REQUEST_METHOD_ATTRIBUTE)) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
-            normalizedForObservability(String.valueOf(exchange.getRequestURI())) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
+            String.valueOf(exchange.getMethod()) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
+            normalizedForObservability(String.valueOf(exchange.getUri())) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
             normalizedForObservability(String.valueOf(exchange.getRequestHeaders())) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
             normalizedForObservability(String.valueOf(exchange.getResponseHeaders()))
         ;
@@ -228,46 +168,80 @@ public final class GenericUtils {
 
     ///..
     @SafeVarargs
-    public static <K, V> Map<K, V> mutableMapOf(Entry<K, V>... entries) {
+    public static <V> Map<HttpHeader, V> headers(final Entry<HttpHeader, V>... entries) {
 
-        if(entries == null) return new LinkedHashMap<>();
-        final Map<K, V> map = LinkedHashMap.newLinkedHashMap(entries.length);
+        final Map<HttpHeader, V> map = new EnumMap<>(HttpHeader.class);
 
-        for(final Entry<K, V> entry : entries) {
+        if(entries != null) {
 
-            if(entry != null) map.put(entry.getKey(), entry.getValue());
-        }
+            for(final Entry<HttpHeader, V> entry : entries) {
 
-        return map;
-    }
-
-    ///..
-    public static <K, V> Map<K, V> mergeMaps(final Map<K, V> a, final Map<K, V> b) {
-
-        if(a == null) return new HashMap<>();
-
-        final Map<K, V> map = new HashMap<>(a);
-        if(b != null) map.putAll(b);
-
-        return map;
-    }
-
-    ///..
-    public static String extractQueryParam(final String query, final String name) {
-
-        if(query != null && !query.isEmpty() && name != null && !name.isEmpty()) {
-
-            final List<String> queryStrings = fastSplit(query, '&');
-            final int length = queryStrings.size();
-
-            for(int i = 0; i < length; i++) {
-
-                final String queryString = queryStrings.get(i);
-                if(queryString.startsWith(name)) return queryString.substring(name.length() + 1);
+                if(entry != null) map.put(entry.getKey(), entry.getValue());
             }
         }
 
+        return map;
+    }
+
+    ///..
+    public static String extractQueryParam(final String uri, final String name) {
+
+        if(uri == null || uri.isEmpty() || name == null || name.isEmpty()) return null;
+
+        final List<String> pathSplits = fastSplit(uri, '?');
+        if(pathSplits.size() != 2) return null;
+
+        final List<String> queryStrings = fastSplit(pathSplits.get(1), '&');
+        if(queryStrings == null) return null;
+
+        final int length = queryStrings.size();
+
+        for(int i = 0; i < length; i++) {
+
+            final String queryString = queryStrings.get(i);
+            if(queryString.startsWith(name)) return queryString.substring(name.length() + 1);
+        }
+
         return null;
+    }
+
+    ///..
+    public static String fastToLower(final String value, final StringBuilder buffer) {
+
+        final int length = value.length();
+
+        for(int i = 0; i < length; i++) {
+
+            buffer.append(Character.toLowerCase(value.charAt(i)));
+        }
+
+        return buffer.toString();
+    }
+
+    ///..
+    public static String composeMessageForSquash(final String prefix, final HttpExchange exchange) {
+
+        return prefix + GenericUtils.composeFingerprint(exchange) + " " + ApplicationProperties.LOG_SQUASH_COUNTS_CHAR + " times";
+    }
+
+    ///..
+    public static String concatenateAsCsv(final Collection<?> values) {
+
+        return values.stream().map(Objects::toString).collect(Collectors.joining(", "));
+    }
+
+    ///.
+    private static CharSequence composeAddressString(final byte[] address) {
+
+        if(address == null) return "null";
+        final StringBuilder builder = new StringBuilder(40);
+
+        for(final byte section : address) {
+
+            builder.append(Byte.toString(section));
+        }
+
+        return builder;
     }
 
     ///
