@@ -10,6 +10,10 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -57,13 +61,17 @@ public final class ObservabilityDatabase {
             final List<String> log = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long logTimestamp = Long.parseLong(log.get(1));
 
-            if(logTimestamp < start || logTimestamp > end) return false;
-            if(!severity.isEmpty() && !log.get(2).equals(severity)) return false;
-            if(!threadPattern.isEmpty() && !log.get(3).contains(threadPattern)) return false;
-            if(!loggerPattern.isEmpty() && !log.get(4).contains(loggerPattern)) return false;
-            if(!messagePattern.isEmpty() && !log.get(5).contains(messagePattern)) return false;
+            final boolean isExcluded =
 
-            return exceptionClassPattern.isEmpty() || log.get(6).contains(exceptionClassPattern);
+                (logTimestamp < start || logTimestamp > end) ||
+                (!severity.isEmpty() && !log.get(2).equals(severity)) ||
+                (!threadPattern.isEmpty() && !log.get(3).contains(threadPattern)) ||
+                (!loggerPattern.isEmpty() && !log.get(4).contains(loggerPattern)) ||
+                (!messagePattern.isEmpty() && !log.get(5).contains(messagePattern)) ||
+                (!exceptionClassPattern.isEmpty() && !log.get(6).contains(exceptionClassPattern))
+            ;
+
+            return !isExcluded;
         });
     }
 
@@ -76,10 +84,14 @@ public final class ObservabilityDatabase {
             final List<String> request = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long requestTimestamp = Long.parseLong(request.get(1));
 
-            if(requestTimestamp < start || requestTimestamp > end) return false;
-            if(!isUnknown.isEmpty() && !isUnknown.equals(request.get(5))) return false;
+            final boolean isExcluded =
 
-            return userAgentPattern.isEmpty() || request.get(4).contains(userAgentPattern);
+                (requestTimestamp < start || requestTimestamp > end) ||
+                (!isUnknown.isEmpty() && !isUnknown.equals(request.get(5))) ||
+                (!userAgentPattern.isEmpty() && !request.get(4).contains(userAgentPattern))
+            ;
+
+            return !isExcluded;
         });
     }
 
@@ -108,11 +120,21 @@ public final class ObservabilityDatabase {
         if(startTime > endTime) throw new IllegalArgumentException("'startTime' cannot be greater than 'endTime'");
         final List<String> filteredRecords = new ArrayList<>(256);
 
+        final CharsetDecoder decoder = StandardCharsets.UTF_8
+
+            .newDecoder()
+            .onMalformedInput(CodingErrorAction.REPLACE)
+            .onUnmappableCharacter(CodingErrorAction.REPLACE)
+        ;
+
         try(final Stream<Path> files = Files.list(Path.of(observabilityFile.toString()))) {
 
-            for(final Path file : this.filterFiles(files, startTime, endTime)) {
+            final List<Path> filteredFiles = this.filterFiles(files, startTime, endTime);
+            final int length = filteredFiles.size();
 
-                try(final BufferedReader reader = Files.newBufferedReader(file)) {
+            for(int i = 0; i < length; i++) {
+
+                try(final BufferedReader reader = new BufferedReader(new InputStreamReader(Files.newInputStream(filteredFiles.get(i)), decoder))) {
 
                     String line;
 
@@ -121,6 +143,8 @@ public final class ObservabilityDatabase {
                         if(filter.apply(line, startTime, endTime)) filteredRecords.add(line);
                     }
                 }
+
+                decoder.reset();
             }
         }
 

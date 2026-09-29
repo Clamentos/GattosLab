@@ -19,6 +19,9 @@ public enum HttpMethod {
     DELETE("Allowed method: DELETE".getBytes());
 
     ///
+    private final byte[] allowedBody;
+
+    ///
     public static HttpMethod decode(final String method) {
 
         switch(method) {
@@ -31,9 +34,6 @@ public enum HttpMethod {
             default: return null;
         }
     }
-
-    ///
-    private final byte[] allowedBody;
 
     ///
 }

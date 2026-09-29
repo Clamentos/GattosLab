@@ -1,12 +1,14 @@
 package io.github.clamentos.gattoslab.observability;
 
 ///
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
+import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
-import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -18,15 +20,11 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
-///..
-import lombok.Getter;
-
 ///
-public final class ObservabilityFile<T extends Printable> {
+public final class ObservabilityFile<T extends Streamable> {
 
     ///
-    @Getter
-    private final int joinerSpacePerEntity;
+    private final Logger logger;
 
     ///..
     private final List<String> fileNameComponents;
@@ -36,9 +34,9 @@ public final class ObservabilityFile<T extends Printable> {
     private final AtomicReference<LocalDateTime> nextRolloverTimestamp;
 
     ///
-    public ObservabilityFile(final Path filePath, final int joinerSpacePerEntity) throws IOException {
+    public ObservabilityFile(final Path filePath, final Logger logger) throws IOException {
 
-        this.joinerSpacePerEntity = joinerSpacePerEntity;
+        this.logger = logger;
 
         final String latestFileName = this.findLatestFile(filePath.getParent());
         final LocalDateTime nowDate = LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID);
@@ -66,36 +64,20 @@ public final class ObservabilityFile<T extends Printable> {
     ///
     public void write(final List<T> entities) throws IOException {
 
-        int failureCounter = 0;
-        IOException lastFailure = null;
-
-        try(final BufferedWriter writer = this.openFileAsAppend(this.filePath.get())) {
+        try(final StreamWriter writer = new StreamWriter(this.openFileAsAppend(this.filePath.get()))) {
 
             final int length = entities.size();
-            final FastAsciiJoiner joiner = new FastAsciiJoiner(length * (this.joinerSpacePerEntity + 1));
 
             for(int i = 0; i < length; i++) {
 
-                entities.get(i).appendBytes(joiner);
-                joiner.add("\n");
-            }
-
-            try {
-
-                writer.write(joiner.toCharArray());
-            }
-
-            catch(final IOException exc) {
-
-                failureCounter++;
-                lastFailure = exc;
+                entities.get(i).stream(writer);
+                writer.write('\n');
             }
         }
-
-        if(failureCounter > 0) throw new IOException(failureCounter + " errors because", lastFailure);
     }
 
     ///..
+    @SuppressWarnings("java:S106")
     public int deleteAll(final LocalDateTime boundaryDate) throws IOException {
 
         try(final Stream<Path> files = Files.list(Path.of(this.toString()))) {
@@ -114,7 +96,8 @@ public final class ObservabilityFile<T extends Printable> {
 
                 catch(final IOException exc) {
 
-                    System.err.println("Could not delete because: " + exc);
+                    if(this.logger != null) this.logger.error("Could not delete", exc);
+                    else System.err.println("Could not delete because: " + exc);
                 }
             });
 
@@ -159,7 +142,7 @@ public final class ObservabilityFile<T extends Printable> {
     }
 
     ///..
-    private BufferedWriter openFileAsAppend(final Path path) throws IOException {
+    private OutputStream openFileAsAppend(final Path path) throws IOException {
 
         final Path parent = path.getParent();
         if(parent != null) Files.createDirectories(parent);
@@ -173,7 +156,7 @@ public final class ObservabilityFile<T extends Printable> {
             this.filePath.set(Path.of(this.composeName(now)));
         }
 
-        return Files.newBufferedWriter(path, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        return Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     }
 
     ///

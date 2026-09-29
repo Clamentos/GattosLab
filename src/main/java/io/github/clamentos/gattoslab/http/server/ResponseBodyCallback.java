@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.http.server;
 
 ///
 import java.io.IOException;
-import java.io.OutputStream;
 
 ///
 @FunctionalInterface
@@ -11,7 +10,7 @@ import java.io.OutputStream;
 public interface ResponseBodyCallback {
 
     ///
-    public void writeBody(final OutputStream outputStream) throws IOException;
+    public void writeBody(final StreamWriter writer) throws IOException;
 
     ///
 }

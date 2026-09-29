@@ -16,14 +16,14 @@ public final class HttpConnection {
     ///
     private final Socket socket;
     private final long createdAt;
-    private final AtomicBoolean sweeped;
+    private final AtomicBoolean swept;
 
     ///
     public HttpConnection(final Socket socket) {
 
         this.socket = socket;
         this.createdAt = System.currentTimeMillis();
-        this.sweeped = new AtomicBoolean();
+        this.swept = new AtomicBoolean();
     }
 
     ///

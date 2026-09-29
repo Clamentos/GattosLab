@@ -2,12 +2,12 @@ package io.github.clamentos.gattoslab.observability.logging.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
 import io.github.clamentos.gattoslab.datastructures.Resettable;
-import io.github.clamentos.gattoslab.observability.Printable;
-import io.github.clamentos.gattoslab.utils.GenericUtils;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
 
 ///..
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -20,7 +20,7 @@ import lombok.Setter;
 @Setter
 
 ///
-public final class LogEvent implements Printable, Resettable {
+public final class LogEvent implements Resettable, Streamable {
 
     ///
     private long id;
@@ -33,7 +33,18 @@ public final class LogEvent implements Printable, Resettable {
 
     ///
     @Override
-    public void appendBytes(final FastAsciiJoiner joiner) {
+    public void reset() {
+
+        this.severity = null;
+        this.thread = null;
+        this.logger = null;
+        this.message = null;
+        this.exception = null;
+    }
+
+    ///..
+    @Override
+    public void stream(final StreamWriter writer) throws IOException {
 
         final String exceptionString;
 
@@ -51,30 +62,19 @@ public final class LogEvent implements Printable, Resettable {
             exceptionString = "";
         }
 
-        joiner.add(Long.toString(this.id));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Long.toString(this.timestamp));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(String.valueOf(this.severity));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(this.thread);
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(this.logger);
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(GenericUtils.normalizedForObservability(this.message));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(GenericUtils.normalizedForObservability(exceptionString));
-    }
-
-    ///..
-    @Override
-    public void reset() {
-
-        this.severity = null;
-        this.thread = null;
-        this.logger = null;
-        this.message = null;
-        this.exception = null;
+        writer.write(Long.toString(this.id));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.timestamp));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(String.valueOf(this.severity));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(String.valueOf(this.thread));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(String.valueOf(this.logger));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.writeForObservability(this.message);
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.writeForObservability(exceptionString);
     }
 
     ///

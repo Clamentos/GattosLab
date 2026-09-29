@@ -8,8 +8,6 @@
         <meta name = "description" content = "Admin site sessions page."/>
 
         <link rel = "stylesheet" href = "../../css/base.css"/>
-        <link rel = "stylesheet" href = "../../css/header.css"/>
-        <link rel = "stylesheet" href = "../../css/form.css"/>
         <link rel = "stylesheet" href = "../../css/table.css"/>
         <link rel = "stylesheet" href = "../../css/loader.css"/>
         <link rel = "stylesheet" href = "../../css/logout.css"/>
@@ -27,14 +25,14 @@
             <div class = "nav-container">
 
                 <div class = "nav-item">
-                    <img src = "../../images/github-logo.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <img class = "nav-icon" src = "../../images/github-logo.svg" alt = "GitHub logo"/>
                     <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
                 </div>
 
                 <div class = "nav-item">
-                    <button class = "logout-button" onclick = "logout('ADMIN', '../../login.html')">
+                    <button class = "logout-button" onclick = "logout('../../login.html')">
                         <img src = "../../images/logout-img.svg" alt = ""/>
-                        Logout
+                        <div id = "logout-text">Logout</div>
                     </button>
                 </div>
 
@@ -55,16 +53,14 @@
 
                     <div style = "display: flex; height: 25px; justify-content: space-between">
                         <strong id = "session-count"></strong>
-                        <div id = "loader" class = "loader" style = "display: none"></div>
+                        <div class = "loader" id = "loader" style = "display: none"></div>
                     </div>
 
                     <div class = "narrow-table">
 
                         <div class = "table-header-row">
-
                             <div style = "width: 75%; border-left: none">Fingerprint</div>
                             <div style = "width: 25%">Expires At</div>
-
                         </div>
 
                         <div class = "table-data" id = "session-table-hook"></div>
@@ -81,9 +77,9 @@
 
     </body>
 
-    <script src = "../../js/utils.js" module></script>
     <script src = "../../js/error.js" module></script>
     <script src = "../../js/logout.js" module></script>
+    <script src = "../../js/utils.js" module></script>
     <script src = "../../js/sessions.js" module></script>
 
 </html>

@@ -11,7 +11,6 @@ import io.github.clamentos.gattoslab.observability.ObservabilityService;
 
 ///..
 import java.io.IOException;
-import java.util.Map;
 
 ///
 public abstract class BasicHandler extends Responder implements Handler {
@@ -37,7 +36,7 @@ public abstract class BasicHandler extends Responder implements Handler {
 
         catch(final IOException | RuntimeException exc) {
 
-            this.exceptionHandler.handleUnexpected(exchange, exc);
+            this.exceptionHandler.handleUncaught(exchange, exc);
         }
     }
 
@@ -49,7 +48,7 @@ public abstract class BasicHandler extends Responder implements Handler {
 
         if(exchange.getMethod() != method) {
 
-            super.respond(exchange, HttpStatus.METHOD_NOT_ALLOWED, Map.of(), MimeType.TEXT, method.getAllowedBody());
+            super.respond(exchange, HttpStatus.METHOD_NOT_ALLOWED, MimeType.TEXT, method.getAllowedBody());
             exchange.close();
 
             return true;

@@ -7,18 +7,16 @@ import java.util.concurrent.atomic.AtomicLongArray;
 public final class FastAtomicCounter {
 
     ///
-    private static final int CPU_CACHE_LINE_SIZE_BYTES = 64;
-
-    ///.
     private final int dwordsPerCacheLine;
     private final AtomicLongArray paddedCounters;
 
     ///
     public FastAtomicCounter() {
 
-        final int elements = Runtime.getRuntime().availableProcessors() * CPU_CACHE_LINE_SIZE_BYTES;
+        final int cacheLineSize = 64;
+        final int elements = Runtime.getRuntime().availableProcessors() * cacheLineSize;
 
-        this.dwordsPerCacheLine = CPU_CACHE_LINE_SIZE_BYTES / 8;
+        this.dwordsPerCacheLine = cacheLineSize / 8;
         this.paddedCounters = new AtomicLongArray(elements);
     }
 
@@ -29,18 +27,20 @@ public final class FastAtomicCounter {
     }
 
     ///..
-    public void decrement() {
+    public void reset() {
 
-        this.paddedCounters.decrementAndGet(this.getIndex());
+        for(int i = 0; i < this.paddedCounters.length(); i += this.dwordsPerCacheLine) {
+
+            this.paddedCounters.set(i, 0);
+        }
     }
 
     ///..
     public long get() {
 
-        final int length = this.paddedCounters.length();
         long total = 0;
 
-        for(int i = 0; i < length; i += this.dwordsPerCacheLine) {
+        for(int i = 0; i < this.paddedCounters.length(); i += this.dwordsPerCacheLine) {
 
             total += this.paddedCounters.get(i);
         }

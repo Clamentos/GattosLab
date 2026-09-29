@@ -52,9 +52,8 @@ public final class Siphon<T extends Resettable> extends AbstractList<T> {
 
         if(element != null) {
 
-            this.visitorCounter.increment();
             updateAction.accept(element);
-            this.visitorCounter.decrement();
+            this.visitorCounter.increment();
 
             return true;
         }
@@ -73,22 +72,21 @@ public final class Siphon<T extends Resettable> extends AbstractList<T> {
     }
 
     ///..
-    public boolean isBusy() {
+    public boolean isUpdating() {
 
-        return this.visitorCounter.get() != 0;
+        return this.visitorCounter.get() != this.index.get();
     }
 
     ///..
     @Override
     public void clear() {
 
-        final int capacity = this.elements.length();
-
-        for(int i = 0; i < capacity; i++) {
+        for(int i = 0; i < this.elements.length(); i++) {
 
             this.elements.get(i).reset();
         }
 
+        this.visitorCounter.reset();
         this.index.set(0);
         this.isDraining.set(false);
     }
@@ -107,13 +105,25 @@ public final class Siphon<T extends Resettable> extends AbstractList<T> {
         return this.elements.get(index);
     }
 
+    ///..
+    @Override
+    public boolean equals(final Object other) {
+
+        return false;
+    }
+
+    ///..
+    @Override
+    public int hashCode() {
+
+        return -1;
+    }
+
     ///.
     private T getNext() {
 
-        final int capacity = this.elements.length();
-        final int indexValue = this.index.getAndUpdate(val -> val < capacity ? val + 1 : val);
-
-        if(indexValue < capacity) return this.get(indexValue);
+        final int indexValue = this.index.getAndUpdate(val -> val < this.elements.length() ? (val + 1) : val);
+        if(indexValue < this.elements.length()) return this.get(indexValue);
 
         if(this.isDraining.compareAndSet(false, true)) {
 

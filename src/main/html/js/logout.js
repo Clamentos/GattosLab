@@ -1,4 +1,7 @@
-function logout(role, redirect) {
+updateCounter();
+setInterval(updateCounter, 60000);
+
+function logout(redirect) {
 
     fetch("/api/authentication/logout", { method: "DELETE" }).then(response => {
 
@@ -12,4 +15,25 @@ function logout(role, redirect) {
             }
         }
     });
+}
+
+function updateCounter() {
+
+    const expiration = localStorage.getItem("GattosLabSessionExpire");
+
+    if(expiration) {
+
+        const timestamp = Number.parseInt(expiration) - Date.now();
+
+        let hours = 0;
+        let minutes = 0;
+
+        if(timestamp >= 0) {
+
+            hours = Math.floor((timestamp % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            minutes = Math.floor((timestamp % (1000 * 60 * 60)) / (1000 * 60));
+        }
+
+        document.getElementById("logout-text").innerText = `Logout ${hours}:${minutes}`;
+    }
 }

@@ -5,10 +5,9 @@
 
         <meta charset = "utf-8"/>
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
-        <meta name = "description" content = "Admin site invocations page."/>
+        <meta name = "description" content = "Admin site crawls page."/>
 
         <link rel = "stylesheet" href = "../../css/base.css"/>
-        <link rel = "stylesheet" href = "../../css/header.css"/>
         <link rel = "stylesheet" href = "../../css/form.css"/>
         <link rel = "stylesheet" href = "../../css/table.css"/>
         <link rel = "stylesheet" href = "../../css/loader.css"/>
@@ -27,14 +26,14 @@
             <div class = "nav-container">
 
                 <div class = "nav-item">
-                    <img src = "../../images/github-logo.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <img class = "nav-icon" src = "../../images/github-logo.svg" alt = "GitHub logo"/>
                     <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
                 </div>
 
                 <div class = "nav-item">
-                    <button class = "logout-button" onclick = "logout('ADMIN', '../../login.html')">
+                    <button class = "logout-button" onclick = "logout('../../login.html')">
                         <img src = "../../images/logout-img.svg" alt = ""/>
-                        Logout
+                        <div id = "logout-text">Logout</div>
                     </button>
                 </div>
 
@@ -54,62 +53,64 @@
 
                     <div class = "form-input-group">
 
-                        <input class = "form-input" type = "datetime-local" name = "startTimestamp" id = "start-timestamp">
+                        <input
+
+                            class = "form-input"
+                            id = "start-timestamp"
+                            type = "datetime-local"
+                            name = "startTimestamp"
+                            aria-label = "start-timestamp-input"
+                        >
 
                         <p class = "form-field-description">
-
-                            <strong>Start time:</strong>
-                            specify the start time of the window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
-
+                            <strong>Start time</strong>: specifies the start time of the search window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
                         </p>
 
                     </div>
 
                     <div class = "form-input-group">
 
-                        <input class = "form-input" type = "datetime-local" name = "endTimestamp" id = "end-timestamp">
+                        <input
+
+                            class = "form-input"
+                            id = "end-timestamp"
+                            type = "datetime-local"
+                            name = "endTimestamp"
+                            aria-label = "end-timestamp-input"
+                        >
 
                         <p class = "form-field-description">
-
-                            <strong>End time:</strong>
-                            specify the end time of the window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
-
+                            <strong>End time:</strong> specifies the end time of the search window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
                         </p>
 
                     </div>
 
                     <div class = "form-input-group">
 
-                        <select class = "form-input" name = "isUnknown">
+                        <select class = "form-input" name = "isUnknown" aria-label = "is-unknown-input">
                             <option value = "">-</option>
-                            <option value = "false">Only known</option>
-                            <option value = "true">Only unknown</option>
+                            <option value = "false">Known only</option>
+                            <option value = "true">Unknown only</option>
                         </select>
 
                         <p class = "form-field-description">
-
-                            <strong>Is known:</strong>
-                            specify if bogus paths (non existent / unknown) should be included or not in the search filter.
-
+                            <strong>Is known:</strong> specifies if bogus paths (non existent / unknown) should be included or not in the search filter. Clearing this field will cause the search to ignore this filter.
                         </p>
 
                     </div>
 
                     <div class = "form-input-group">
 
-                        <input class = "form-input" type = "text" name = "userAgentPattern">
+                        <input class = "form-input" type = "text" name = "userAgentPattern" aria-label = "user-agent-pattern-input">
 
                         <p class = "form-field-description">
-
-                            <strong>User agent pattern:</strong>
-                            specify the user agent's pattern. Clearing this field will cause the search to ignore this filter.
-
+                            <strong>User agent pattern:</strong> specifies the user agent's pattern. Clearing this field will cause the search to ignore this filter.
                         </p>
 
                     </div>
 
                     <button class = "form-button" type = "submit">Filter</button>
-                    <div id = "submit-loader" class = "loader" style = "display: none"></div>
+                    <div class = "loader" id = "submit-loader" style = "display: none"></div>
 
                 </form>
 
@@ -117,7 +118,7 @@
 
                     <button class = "icon-button" onclick = "toggleVisibility('invocations-table')">
                         <img id = "invocations-table-icon-down" src = "../../images/caret-down.svg" alt = ""/>
-                        <img id = "invocations-table-icon-up" src = "../../images/caret-up.svg" alt = "" class = "hidden-element"/>
+                        <img class = "hidden-element" id = "invocations-table-icon-up" src = "../../images/caret-up.svg" alt = ""/>
                     </button>
 
                     <strong id = "invocations-count" style = "padding-left: 10px"></strong>
@@ -125,12 +126,10 @@
                     <div class = "narrow-table" id = "invocations-table">
 
                         <div class = "table-header-row">
-
                             <div style = "width: 70%; border-left: none">Path</div>
                             <div style = "width: 5%">Count</div>
-                            <div style = "width: 10%">Last invocation</div>
-                            <div style = "width: 15%">Statuses</div>
-
+                            <div style = "width: 11%">Last invocation</div>
+                            <div style = "width: 14%">Statuses</div>
                         </div>
 
                         <div class = "table-data" id = "invocations-table-hook"></div>
@@ -143,7 +142,7 @@
 
                     <button class = "icon-button" onclick = "toggleVisibility('user-agents-table')">
                         <img id = "user-agents-table-icon-down" src = "../../images/caret-down.svg" alt = ""/>
-                        <img id = "user-agents-table-icon-up" src = "../../images/caret-up.svg" alt = "" class = "hidden-element"/>
+                        <img class = "hidden-element" id = "user-agents-table-icon-up" src = "../../images/caret-up.svg" alt = ""/>
                     </button>
 
                     <strong id = "user-agents-count"></strong>
@@ -151,11 +150,9 @@
                     <div class = "narrow-table" id = "user-agents-table">
 
                         <div class = "table-header-row">
-
-                            <div style = "width: 85%; border-left: none">User agent</div>
+                            <div style = "width: 84%; border-left: none">User agent</div>
                             <div style = "width: 5%">Count</div>
-                            <div style = "width: 10%">Last invocation</div>
-
+                            <div style = "width: 11%">Last invocation</div>
                         </div>
 
                         <div class = "table-data" id = "user-agents-table-hook"></div>
@@ -175,6 +172,6 @@
     <script src = "../../js/error.js" module></script>
     <script src = "../../js/logout.js" module></script>
     <script src = "../../js/utils.js" module></script>
-    <script src = "../../js/invocations.js" module></script>
+    <script src = "../../js/crawls.js" module></script>
 
 </html>

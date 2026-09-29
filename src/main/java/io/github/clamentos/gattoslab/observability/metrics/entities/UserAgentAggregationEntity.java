@@ -2,8 +2,11 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
-import io.github.clamentos.gattoslab.observability.Printable;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
+
+///..
+import java.io.IOException;
 
 ///..
 import lombok.Getter;
@@ -14,7 +17,7 @@ import lombok.Setter;
 @Setter
 
 ///
-public final class UserAgentAggregationEntity implements Printable {
+public final class UserAgentAggregationEntity implements Streamable {
 
     ///
     private final String userAgent;
@@ -31,13 +34,13 @@ public final class UserAgentAggregationEntity implements Printable {
 
     ///
     @Override
-    public void appendBytes(final FastAsciiJoiner joiner) {
+    public void stream(final StreamWriter writer) throws IOException {
 
-        joiner.add(this.userAgent);
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Long.toString(this.lastSeen));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Integer.toString(this.numberOfCalls));
+        writer.write(String.valueOf(this.userAgent));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.lastSeen));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Integer.toString(this.numberOfCalls));
     }
 
     ///

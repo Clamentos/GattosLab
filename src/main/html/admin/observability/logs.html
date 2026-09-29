@@ -8,7 +8,6 @@
         <meta name = "description" content = "Admin site logs page."/>
 
         <link rel = "stylesheet" href = "../../css/base.css"/>
-        <link rel = "stylesheet" href = "../../css/header.css"/>
         <link rel = "stylesheet" href = "../../css/form.css"/>
         <link rel = "stylesheet" href = "../../css/table.css"/>
         <link rel = "stylesheet" href = "../../css/loader.css"/>
@@ -27,14 +26,14 @@
             <div class = "nav-container">
 
                 <div class = "nav-item">
-                    <img src = "../../images/github-logo.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <img class = "nav-icon" src = "../../images/github-logo.svg" alt = "GitHub logo"/>
                     <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
                 </div>
 
                 <div class = "nav-item">
-                    <button class = "logout-button" onclick = "logout('ADMIN', '../../login.html')">
+                    <button class = "logout-button" onclick = "logout('../../login.html')">
                         <img src = "../../images/logout-img.svg" alt = ""/>
-                        Logout
+                        <div id = "logout-text">Logout</div>
                     </button>
                 </div>
 
@@ -57,17 +56,14 @@
                         <input
 
                             class = "form-input"
+                            id = "start-timestamp"
                             type = "datetime-local"
                             name = "startTimestamp"
-                            id = "start-timestamp"
                             aria-label = "start-timestamp-input"
                         >
 
                         <p class = "form-field-description">
-
-                            <strong>Start time:</strong>
-                            specify the start time of the window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
-
+                            <strong>Start time:</strong> specifies the start time of the search window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
                         </p>
 
                     </div>
@@ -77,17 +73,14 @@
                         <input
 
                             class = "form-input"
+                            id = "end-timestamp"
                             type = "datetime-local"
                             name = "endTimestamp"
-                            id = "end-timestamp"
                             aria-label = "end-timestamp-input"
                         >
 
                         <p class = "form-field-description">
-
-                            <strong>End time:</strong>
-                            specify the end time of the window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
-
+                            <strong>End time:</strong> specifies the end time of the search window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
                         </p>
 
                     </div>
@@ -104,10 +97,7 @@
                         >
 
                         <p class = "form-field-description">
-
-                            <strong>Severities:</strong>
-                            specify the log severities to be included in the search. To specify multiple, simply separate the names with a comma (no spaces). Clearing this field will cause the search to ignore this filter.
-
+                            <strong>Severities:</strong> specifies the log severities to be included in the search. To include multiple, simply separate the names with a comma. Clearing this field will cause the search to ignore this filter.
                         </p>
 
                     </div>
@@ -117,10 +107,7 @@
                         <input class = "form-input" type = "text" name = "threadPattern" aria-label = "thread-pattern-input">
 
                         <p class = "form-field-description">
-
-                            <strong>Thread pattern:</strong>
-                            specify the thread's name pattern. Clearing this field will cause the search to ignore this filter.
-
+                            <strong>Thread pattern:</strong> specifies the thread's name pattern. Clearing this field will cause the search to ignore this filter.
                         </p>
 
                     </div>
@@ -130,10 +117,7 @@
                         <input class = "form-input" type = "text" name = "loggerPattern" aria-label = "logger-pattern-input">
 
                         <p class = "form-field-description">
-
-                            <strong>Logger pattern:</strong>
-                            specify the logger's name pattern. Clearing this field will cause the search to ignore this filter.
-
+                            <strong>Logger pattern:</strong> specifies the logger's name pattern. Clearing this field will cause the search to ignore this filter.
                         </p>
 
                     </div>
@@ -143,10 +127,7 @@
                         <input class = "form-input" type = "text" name = "messagePattern" aria-label = "message-pattern-input">
 
                         <p class = "form-field-description">
-
-                            <strong>Message pattern:</strong>
-                            specify the message pattern. Clearing this field will cause the search to ignore this filter.
-
+                            <strong>Message pattern:</strong> specifies the message pattern. Clearing this field will cause the search to ignore this filter.
                         </p>
 
                     </div>
@@ -156,16 +137,13 @@
                         <input class = "form-input" type = "text" name = "exceptionClassPattern" aria-label = "exception-class-pattern-input">
 
                         <p class = "form-field-description">
-
-                            <strong>Exception class pattern:</strong>
-                            specify the exception class pattern. Clearing this field will cause the search to ignore this filter.
-
+                            <strong>Exception class pattern:</strong> specifies the exception class pattern. Clearing this field will cause the search to ignore this filter.
                         </p>
 
                     </div>
 
                     <button class = "form-button" type = "submit">Filter</button>
-                    <div id = "submit-loader" class = "loader" style = "display: none"></div>
+                    <div class = "loader" id = "submit-loader" style = "display: none"></div>
 
                 </form>
 
@@ -173,7 +151,7 @@
 
                     <button class = "icon-button" onclick = "toggleVisibility('logs-table')">
                         <img id = "logs-table-icon-down" src = "../../images/caret-down.svg" alt = ""/>
-                        <img id = "logs-table-icon-up" src = "../../images/caret-up.svg" alt = "" class = "hidden-element"/>
+                        <img class = "hidden-element" id = "logs-table-icon-up" src = "../../images/caret-up.svg" alt = ""/>
                     </button>
 
                     <strong id = "logs-count"></strong>
@@ -181,14 +159,12 @@
                     <div class = "table" id = "logs-table">
 
                         <div class = "table-header-row">
-
-                            <div style = "width: 6%; border-left: none">Timestamp</div>
+                            <div style = "width: 7%; border-left: none">Timestamp</div>
                             <div style = "width: 4%">Severity</div>
-                            <div style = "width: 45%">Message</div>
+                            <div style = "width: 44%">Message</div>
                             <div style = "width: 15%">Logger</div>
                             <div style = "width: 15%">Thread</div>
                             <div style = "width: 15%">Exception</div>
-
                         </div>
 
                         <div class = "table-data" id = "table-data-hook"></div>
@@ -205,7 +181,6 @@
 
     </body>
 
-    <script src = "../../js/utils.js" module></script>
     <script src = "../../js/error.js" module></script>
     <script src = "../../js/logout.js" module></script>
     <script src = "../../js/utils.js" module></script>

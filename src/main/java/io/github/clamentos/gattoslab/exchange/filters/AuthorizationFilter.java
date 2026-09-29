@@ -5,7 +5,6 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
-import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.http.server.Filter;
@@ -15,10 +14,6 @@ import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.security.SecurityFailure;
 import io.github.clamentos.gattoslab.security.SessionService;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-
-///..
-import java.util.List;
-import java.util.Map;
 
 ///
 public final class AuthorizationFilter extends Responder implements Filter {
@@ -52,8 +47,7 @@ public final class AuthorizationFilter extends Responder implements Filter {
 
         if(authorizationAction != AuthorizationAction.ALLOW) {
 
-            final List<String> cookies = GenericUtils.fastSplit(exchange.getRequestHeaders().get(HttpHeader.COOKIE), ';');
-            final SecurityFailure securityFailure = this.sessionService.isAllowed(cookies);
+            final SecurityFailure securityFailure = this.sessionService.isAllowed(exchange);
 
             if(securityFailure != null) {
 
@@ -65,7 +59,7 @@ public final class AuthorizationFilter extends Responder implements Filter {
                 else {
 
                     this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Authorization failed for", exchange));
-                    super.respond(exchange, HttpStatus.UNAUTHORIZED, Map.of(), MimeType.TEXT, securityFailure.getMessage());
+                    super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
                     exchange.close();
                 }
 

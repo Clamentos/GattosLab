@@ -12,7 +12,7 @@ import lombok.Setter;
 public final class SystemMetricsAggregationEntity {
 
     ///
-    public static final String[] probes = new String[]{
+    private static final String[] probes = new String[]{
 
         "platformThreads",
         "classesLoaded",
@@ -34,7 +34,7 @@ public final class SystemMetricsAggregationEntity {
         "requestMetricsEquilibrium"
     };
 
-    ///
+    ///.
     private long platformThreads;
     private long classesLoaded;
     private long fileReads;
@@ -54,7 +54,14 @@ public final class SystemMetricsAggregationEntity {
     private long storageUsed;
     private long requestMetricsEquilibrium;
 
+    ///..
     private long count;
+
+    ///.
+    public static String[] getProbeNames() {
+
+        return probes;
+    }
 
     ///
 }

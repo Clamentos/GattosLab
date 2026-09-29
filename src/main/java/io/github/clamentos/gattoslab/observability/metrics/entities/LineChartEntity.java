@@ -1,10 +1,11 @@
 package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
-import io.github.clamentos.gattoslab.observability.Printable;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
 
 ///..
+import java.io.IOException;
 import java.util.Arrays;
 
 ///..
@@ -16,7 +17,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class LineChartEntity implements Printable {
+public final class LineChartEntity implements Streamable {
 
     ///
     private final long[] labels;
@@ -24,19 +25,22 @@ public final class LineChartEntity implements Printable {
 
     ///
     @Override
-    public void appendBytes(final FastAsciiJoiner joiner) {
+    public void stream(final StreamWriter writer) throws IOException {
 
-        joiner.add("{\"labels\":");
-        joiner.add(Arrays.toString(this.labels));
-        joiner.add(",\"datasets\":[");
+        writer.write("{\"labels\":");
+        writer.write(Arrays.toString(this.labels));
+        writer.write(",\"datasets\":[");
 
-            for(final LineChartEntry dataset : this.datasets) {
+        final int length = this.datasets.length - 1;
 
-                dataset.appendBytes(joiner);
-                joiner.add(",");
-            }
+        for(int i = 0; i < length; i++) {
 
-        joiner.replaceLast("]}");
+            this.datasets[i].stream(writer);
+            writer.write(",");
+        }
+
+        this.datasets[length].stream(writer);
+        writer.write("]}");
     }
 
     ///

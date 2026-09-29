@@ -85,7 +85,7 @@ public class ShutdownHook implements Runnable {
 
         catch(final Exception exc) {
 
-            this.logger.error("Could not close '" + closeableClassName + "' because", exc);
+            this.logger.error("Could not close '" + closeableClassName + "'", exc);
         }
     }
 

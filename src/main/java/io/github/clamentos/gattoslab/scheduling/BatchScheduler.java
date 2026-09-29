@@ -43,7 +43,7 @@ public final class BatchScheduler implements Closeable {
     }
 
     ///
-    public synchronized long schedule(final Runnable task, final String name, final String simpleCron) {
+    public long schedule(final Runnable task, final String name, final String simpleCron) {
 
         final SimpleCron cron = new SimpleCron(this.cronLogger, simpleCron, task, name);
         final long period = cron.getPeriod();

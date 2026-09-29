@@ -1,5 +1,3 @@
-const bubbleSizeScale = 4;
-
 function formatDate(date) {
 
     return date.toLocaleString("sv-SE");
@@ -38,76 +36,4 @@ function normalizeTimeRange(startStr, endStr, todayStartDate) {
 function isOk(value) {
 
     return value !== null && value !== undefined && value !== "";
-}
-
-function getChartOptions(title) {
-
-    const options = {
-
-        responsive: true,
-
-        plugins: {
-
-            legend: {
-
-                position: "right"
-            },
-
-            title: {
-
-                display: true,
-                text: title
-            },
-
-            colors: {
-
-                enabled: true
-            },
-
-            decimation: {
-
-                enabled: true,
-                algorithm: 'min-max',
-            },
-
-            tooltip: {}
-        },
-
-        scales: {
-
-            x: {
-
-                grid: {
-
-                    color: "rgba(255, 255, 255, 0.10)"
-                }
-            },
-
-            y: {
-
-                grid: {
-
-                    color: "rgba(255, 255, 255, 0.10)"
-                }
-            }
-        }
-    };
-
-    return options;
-}
-
-function renderLineChart(chartList, hook, title, chartData) {
-
-    chartList.push(new Chart(document.getElementById(hook), {
-
-        type: "line",
-
-        data: {
-
-            labels: chartData.labels.map(e => formatDate(new Date(e))),
-            datasets: chartData.datasets
-        },
-
-        options: getChartOptions(title)
-    }));
 }

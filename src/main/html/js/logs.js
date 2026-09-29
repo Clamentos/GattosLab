@@ -1,10 +1,13 @@
 const today = new Date();
 today.setUTCHours(0, 0, 0, 0);
 
-document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
-document.getElementById("end-timestamp").value = new Date(today.getTime() + 86400000).toISOString().slice(0, 16);
+const todayTime = today.getTime();
+const nextDayTime = todayTime + 86400000;
 
-fetchAndRenderLogs(today.getTime(), today.getTime() + 86400000, "", "", "", "", "");
+document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
+document.getElementById("end-timestamp").value = new Date(nextDayTime).toISOString().slice(0, 16);
+
+fetchAndRenderLogs(todayTime, nextDayTime, "", "", "", "", "");
 
 function onSubmitEvent(event) {
 
@@ -42,23 +45,25 @@ function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threadPatt
 
     const filter = `${startTimestamp}|${endTimestamp}|${severities}|${threadPattern}|${loggerPattern}|${messagePattern}|${exceptionClassPattern}`;
 
-    fetch(`/api/observability/logs?filter=${encodeURI(filter)}`,
-
-        {
-            method: "GET",
-            headers: new Headers({"content-type": "application/json"})
-        }
-    )
-    .then((response) => {
+    fetch(`/api/observability/logs?filter=${encodeURI(filter)}`, {method: "GET"}).then((response) => {
 
         if(response.status === 200) {
 
             response.text().then(text => {
 
                 const lines = text.split('\n');
+                let numLines = 0;
 
-                document.getElementById("logs-count").innerText = `Logs count: ${lines.length}`;
-                for(const log of lines) appendRow(log, tableBody);
+                for(const log of lines) {
+
+                    if(isOk(log)) {
+
+                        appendRow(log, tableBody);
+                        numLines++;
+                    }
+                }
+
+                document.getElementById("logs-count").innerText = `Logs count: ${numLines}`;
             });
         }
 
@@ -73,14 +78,13 @@ function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threadPatt
 
 function appendRow(log, table) {
 
-    /*id|timestamp|severity|thread|logger|message|exception*/
     const splits = log.split('|');
 
     const tr = document.createElement("div");
     tr.className = "table-data-row";
 
-    if(splits[2] === "ERROR") tr.style = "color: red";
-    if(splits[2] === "WARNING") tr.style = "color: orange";
+    if(splits[2] === "ERROR") tr.style = "color: #ff5555;";
+    if(splits[2] === "WARNING") tr.style = "color: #ffb86c;";
 
     const timestamp = document.createElement("div");
     const severity = document.createElement("div");
@@ -90,7 +94,7 @@ function appendRow(log, table) {
     const exception = document.createElement("div");
 
     timestamp.className = "table-data-elem";
-    timestamp.style = "text-align: center; width: 6%";
+    timestamp.style = "text-align: center; width: 7%";
     timestamp.innerText = formatDate(new Date(Number.parseInt(splits[1])));
 
     severity.className = "table-data-elem";
@@ -98,7 +102,7 @@ function appendRow(log, table) {
     severity.innerText = splits[2];
 
     message.className = "table-data-elem";
-    message.style = "width: 45%";
+    message.style = "width: 44%";
     message.innerText = splits[5];
 
     logger.className = "table-data-elem";

@@ -18,12 +18,19 @@
         <maven.compiler.release>26</maven.compiler.release>
     </properties>
 
+    <licenses>
+        <license>
+            <name>GNU General Public License v3.0 only</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.html</url>
+        </license>
+    </licenses>
+
     <dependencies>
 
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <scope>provided</scope>
             <version>1.18.48</version>
         </dependency>
 
@@ -56,6 +63,13 @@
 
     </dependencies>
 
+    <!--
+        mvn clean package -DskipTests
+        jar ... (see deploy.sh)
+    -->
+
+    <!-- mvn clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -DskipTests -Dsonar.projectKey=gattoslab -Dsonar.projectName='gattos-lab' -Dsonar.host.url=http://127.0.0.1:9000 -Dsonar.token=... -->
+
     <build>
 
         <plugins>
@@ -67,6 +81,7 @@
                 <version>3.16.0</version>
 
                 <configuration>
+
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
@@ -74,41 +89,34 @@
                             <version>1.18.48</version>
                         </path>
                     </annotationProcessorPaths>
+
                 </configuration>
 
             </plugin>
 
-            <!-- mvn clean compile assembly:single -->
             <plugin>
 
-                <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.8.0</version>
-
-                <configuration>
-
-                    <archive>
-                        <manifest>
-                            <mainClass>io.github.clamentos.gattoslab.Application</mainClass>
-                        </manifest>
-                    </archive>
-
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-
-                </configuration>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.15</version>
 
                 <executions>
+
                     <execution>
-
-                        <id>make-assembly</id>
-                        <phase>package</phase>
-
+                        <id>prepare-agent</id>
                         <goals>
-                            <goal>single</goal>
+                            <goal>prepare-agent</goal>
                         </goals>
-
                     </execution>
+
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+
                 </executions>
 
             </plugin>

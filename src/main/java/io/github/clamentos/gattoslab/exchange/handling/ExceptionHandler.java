@@ -10,7 +10,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
-import java.util.Map;
+import java.util.List;
 
 ///
 public final class ExceptionHandler {
@@ -29,54 +29,63 @@ public final class ExceptionHandler {
     }
 
     ///
-    public void handleUnexpected(final HttpExchange exchange, final Throwable exception) {
+    public void handleUncaught(final HttpExchange exchange, final Throwable exception) {
 
         if(exchange.isHandled()) {
 
-            this.logger.warning(this.composeMessage(exchange, "but request was handled successfully. Exchange was: "), exception);
+            this.logger.warning(this.composeMessage(exchange, "but request was handled successfully"), exception);
             exchange.close();
+
+            return;
+        }
+
+        boolean isPartial = false;
+
+        if(!exchange.isHandled()) {
+
+            this.logger.error(this.composeMessage(exchange, "error when trying to send response"), exception);
+            isPartial = true;
         }
 
         else {
 
-            if(!exchange.isHandled()) {
+            final HttpStatus status = switch(exception) {
 
-                this.logger.error(this.composeMessage(exchange, "error when trying to send response. Exchange was: "), exception);
+                case final IOException _ -> HttpStatus.INTERNAL_SERVER_ERROR;
+                case final IllegalArgumentException _ -> HttpStatus.BAD_REQUEST;
+                case final InterruptedException _ -> HttpStatus.SERVICE_UNAVAILABLE;
 
-                if(!exchange.isTracked()) this.observabilityService.requestPartiallyEnded(exchange);
-                exchange.close();
+                default -> {
+
+                    logger.error("No switch case for exception", exception);
+                    yield HttpStatus.INTERNAL_SERVER_ERROR;
+                }
+            };
+
+            if(status == HttpStatus.INTERNAL_SERVER_ERROR) {
+
+                this.logger.warning(this.composeMessage(exchange, "responded with 500 Internal Server Error"), exception);
             }
 
-            else {
+            try {
 
-                final HttpStatus status = switch(exception) {
+                exchange.respond(status, List.of(), MimeType.TEXT, exception.toString().getBytes());
+            }
 
-                    case final IOException _ -> HttpStatus.INTERNAL_SERVER_ERROR;
-                    case final IllegalArgumentException _ -> HttpStatus.BAD_REQUEST;
-                    case final InterruptedException _ -> HttpStatus.SERVICE_UNAVAILABLE;
+            catch(final IOException | RuntimeException exc) {
 
-                    default -> {
-
-                        logger.error("No switch case for exception", exception);
-                        yield HttpStatus.INTERNAL_SERVER_ERROR;
-                    }
-                };
-
-                try {
-
-                    exchange.respond(status, Map.of(), MimeType.TEXT, exception.toString().getBytes());
-                    if(!exchange.isTracked()) this.observabilityService.requestEnded(exchange);
-                }
-
-                catch(final IOException | RuntimeException exc) {
-
-                    this.logger.error("Could not respond because", exc);
-                    if(!exchange.isTracked()) this.observabilityService.requestPartiallyEnded(exchange);
-                }
-
-                exchange.close();
+                this.logger.error("Could not respond", exc);
+                isPartial = true;
             }
         }
+
+        if(!exchange.isTracked()) {
+
+            if(isPartial) this.observabilityService.requestPartiallyEnded(exchange);
+            else this.observabilityService.requestEnded(exchange);
+        }
+
+        exchange.close();
     }
 
     ///.
@@ -85,9 +94,8 @@ public final class ExceptionHandler {
         return
 
             "Unhandled exception for request " +
-            exchange.getRequestId() +
-            ", " +
-            postfix +
+            exchange.getRequestId() + ", " +
+            postfix + ". Exchange is: " +
             GenericUtils.exchangeToString(exchange)
         ;
     }

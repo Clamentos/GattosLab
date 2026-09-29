@@ -2,9 +2,12 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
 import io.github.clamentos.gattoslab.datastructures.Resettable;
-import io.github.clamentos.gattoslab.observability.Printable;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
+
+///..
+import java.io.IOException;
 
 ///..
 import lombok.Getter;
@@ -15,7 +18,7 @@ import lombok.Setter;
 @Setter
 
 ///
-public final class RequestMetricsEntity implements Printable, Resettable {
+public final class RequestMetricsEntity implements Resettable, Streamable {
 
     ///
     private long id;
@@ -28,29 +31,29 @@ public final class RequestMetricsEntity implements Printable, Resettable {
 
     ///..
     @Override
-    public void appendBytes(final FastAsciiJoiner joiner) {
-
-        joiner.add(Long.toString(this.id));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Long.toString(this.timestamp));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Integer.toString(this.latency));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(this.path);
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(this.userAgent);
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Boolean.toString(this.isUnknown));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Short.toString(this.httpStatus));
-    }
-
-    ///..
-    @Override
     public void reset() {
 
         this.path = null;
         this.userAgent = null;
+    }
+
+    ///..
+    @Override
+    public void stream(final StreamWriter writer) throws IOException {
+
+        writer.write(Long.toString(this.id));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.timestamp));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Integer.toString(this.latency));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(String.valueOf(this.path));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(String.valueOf(this.userAgent));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Boolean.toString(this.isUnknown));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Short.toString(this.httpStatus));
     }
 
     ///

@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.http;
 
 ///
+import java.util.Locale;
+
+///..
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,25 +16,28 @@ import lombok.Getter;
 public enum MimeType {
 
     ///
-    HTML("text/html".getBytes()),
-    CSS("text/css".getBytes()),
-    PNG("image/png".getBytes()),
-    JPG("image/jpg".getBytes()),
-    JPEG("image/jpeg".getBytes()),
-    SVG("image/svg+xml".getBytes()),
-    XML("application/xml".getBytes()),
-    TEXT("text/plain".getBytes()),
-    ICO("image/x-icon".getBytes()),
-    GIF("image/gif".getBytes()),
-    JS("application/javascript".getBytes()),
-    JSON("application/json".getBytes());
+    HTML(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "text/html")),
+    CSS(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "text/css")),
+    PNG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/png")),
+    JPG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/jpg")),
+    JPEG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/jpeg")),
+    SVG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/svg+xml")),
+    XML(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "application/xml")),
+    TEXT(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "text/plain")),
+    ICO(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/x-icon")),
+    GIF(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/gif")),
+    JS(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "application/javascript")),
+    JSON(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "application/json"));
+
+    ///
+    private final HttpHeader valueForResponse;
 
     ///
     public static MimeType decode(final String fileExtension) {
 
         if(fileExtension == null) return null;
 
-        switch(fileExtension.toUpperCase()) {
+        switch(fileExtension.toUpperCase(Locale.US)) {
 
             case "HTML": return MimeType.HTML;
             case "CSS": return MimeType.CSS;
@@ -49,9 +55,6 @@ public enum MimeType {
             default: return null;
         }
     }
-
-    ///
-    private final byte[] valueForResponse;
 
     ///
 }

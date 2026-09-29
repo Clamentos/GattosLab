@@ -8,7 +8,6 @@
         <meta name = "description" content = "Admin site request performance metrics page."/>
 
         <link rel = "stylesheet" href = "../../css/base.css"/>
-        <link rel = "stylesheet" href = "../../css/header.css"/>
         <link rel = "stylesheet" href = "../../css/form.css"/>
         <link rel = "stylesheet" href = "../../css/chart.css"/>
         <link rel = "stylesheet" href = "../../css/loader.css"/>
@@ -27,14 +26,14 @@
             <div class = "nav-container">
 
                 <div class = "nav-item">
-                    <img src = "../../images/github-logo.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <img class = "nav-icon" src = "../../images/github-logo.svg" alt = "GitHub logo"/>
                     <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
                 </div>
 
                 <div class = "nav-item">
-                    <button class = "logout-button" onclick = "logout('ADMIN', '../../login.html')">
+                    <button class = "logout-button" onclick = "logout('../../login.html')">
                         <img src = "../../images/logout-img.svg" alt = ""/>
-                        Logout
+                        <div id = "logout-text">Logout</div>
                     </button>
                 </div>
 
@@ -54,45 +53,50 @@
 
                     <div class = "form-input-group">
 
-                        <input class = "form-input" type = "datetime-local" name = "startTimestamp" id = "start-timestamp">
+                        <input
+
+                            class = "form-input"
+                            id = "start-timestamp"
+                            type = "datetime-local"
+                            name = "startTimestamp"
+                            aria-label = "start-timestamp-input"
+                        >
 
                         <p class = "form-field-description">
-
-                            <strong>Start time:</strong>
-                            specify the start time of the window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
-
+                            <strong>Start time:</strong> specifies the start time of the search window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
                         </p>
 
                     </div>
 
                     <div class = "form-input-group">
 
-                        <input class = "form-input" type = "datetime-local" name = "endTimestamp" id = "end-timestamp">
+                        <input
+
+                            class = "form-input"
+                            id = "end-timestamp"
+                            type = "datetime-local"
+                            name = "endTimestamp"
+                            aria-label = "end-timestamp-input"
+                        >
 
                         <p class = "form-field-description">
-
-                            <strong>End time:</strong>
-                            specify the end time of the window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
-
+                            <strong>End time:</strong> specifies the end time of the search window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
                         </p>
 
                     </div>
 
                     <div class = "form-input-group">
 
-                        <input class = "form-input" type = "number" name = "resolution" placeholder = "1,2,3,...">
+                        <input class = "form-input" type = "number" name = "resolution" placeholder = "1,2,3,..." aria-label = "resolution-input">
 
                         <p class = "form-field-description">
-
-                            <strong>Resolution:</strong>
-                            specify the resolution of the charts in seconds. Clearing this field will cause the charts to default to 10 minutes (600 seconds).
-
+                            <strong>Resolution:</strong> specifies the resolution of the charts in seconds. Clearing this field will cause the charts to default to 10 minutes (600 seconds).
                         </p>
 
                     </div>
 
                     <button class = "form-button" type = "submit">Filter</button>
-                    <div id = "submit-loader" class = "loader" style = "display: none"></div>
+                    <div class = "loader" id = "submit-loader" style = "display: none"></div>
 
                 </form>
 
@@ -107,10 +111,11 @@
 
     </body>
 
-    <script src = "../../js/utils.js" module></script>
     <script src = "../../js/error.js" module></script>
     <script src = "../../js/logout.js" module></script>
+    <script src = "../../js/utils.js" module></script>
     <script src = "../../js/chartjsMin.js" module></script>
+    <script src = "../../js/chart-rendering.js" module></script>
     <script src = "../../js/request-metrics.js" module></script>
 
 </html>

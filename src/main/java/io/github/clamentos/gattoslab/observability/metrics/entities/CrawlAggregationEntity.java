@@ -2,10 +2,11 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
-import io.github.clamentos.gattoslab.observability.Printable;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
 
 ///..
+import java.io.IOException;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -18,13 +19,14 @@ import lombok.Setter;
 @Setter
 
 ///
-public final class CrawlAggregationEntity implements Printable{
+public final class CrawlAggregationEntity implements Streamable {
 
     ///
     private final String path;
     private final boolean isUnknown;
     private final Set<String> statuses;
 
+    ///..
     private long lastCalled;
     private int numberOfCalls;
 
@@ -38,21 +40,23 @@ public final class CrawlAggregationEntity implements Printable{
 
     ///
     @Override
-    public void appendBytes(final FastAsciiJoiner joiner) {
+    public void stream(final StreamWriter writer) throws IOException {
 
-        joiner.add(this.path);
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Boolean.toString(this.isUnknown));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Long.toString(this.lastCalled));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Integer.toString(this.numberOfCalls));
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
+        writer.write(String.valueOf(this.path));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Boolean.toString(this.isUnknown));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.lastCalled));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Integer.toString(this.numberOfCalls));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+
+        int remaining = statuses.size() - 1;
 
         for(final String status : this.statuses) {
 
-            joiner.add(status);
-            joiner.add(ApplicationProperties.ARRAY_SEPARATOR_STRING);
+            writer.write(status);
+            if(remaining-- > 0) writer.write(ApplicationProperties.ARRAY_SEPARATOR);
         }
     }
 

@@ -20,7 +20,7 @@ public final class ClassPriorities {
     ///
     public ClassPriorities() {
 
-        this.priorities = HashMap.newHashMap(6);
+        this.priorities = HashMap.newHashMap(5);
 
         this.priorities.put(BatchScheduler.class, 0);
         this.priorities.put(ServerContainer.class, 1);

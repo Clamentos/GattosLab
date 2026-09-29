@@ -1,10 +1,11 @@
 package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
-import io.github.clamentos.gattoslab.observability.Printable;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
 
 ///..
+import java.io.IOException;
 import java.util.Arrays;
 
 ///..
@@ -14,7 +15,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class LineChartEntry implements Printable {
+public final class LineChartEntry implements Streamable {
 
     ///
     private final String label;
@@ -29,13 +30,13 @@ public final class LineChartEntry implements Printable {
 
     ///
     @Override
-    public void appendBytes(final FastAsciiJoiner joiner) {
+    public void stream(final StreamWriter writer) throws IOException {
 
-        joiner.add("{\"label\":\"");
-        joiner.add(this.label);
-        joiner.add("\",\"data\":");
-        joiner.add(Arrays.toString(this.data));
-        joiner.add("}");
+        writer.write("{\"label\":\"");
+        writer.write(this.label);
+        writer.write("\",\"data\":");
+        writer.write(Arrays.toString(this.data));
+        writer.write("}");
     }
 
     ///

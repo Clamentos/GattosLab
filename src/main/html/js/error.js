@@ -10,5 +10,5 @@ function pushError(error) {
     errorDiv.innerText = error;
 
     errorContainer.insertBefore(errorDiv, errorContainer.firstChild);
-    setTimeout(function() { errorDiv.remove(); }, 5000);
+    setTimeout(() => errorDiv.remove(), 5000);
 }

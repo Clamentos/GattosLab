@@ -8,16 +8,25 @@ function fetchAndRenderSessionMetadata() {
     const tableBody = document.getElementById("session-table-hook");
     tableBody.replaceChildren();
 
-    fetch("/api/authentication/sessions", { method: "GET" }).then((response) => {
+    fetch("/api/authentication/sessions", {method: "GET"}).then((response) => {
 
         if(response.status === 200) {
 
             response.text().then(text => {
 
                 const lines = text.split('\n');
+                let numLines = 0;
 
-                document.getElementById("session-count").innerText = `Sessions count: ${lines.length}`;
-                for(const entry of lines) appendRow(entry, tableBody);
+                for(const entry of lines) {
+
+                    if(isOk(entry)) {
+
+                        appendRow(entry, tableBody);
+                        numLines++;
+                    }
+                }
+
+                document.getElementById("session-count").innerText = `Sessions count: ${numLines}`;
             });
         }
 
@@ -32,7 +41,6 @@ function fetchAndRenderSessionMetadata() {
 
 function appendRow(entry, table) {
 
-    /*fingerprint|expiresAt*/
     const splits = entry.split('|');
 
     const tr = document.createElement("div");
@@ -46,7 +54,7 @@ function appendRow(entry, table) {
     fingerprint.innerText = splits[0];
 
     expiresAt.className = "table-data-elem";
-    expiresAt.style = "width: 25%; text-align: center";
+    expiresAt.style = "width: 25%; text-align: center;";
     expiresAt.innerText = formatDate(new Date(Number.parseInt(splits[1])));
 
     tr.appendChild(fingerprint);

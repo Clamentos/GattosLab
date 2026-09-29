@@ -11,7 +11,7 @@ import io.github.clamentos.gattoslab.observability.logging.Logger;
 
 ///..
 import java.io.IOException;
-import java.util.Map;
+import java.util.List;
 
 ///
 public abstract class Responder {
@@ -32,13 +32,19 @@ public abstract class Responder {
     ///
     protected void respond(final HttpExchange exchange, final HttpStatus status) {
 
-        this.respond(exchange, status, Map.of(), null, (byte[])null);
+        this.respond(exchange, status, List.of(), null, (byte[])null);
     }
 
     ///..
-    protected void respond(final HttpExchange exchange, final HttpStatus status, final Map<HttpHeader, byte[]> headers) {
+    protected void respond(final HttpExchange exchange, final HttpStatus status, final List<HttpHeader> headers) {
 
         this.respond(exchange, status, headers, null, (byte[])null);
+    }
+
+    ///..
+    protected void respond(final HttpExchange exchange, final HttpStatus status, final MimeType mimeType, final byte[] body) {
+
+        this.respond(exchange, status, List.of(), mimeType, body);
     }
 
     ///..
@@ -46,7 +52,26 @@ public abstract class Responder {
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final Map<HttpHeader, byte[]> headers,
+        final List<HttpHeader> headers,
+        final MimeType mimeType,
+        final byte[] body
+    ) {
+
+        this.respond(exchange, status, headers, mimeType, (Object)body);
+    }
+
+    ///..
+    protected void respond(final HttpExchange exchange, final HttpStatus status, final MimeType mimeType, final ResponseBodyCallback body) {
+
+        this.respond(exchange, status, List.of(), mimeType, body);
+    }
+
+    ///..
+    protected void respond(
+
+        final HttpExchange exchange,
+        final HttpStatus status,
+        final List<HttpHeader> headers,
         final MimeType mimeType,
         final ResponseBodyCallback body
     ) {
@@ -55,11 +80,11 @@ public abstract class Responder {
     }
 
     ///..
-    protected void respond(
+    private void respond(
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final Map<HttpHeader, byte[]> headers,
+        final List<HttpHeader> headers,
         final MimeType mimeType,
         final Object body
     ) {
@@ -72,7 +97,7 @@ public abstract class Responder {
 
         catch(final IOException exc) {
 
-            this.logger.error("Could not respond because", exc);
+            this.logger.error("Could not respond", exc);
             this.observabilityService.requestPartiallyEnded(exchange);
             exchange.close();
         }

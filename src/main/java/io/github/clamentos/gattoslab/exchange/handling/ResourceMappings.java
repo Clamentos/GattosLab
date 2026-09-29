@@ -23,7 +23,7 @@ import java.util.zip.GZIPOutputStream;
 import lombok.Getter;
 
 ///
-@Getter 
+@Getter
 
 ///
 public final class ResourceMappings {
@@ -33,75 +33,104 @@ public final class ResourceMappings {
     private final Map<String, StaticResource> staticResourcesMappings;
 
     ///
-    public ResourceMappings() throws IOException, IllegalArgumentException {
+    public ResourceMappings(final ApplicationProperties applicationProperties) throws IOException {
 
-        final Logger logger = new Logger();
+        this.apiMappings = this.populateApis();
+
+        this.staticResourcesMappings = this.populateResources(
+
+            applicationProperties.getPrivilegedStaticResourcePathPrefix(),
+            applicationProperties.getDiskBasedStaticResourcePathSegment()
+        );
+    }
+
+    ///
+    public Resource get(final String path) {
+
+        final Resource resource = this.staticResourcesMappings.get(path);
+        if(resource != null) return resource;
+
+        return this.apiMappings.get(path);
+    }
+
+    ///.
+    private Map<String, Api> populateApis() {
 
         final Api[] apis =  Api.values();
-        this.apiMappings = HashMap.newHashMap(apis.length);
+        final Map<String, Api> mappings = HashMap.newHashMap(apis.length);
 
         for(final Api api : apis) {
 
-            this.apiMappings.put(api.getPath(), api);
+            mappings.put(api.getPath(), api);
         }
+
+        return mappings;
+    }
+
+    ///..
+    private Map<String, StaticResource> populateResources(
+
+        final String privilegedStaticResourcePathPrefix,
+        final String diskBasedStaticResourcePathSegment
+
+    ) throws IOException {
+
+        final Logger logger = new Logger();
 
         final String[] sitePaths = ResourceWalker.listSiteResourcePaths(ApplicationProperties.STATIC_SITE_RESOURCES_FOLDER);
         final int pathSubstringIndex = ApplicationProperties.STATIC_SITE_RESOURCES_FOLDER.length();
-        long siteSize = 0;
+        final Map<String, StaticResource> mappings = HashMap.newHashMap(sitePaths.length + 2);
 
-        this.staticResourcesMappings = HashMap.newHashMap(sitePaths.length + 2);
+        long siteSize = 0;
 
         for(final String prefixedPath : sitePaths) {
 
             final String path = prefixedPath.substring(pathSubstringIndex);
-            final boolean isPublic = !path.contains(ApplicationProperties.PRIVILEGED_STATIC_RESOURCE_PATH_PREFIX);
-            final AuthorizationAction authorizationAction = isPublic ? AuthorizationAction.ALLOW : AuthorizationAction.REDIRECT;
-            final String diskPath = path.contains(ApplicationProperties.DISK_BASED_STATIC_RESOURCE_PATH_SEGMENT) ? path : null;
+            final boolean isPublic = !path.contains(privilegedStaticResourcePathPrefix);
+            final String diskPath = path.contains(diskBasedStaticResourcePathSegment) ? prefixedPath : null;
             final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
 
             MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
 
             if(mimeType == null) {
 
-                logger.warning("Could not decode MimeType for '" + path + "', defaulting to TEXT");
+                logger.warning("Could not decode the mime type for '" + path + "', defaulting to TEXT");
                 mimeType = MimeType.TEXT;
             }
 
-            this.staticResourcesMappings.put(path, new StaticResource(authorizationAction, mimeType, isPublic, diskPath, compressedContent));
+            mappings.put(path, new StaticResource(
+
+                isPublic ? AuthorizationAction.ALLOW : AuthorizationAction.REDIRECT,
+                mimeType,
+                isPublic,
+                diskPath,
+                compressedContent
+            ));
+
             if(compressedContent != null) siteSize += compressedContent.length;
         }
 
-        final StaticResource homepage = this.staticResourcesMappings.get("/index.html");
+        final StaticResource homepage = mappings.get(ApplicationProperties.HOMEPAGE_PATH);
 
-        this.staticResourcesMappings.put("", homepage);
-        this.staticResourcesMappings.put("/", homepage);
+        mappings.put("", homepage);
+        mappings.put("/", homepage);
 
         logger.info("Site size: " + GenericUtils.formatSize(siteSize));
+        return mappings;
     }
 
-    ///
-    public Resource get(final String path) {
+    ///..
+    private byte[] compress(final String resourceName) throws IOException {
 
-        Resource resource = this.staticResourcesMappings.get(path);
-        if(resource != null) return resource;
-
-        resource = this.apiMappings.get(path);
-        return resource;
-    }
-
-    ///.
-    private byte[] compress(final String resourceName) throws IOException, IllegalArgumentException {
-
-        if(resourceName == null || resourceName.isEmpty()) return null;
+        if(resourceName == null || resourceName.isEmpty()) throw new IOException("'resourceName' cannot be null");
 
         final InputStream resourceStream = ResourceMappings.class.getClassLoader().getResourceAsStream(resourceName);
-        if(resourceStream == null) throw new IllegalArgumentException("Resource '" + resourceName + "' not found");
+        if(resourceStream == null) throw new IOException("Resource '" + resourceName + "' not found");
 
         final ByteArrayOutputStream resourceBytes = new ByteArrayOutputStream();
         final GZIPOutputStream compressor = new GZIPOutputStream(resourceBytes);
 
         compressor.write(resourceStream.readAllBytes());
-        compressor.flush();
         compressor.close();
 
         return resourceBytes.toByteArray();

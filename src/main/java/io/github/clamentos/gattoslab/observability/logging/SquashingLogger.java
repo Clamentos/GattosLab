@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.observability.logging;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.FastAtomicCounter;
+import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 
 ///..
@@ -49,7 +50,7 @@ public class SquashingLogger implements Closeable {
     private void logTask() {
 
         final Iterator<Entry<String, FastAtomicCounter>> iterator = this.squashes.entrySet().iterator();
-        final StringBuilder messageBuilder = new StringBuilder(128);
+        final MutableString mutableString = new MutableString(128);
 
         while(iterator.hasNext()) {
 
@@ -57,19 +58,18 @@ public class SquashingLogger implements Closeable {
             final String messageTemplate = entry.getKey();
             final int messageTemplateLength = messageTemplate.length();
 
-            char currentChar;
             iterator.remove();
 
             for(int i = 0; i < messageTemplateLength; i++) {
 
-                currentChar = messageTemplate.charAt(i);
+                final char currentChar = messageTemplate.charAt(i);
 
-                if(currentChar == ApplicationProperties.LOG_SQUASH_COUNTS_CHAR) messageBuilder.append(entry.getValue().get());
-                else messageBuilder.append(currentChar);
+                if(currentChar == ApplicationProperties.LOG_SQUASH_COUNTS_CHAR) mutableString.append(Long.toString(entry.getValue().get()));
+                else mutableString.append(currentChar);
             }
 
-            this.logger.warning(messageBuilder.toString());
-            messageBuilder.setLength(0);
+            this.logger.warning(mutableString.toString());
+            mutableString.clear();
         }
     }
 

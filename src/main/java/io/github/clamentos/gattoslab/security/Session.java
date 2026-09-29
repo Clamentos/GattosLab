@@ -2,8 +2,12 @@ package io.github.clamentos.gattoslab.security;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
-import io.github.clamentos.gattoslab.observability.Printable;
+import io.github.clamentos.gattoslab.datastructures.MutableString;
+import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
+
+///..
+import java.io.IOException;
 
 ///..
 import lombok.AllArgsConstructor;
@@ -14,20 +18,20 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class Session implements Printable {
+public final class Session implements Streamable {
 
     ///
-    private final String sessionId;
+    private final MutableString sessionId;
     private final String fingerprint;
     private final long expiresAt;
 
     ///
     @Override
-    public void appendBytes(final FastAsciiJoiner joiner) {
+    public void stream(final StreamWriter writer) throws IOException {
 
-        joiner.add(this.fingerprint);
-        joiner.add(ApplicationProperties.FIELD_SEPARATOR_STRING);
-        joiner.add(Long.toString(this.expiresAt));
+        writer.write(String.valueOf(this.fingerprint));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.expiresAt));
     }
 
     ///

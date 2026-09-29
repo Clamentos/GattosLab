@@ -15,9 +15,13 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Inet4Address;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 ///..
@@ -38,6 +42,7 @@ public final class ServerContainer implements Closeable {
 
     ///..
     private final AtomicReference<HttpServer> httpServerReference;
+    private final AtomicLong keystoreTimestamp;
 
     ///
     public ServerContainer(
@@ -58,6 +63,8 @@ public final class ServerContainer implements Closeable {
         this.rootHandler = rootHandler;
 
         this.httpServerReference = new AtomicReference<>();
+        this.keystoreTimestamp = new AtomicLong(Long.MIN_VALUE);
+
         this.instantiateServer(applicationProperties, squashingLogger, filters, rootHandler);
 
         batchScheduler.schedule(
@@ -77,26 +84,34 @@ public final class ServerContainer implements Closeable {
         this.logger.info("End shutdown");
     }
 
-    ///..
-    public void regenerateServerTask() {
+    ///.
+    private void regenerateServerTask() {
 
         try {
 
-            this.logger.info("Begin server regeneration...");
+            final String sslCertificatePath = applicationProperties.getSslCertificatePath();
+            final FileTime fileTime = Files.getLastModifiedTime(Path.of(sslCertificatePath));
+            final long millis = fileTime.toMillis();
 
-            this.close();
-            this.instantiateServer(applicationProperties, squashingLogger, filters, rootHandler);
+            if(millis > this.keystoreTimestamp.get()) {
 
-            this.logger.info("End server regeneration");
+                this.logger.info("Begin server regeneration...");
+
+                this.close();
+                this.instantiateServer(this.applicationProperties, this.squashingLogger, this.filters, this.rootHandler);
+                this.keystoreTimestamp.set(millis);
+
+                this.logger.info("End server regeneration");
+            }
         }
 
-        catch(final GeneralSecurityException | IOException  exc) {
+        catch(final GeneralSecurityException | IOException | RuntimeException  exc) {
 
-            this.logger.error("Could not regenerate server because", exc);
+            this.logger.error("Could not regenerate server", exc);
         }
     }
 
-    ///.
+    ///..
     private void instantiateServer(
 
         final ApplicationProperties applicationProperties,
@@ -106,18 +121,13 @@ public final class ServerContainer implements Closeable {
 
     ) throws GeneralSecurityException, IOException {
 
-        final SSLContext sslContext = this.createSSLContext(
-
-            applicationProperties.getSslCertificatePath(),
-            applicationProperties.getSslKeyStorePassword()
-        );
-
         this.httpServerReference.set(new HttpServer(
 
             squashingLogger,
             Inet4Address.ofLiteral(applicationProperties.getServerHost()),
             applicationProperties.getServerPort(),
-            sslContext,
+            applicationProperties.isKeepAliveByDefault(),
+            this.createSSLContext(applicationProperties.getSslCertificatePath(), applicationProperties.getSslKeyStorePassword()),
             filters,
             rootHandler
         ));
@@ -127,7 +137,7 @@ public final class ServerContainer implements Closeable {
     private SSLContext createSSLContext(final String sslCertificatePath, final String keyStorePassword)
     throws GeneralSecurityException, IOException  {
 
-        logger.info("Loading SSL certificate start...");
+        this.logger.info("Loading SSL certificate start...");
 
         final char[] rawKeyStorePassword = keyStorePassword.toCharArray();
         final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
@@ -137,7 +147,7 @@ public final class ServerContainer implements Closeable {
         final SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
 
-        logger.info("Loading SSL certificate end");
+        this.logger.info("Loading SSL certificate end");
         return sslContext;
     }
 
@@ -146,7 +156,7 @@ public final class ServerContainer implements Closeable {
 
         try(final InputStream keyStoreStream = new FileInputStream(path)) {
 
-            logger.info("Key store file grabbed " + (keyStoreStream != null));
+            this.logger.info("Key store file grabbed " + (keyStoreStream != null));
 
             final KeyStore loadedKeyStore = KeyStore.getInstance("PKCS12");
             loadedKeyStore.load(keyStoreStream, password);

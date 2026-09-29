@@ -19,26 +19,22 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 
 ///
+@SuppressWarnings("java:S106")
+
+///
 public final class LoggerRoot implements Closeable {
 
     ///
     private static final LoggerRoot INSTANCE = new LoggerRoot();
 
     ///.
-    public static LoggerRoot getInstance() {
-
-        return INSTANCE;
-    }
-
-    ///.
     @Getter
     private final ObservabilityFile<LogEvent> logFile;
 
+    private final AtomicLong logEventIdCounter;
     private final Siphon<LogEvent> primarySiphon;
     private final Siphon<LogEvent> secondarySiphon;
     private final AtomicReference<Siphon<LogEvent>> currentSiphonReference;
-
-    private final AtomicLong logEventIdCounter;
 
     ///..
     private final Thread drainWorker;
@@ -48,13 +44,12 @@ public final class LoggerRoot implements Closeable {
 
         try {
 
-            this.logFile = new ObservabilityFile<>(ApplicationProperties.LOG_FILE_PATH, 13);
+            this.logFile = new ObservabilityFile<>(ApplicationProperties.LOG_FILE_PATH, null);
 
+            this.logEventIdCounter = new AtomicLong();
             this.primarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
             this.secondarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
             this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
-
-            this.logEventIdCounter = new AtomicLong();
 
             this.drainWorker = GenericUtils.spawnVirtualThread("gattos-lab-log-siphon-drain-task", this::forceDrainSiphonTask);
         }
@@ -64,6 +59,12 @@ public final class LoggerRoot implements Closeable {
             System.err.println("FATAL: Could not instantiate LoggerRoot because: " + exc);
             throw new IllegalStateException(exc);
         }
+    }
+
+    ///
+    public static LoggerRoot getInstance() {
+
+        return INSTANCE;
     }
 
     ///
@@ -91,7 +92,7 @@ public final class LoggerRoot implements Closeable {
         try {
 
             this.drainWorker.interrupt();
-            this.drainWorker.join(ApplicationProperties.LOG_CLOSE_TIMEOUT.toMillis());
+            if(!this.drainWorker.join(ApplicationProperties.LOG_CLOSE_TIMEOUT)) System.out.println("Timed-out while joining the 'drainWorker'");
         }
 
         catch(final InterruptedException _) {
@@ -105,7 +106,7 @@ public final class LoggerRoot implements Closeable {
 
         while(!(this.currentSiphonReference.get().update(entity -> this.updateLogEvent(entity, logSeverity, logger, message, exception)))) {
 
-            GenericUtils.silentSleep(1);
+            GenericUtils.silentSleepNanos(100_000);
         }
     }
 
@@ -146,9 +147,9 @@ public final class LoggerRoot implements Closeable {
                 previousSiphon = this.secondarySiphon;
             }
 
-            while(previousSiphon.isBusy()) {
+            while(previousSiphon.isUpdating()) {
 
-                GenericUtils.silentSleep(1);
+                GenericUtils.silentSleepNanos(100_000);
             }
 
             try {
@@ -158,7 +159,7 @@ public final class LoggerRoot implements Closeable {
 
             catch(final IOException exc) {
 
-                this.error(this.getClass().getSimpleName() + ".drainSiphonTask", "Could not write to file because", exc);
+                this.error(LoggerRoot.class.getSimpleName() + ".drainSiphonTask", "Could not write to file", exc);
             }
         }
     }

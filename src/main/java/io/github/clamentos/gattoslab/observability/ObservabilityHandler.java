@@ -11,7 +11,6 @@ import io.github.clamentos.gattoslab.http.server.HttpExchange;
 
 ///..
 import java.io.IOException;
-import java.util.Map;
 
 ///
 public final class ObservabilityHandler extends BasicHandler {
@@ -33,23 +32,23 @@ public final class ObservabilityHandler extends BasicHandler {
 
             switch(api) {
 
-                case GET_LOGS: super.respond(exchange, HttpStatus.OK, Map.of(), MimeType.TEXT, super.observabilityService.getLogs(exchange)); return;
+                case GET_LOGS: super.respond(exchange, HttpStatus.OK, MimeType.TEXT, super.observabilityService.getLogs(exchange)); return;
 
                 case GET_REQUEST_METRICS:
 
-                    super.respond(exchange, HttpStatus.OK, Map.of(), MimeType.JSON, super.observabilityService.getRequestMetrics(exchange));
+                    super.respond(exchange, HttpStatus.OK, MimeType.JSON, super.observabilityService.getRequestMetrics(exchange));
 
                 return;
 
                 case GET_SYSTEM_METRICS:
 
-                    super.respond(exchange, HttpStatus.OK, Map.of(), MimeType.JSON, super.observabilityService.getSystemMetrics(exchange));
+                    super.respond(exchange, HttpStatus.OK, MimeType.JSON, super.observabilityService.getSystemMetrics(exchange));
 
                 return;
 
                 case GET_CRAWL_METRICS:
 
-                    super.respond(exchange, HttpStatus.OK, Map.of(), MimeType.TEXT, super.observabilityService.getCrawlMetrics(exchange));
+                    super.respond(exchange, HttpStatus.OK, MimeType.TEXT, super.observabilityService.getCrawlMetrics(exchange));
 
                 return;
 
@@ -57,9 +56,16 @@ public final class ObservabilityHandler extends BasicHandler {
             }
         }
 
-        catch(final IllegalArgumentException exc) {
+        catch(final IOException | IllegalArgumentException exc) {
 
-            super.respond(exchange, HttpStatus.BAD_REQUEST, Map.of(), MimeType.TEXT, exc.getMessage().getBytes());
+            super.respond(
+
+                exchange,
+                exc instanceof IOException ? HttpStatus.UNPROCESSABLE : HttpStatus.BAD_REQUEST,
+                MimeType.TEXT,
+                exc.getMessage().getBytes()
+            );
+
             exchange.close();
         }
     }

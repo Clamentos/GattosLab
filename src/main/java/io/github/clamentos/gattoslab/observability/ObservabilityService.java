@@ -2,11 +2,12 @@ package io.github.clamentos.gattoslab.observability;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.FastAsciiJoiner;
+import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
-import io.github.clamentos.gattoslab.http.HttpHeader;
+import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
+import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetricsService;
@@ -24,6 +25,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -52,12 +54,13 @@ public final class ObservabilityService implements Closeable {
     private final ObservabilityDatabase observabilityDatabase;
 
     ///
-    public ObservabilityService(final BatchScheduler batchScheduler) throws IOException {
+    public ObservabilityService(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler) throws IOException {
 
         this.logger = new Logger();
+        final Logger fileLogger = new Logger(ObservabilityFile.class.getSimpleName());
 
-        this.requestMetricsFile = new ObservabilityFile<>(ApplicationProperties.REQUEST_METRICS_FILE_PATH, 13);
-        this.systemMetricsFile = new ObservabilityFile<>(ApplicationProperties.SYSTEM_METRICS_FILE_PATH, 39);
+        this.requestMetricsFile = new ObservabilityFile<>(ApplicationProperties.REQUEST_METRICS_FILE_PATH, fileLogger);
+        this.systemMetricsFile = new ObservabilityFile<>(ApplicationProperties.SYSTEM_METRICS_FILE_PATH, fileLogger);
 
         final Class<RequestMetricsEntity> type = RequestMetricsEntity.class;
 
@@ -88,7 +91,7 @@ public final class ObservabilityService implements Closeable {
 
         batchScheduler.schedule(
 
-            this::retentionTask,
+            () -> this.retentionTask(applicationProperties.getObservabilityDataRetention()),
             "gattos-lab-observability-retention-task",
             ApplicationProperties.OBSERVABILITY_RETENTION_CRON
         );
@@ -113,7 +116,7 @@ public final class ObservabilityService implements Closeable {
     }
 
     ///..
-    public byte[] getLogs(final HttpExchange exchange) throws IOException, IllegalArgumentException {
+    public ResponseBodyCallback getLogs(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:
@@ -134,21 +137,20 @@ public final class ObservabilityService implements Closeable {
             filter.get(6)
         );
 
-        final int length = logs.size();
-        final FastAsciiJoiner joiner = new FastAsciiJoiner(length << 1);
+        return writer -> {
 
-        for(int i = 0; i < length; i++) {
+            final int length = logs.size();
 
-            joiner.add(logs.get(i));
-            joiner.add("\n");
-        }
+            for(int i = 0; i < length; i++) {
 
-        joiner.deleteLast();
-        return joiner.toByteArray();
+                writer.write(logs.get(i));
+                writer.write('\n');
+            }
+        };
     }
 
     ///..
-    public byte[] getRequestMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException, NumberFormatException {
+    public ResponseBodyCallback getRequestMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:
@@ -239,22 +241,21 @@ public final class ObservabilityService implements Closeable {
             }
         }
 
-        final FastAsciiJoiner json = new FastAsciiJoiner((((allStatusesSize * 6) + 3) << 1) + 4);
         final LineChartEntity rpsChart = new LineChartEntity(timeline, rpsDatasets);
         final LineChartEntity latencyChart = new LineChartEntity(timeline, latencyDatasets);
 
-        json.add("{\"rates\":");
-        rpsChart.appendBytes(json);
-        json.add(",");
-        json.add("\"latencies\":");
-        latencyChart.appendBytes(json);
-        json.add("}");
+        return writer -> {
 
-        return json.toByteArray();
+            writer.write("{\"rates\":");
+            rpsChart.stream(writer);
+            writer.write(",\"latencies\":");
+            latencyChart.stream(writer);
+            writer.write("}");
+        };
     }
 
     ///..
-    public byte[] getSystemMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException, NumberFormatException {
+    public ResponseBodyCallback getSystemMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:
@@ -321,12 +322,12 @@ public final class ObservabilityService implements Closeable {
             counter += bucketSize;
         }
 
-        final int numProbes = SystemMetricsAggregationEntity.probes.length;
+        final int numProbes = SystemMetricsAggregationEntity.getProbeNames().length;
         final LineChartEntry[] datasets = new LineChartEntry[numProbes];
 
         for(int i = 0; i < numProbes; i++) {
 
-            datasets[i] = new LineChartEntry(SystemMetricsAggregationEntity.probes[i], timelineLength);
+            datasets[i] = new LineChartEntry(SystemMetricsAggregationEntity.getProbeNames()[i], timelineLength);
         }
 
         for(int i = 0; i < timelineLength; i++) {
@@ -368,9 +369,7 @@ public final class ObservabilityService implements Closeable {
             "requestMetricsEquilibrium"
         };
 
-        final int numCharts = chartNames.length;
-        final FastAsciiJoiner json = new FastAsciiJoiner(165);
-        final LineChartEntity[] charts = new LineChartEntity[numCharts];
+        final LineChartEntity[] charts = new LineChartEntity[chartNames.length];
 
         charts[0] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[0]});
         charts[1] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[1]});
@@ -381,23 +380,31 @@ public final class ObservabilityService implements Closeable {
         charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[16]});
         charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[17]});
 
-        json.add("{");
+        return writer -> {
 
-        for(int i = 0; i < numCharts; i++) {
+            final int limit = chartNames.length - 1;
+            writer.write("{");
 
-            json.add("\"");
-            json.add(chartNames[i]);
-            json.add("\":");
-            charts[i].appendBytes(json);
-            json.add(",");
-        }
+            for(int i = 0; i < limit; i++) {
 
-        json.replaceLast("}");
-        return json.toByteArray();
+                writer.write("\"");
+                writer.write(chartNames[i]);
+                writer.write("\":");
+                charts[i].stream(writer);
+                writer.write(",");
+            }
+
+            writer.write("\"");
+            writer.write(chartNames[limit]);
+            writer.write("\":");
+            charts[limit].stream(writer);
+            writer.write("}");
+        };
     }
 
     ///..
-    public byte[] getCrawlMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException, NumberFormatException {
+    @SuppressWarnings("java:S9354")
+    public ResponseBodyCallback getCrawlMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:
@@ -444,31 +451,31 @@ public final class ObservabilityService implements Closeable {
             agent.setNumberOfCalls(agent.getNumberOfCalls() + 1);
         }
 
-        final FastAsciiJoiner joiner = new FastAsciiJoiner((crawlAggregation.size() * 36) + (userAgentAggregation.size() * 6) + 1);
         final List<CrawlAggregationEntity> sortedCrawls = new ArrayList<>(crawlAggregation.values());
         final List<UserAgentAggregationEntity> sortedUserAgents = new ArrayList<>(userAgentAggregation.values());
 
         sortedCrawls.sort((a, b) -> b.getNumberOfCalls() - a.getNumberOfCalls());
         sortedUserAgents.sort((a, b) -> b.getNumberOfCalls() - a.getNumberOfCalls());
 
-        for(final CrawlAggregationEntity sortedCrawl : sortedCrawls) {
+        return writer -> {
 
-            sortedCrawl.appendBytes(joiner);
+            final int sortedCrawlsLength = sortedCrawls.size();
+            final int sortedUserAgentsLength = sortedUserAgents.size();
 
-            if(sortedCrawl.getStatuses().isEmpty()) joiner.add("\n");
-            else joiner.replaceLast("\n");
-        }
+            for(int i = 0; i < sortedCrawlsLength; i++) {
 
-        joiner.add("\n");
+                sortedCrawls.get(i).stream(writer);
+                writer.write('\n');
+            }
 
-        for(final UserAgentAggregationEntity sortedUserAgent : sortedUserAgents) {
+            writer.write('\n');
 
-            sortedUserAgent.appendBytes(joiner);
-            joiner.add("\n");
-        }
+            for(int i = 0; i < sortedUserAgentsLength; i++) {
 
-        joiner.deleteLast();
-        return joiner.toByteArray();
+                sortedUserAgents.get(i).stream(writer);
+                writer.write('\n');
+            }
+        };
     }
 
     ///..
@@ -490,7 +497,7 @@ public final class ObservabilityService implements Closeable {
 
         while(!(this.currentSiphonReference.get().update(entity -> this.updateRequestMetrics(entity, exchange, status)))) {
 
-            GenericUtils.silentSleep(1);
+            GenericUtils.silentSleepNanos(100_000);
         }
 
         this.systemMetricsService.requestMetricCreated();
@@ -506,7 +513,7 @@ public final class ObservabilityService implements Closeable {
         requestMetricsEntity.setTimestamp(startTime);
         requestMetricsEntity.setLatency((int)(System.currentTimeMillis() - startTime));
         requestMetricsEntity.setPath(exchange.getPath());
-        requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT));
+        requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeaderName.USER_AGENT));
         requestMetricsEntity.setUnknown(exchange.getResource() == null);
         requestMetricsEntity.setHttpStatus((short)status.getCode());
     }
@@ -514,17 +521,55 @@ public final class ObservabilityService implements Closeable {
     ///..
     private List<String> validateAndExtractQuery(final HttpExchange exchange, final int numComponents) throws IllegalArgumentException {
 
-        final String query = GenericUtils.extractQueryParam(exchange.getPath(), "filter");
-        if(query == null) throw new IllegalArgumentException("Filter must be provided");
+        final String uri = exchange.getUri();
+        final int length = uri.length();
+        final String separator = ApplicationProperties.FIELD_SEPARATOR_URL_ENCODED;
+        final int separatorLength = separator.length();
 
-        final List<String> filter = GenericUtils.fastSplit(query, ApplicationProperties.FIELD_SEPARATOR);
+        final MutableString mutableString = new MutableString(length);
+        final List<String> components = new ArrayList<>(7);
 
-        if(filter.size() != numComponents) {
+        final int index = uri.indexOf("?filter=");
+        if(index == -1) throw new IllegalArgumentException("Query parameter 'filter' must be provided");
 
-            throw new IllegalArgumentException("Filter must have " + numComponents + " components, got '" + filter + "'");
+        int i = index + 8;
+
+        while(i < length) {
+
+            final char currentChar = uri.charAt(i++);
+            if(currentChar == '&') break;
+
+            if(currentChar == '%') {
+
+                mutableString.append(currentChar);
+                boolean correct = true;
+
+                for(int j = 0; j < separatorLength && i < length; j++) {
+
+                    final char separatorChar = uri.charAt(i++);
+
+                    if(separatorChar == separator.charAt(j)) mutableString.append(separatorChar);
+                    else correct = false;
+                }
+
+                if(correct) {
+
+                    mutableString.deleteLastChars(separatorLength + 1);
+                    components.add(mutableString.toString());
+                    mutableString.clear();
+                }
+            }
+
+            else {
+
+                mutableString.append(currentChar);
+            }
         }
 
-        return filter;
+        components.add(mutableString.toString());
+        if(components.size() != numComponents) throw new IllegalArgumentException("'filter' must have " + numComponents + " components");
+
+        return components;
     }
 
     ///..
@@ -541,9 +586,9 @@ public final class ObservabilityService implements Closeable {
                 previousSiphon = this.secondarySiphon;
             }
 
-            while(previousSiphon.isBusy()) {
+            while(previousSiphon.isUpdating()) {
 
-                GenericUtils.silentSleep(1);
+                GenericUtils.silentSleepNanos(100_000);
             }
 
             try {
@@ -553,7 +598,7 @@ public final class ObservabilityService implements Closeable {
 
             catch(final IOException exc) {
 
-                this.logger.error("Could not write to request metrics file because", exc);
+                this.logger.error("Could not write to request metrics file", exc);
             }
         }
     }
@@ -574,36 +619,38 @@ public final class ObservabilityService implements Closeable {
 
                 catch(final IOException exc) {
 
-                    this.logger.error("Could not write to system metrics file because", exc);
+                    this.logger.error("Could not write to system metrics file", exc);
                 }
             }
         }
     }
 
     ///..
-    private void retentionTask() {
+    private void retentionTask(final Duration retention) {
 
-        final long days = ApplicationProperties.OBSERVABILITY_DATA_RETENTION.toDays();
+        final long days = retention.toDays();
+        final LocalDateTime boundaryDate = LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID).minusDays(days).truncatedTo(ChronoUnit.HOURS);
+
         int numDeleted = 0;
 
-        numDeleted += this.applyRetention(LoggerRoot.getInstance().getLogFile(), days);
-        numDeleted += this.applyRetention(requestMetricsFile, days);
-        numDeleted += this.applyRetention(systemMetricsFile, days);
+        numDeleted += this.applyRetention(LoggerRoot.getInstance().getLogFile(), boundaryDate);
+        numDeleted += this.applyRetention(requestMetricsFile, boundaryDate);
+        numDeleted += this.applyRetention(systemMetricsFile, boundaryDate);
 
         if(numDeleted > 0) this.logger.info("Deleted " + numDeleted + " observability files");
     }
 
     ///..
-    private int applyRetention(final ObservabilityFile<?> observabilityFile, final long days) {
+    private int applyRetention(final ObservabilityFile<?> observabilityFile, final LocalDateTime boundaryDate) {
 
         try {
 
-            return observabilityFile.deleteAll(LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID).minusDays(days).truncatedTo(ChronoUnit.HOURS));
+            return observabilityFile.deleteAll(boundaryDate);
         }
 
         catch(final IOException exc) {
 
-            this.logger.error("Could not delete old files from '" + observabilityFile.toString() + "', because", exc);
+            this.logger.error("Could not delete old files from '" + observabilityFile.toString() + "'", exc);
             return 0;
         }
     }

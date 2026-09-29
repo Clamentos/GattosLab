@@ -39,7 +39,7 @@ public final class ResourceWalker {
 
         catch(final URISyntaxException exc) {
 
-            throw new IOException("Could not access URI because", exc);
+            throw new IOException("Could not access URI", exc);
         }
     }
 

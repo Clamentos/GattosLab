@@ -6,6 +6,7 @@ import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.filters.components.RateLimitEntry;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.http.server.Filter;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
@@ -16,7 +17,6 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -24,6 +24,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class RateLimitFilter extends Responder implements Filter {
 
     ///
+    private static final String BLOCKED_MESSAGE = "Rate limited";
+    private static final byte[] BLOCKED_MESSAGE_BYTES = BLOCKED_MESSAGE.getBytes();
+
+    ///.
     private final SquashingLogger squashingLogger;
 
     ///..
@@ -31,11 +35,13 @@ public final class RateLimitFilter extends Responder implements Filter {
     private final AtomicBoolean tooManyIps;
 
     ///..
+    private final int rateLimitAmount;
     private final int entryCounterStart;
 
     ///
     public RateLimitFilter(
 
+        final ApplicationProperties applicationProperties,
         final ObservabilityService observabilityService,
         final SquashingLogger squashingLogger,
         final BatchScheduler batchScheduler
@@ -47,6 +53,8 @@ public final class RateLimitFilter extends Responder implements Filter {
 
         this.rateLimitMap = new ConcurrentHashMap<>();
         this.tooManyIps = new AtomicBoolean();
+
+        this.rateLimitAmount = applicationProperties.getRateLimitAmount();
 
         this.entryCounterStart = (int)(ApplicationProperties.RATE_LIMIT_BLOCK_DURATION.toMillis() / batchScheduler.schedule(
 
@@ -69,7 +77,7 @@ public final class RateLimitFilter extends Responder implements Filter {
         final RateLimitEntry rateLimitEntry = this.rateLimitMap.computeIfAbsent(
 
             new HashCodedByteArray(exchange.getRemoteAddress()),
-            _ -> new RateLimitEntry(ApplicationProperties.RATE_LIMIT_AMOUNT, this.entryCounterStart)
+            _ -> new RateLimitEntry(this.rateLimitAmount, this.entryCounterStart)
         );
 
         if(rateLimitEntry.isRateLimited()) {
@@ -84,27 +92,27 @@ public final class RateLimitFilter extends Responder implements Filter {
     ///.
     private void respondRateLimited(final HttpExchange exchange) {
 
-        this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Rate limited", exchange));
-        super.respond(exchange, HttpStatus.TOO_MANY_REQUESTS, ApplicationProperties.RETRY_AFTER_HEADERS);
+        this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
+        super.respond(exchange, HttpStatus.TOO_MANY_REQUESTS, ApplicationProperties.RETRY_AFTER_HEADERS, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
         exchange.close();
     }
 
     ///..
     private void replenishTask() {
 
-        final Iterator<Entry<HashCodedByteArray, RateLimitEntry>> rateLimitEntries = this.rateLimitMap.entrySet().iterator();
+        final Iterator<RateLimitEntry> rateLimitEntries = this.rateLimitMap.values().iterator();
 
         while(rateLimitEntries.hasNext()) {
 
-            final RateLimitEntry rateLimitEntry = rateLimitEntries.next().getValue();
-            if(rateLimitEntry.replenish(ApplicationProperties.RATE_LIMIT_AMOUNT)) rateLimitEntries.remove();
+            final RateLimitEntry rateLimitEntry = rateLimitEntries.next();
+            if(rateLimitEntry.replenish(this.rateLimitAmount)) rateLimitEntries.remove();
         }
 
         final int uniqueIps = this.rateLimitMap.size();
 
         if(uniqueIps >= ApplicationProperties.MAX_IPS) {
 
-            this.squashingLogger.warning("Too many ips limit tripped " + ApplicationProperties.LOG_SQUASH_COUNTS_CHAR + " times");
+            this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Too many ips limit tripped"));
             this.tooManyIps.set(true);
         }
 

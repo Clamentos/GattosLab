@@ -13,7 +13,7 @@ import io.github.clamentos.gattoslab.observability.ObservabilityService;
 
 ///..
 import java.io.InputStream;
-import java.util.Map;
+import java.util.List;
 import java.util.zip.GZIPOutputStream;
 
 ///
@@ -33,12 +33,7 @@ public final class WebsiteHandler extends BasicHandler {
         if(super.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
         final String diskPath = resource.getDiskPath();
-
-        final Map<HttpHeader, byte[]> headers = resource.isCacheable() ?
-
-            ApplicationProperties.GZIP_CACHE_HEADERS :
-            ApplicationProperties.GZIP_HEADERS
-        ;
+        final List<HttpHeader> headers = resource.isCacheable() ? ApplicationProperties.GZIP_CACHE_HEADERS : ApplicationProperties.GZIP_HEADER;
 
         if(diskPath != null) {
 
@@ -57,9 +52,9 @@ public final class WebsiteHandler extends BasicHandler {
                 headers,
                 resource.getMimeType(),
 
-                outputStream -> {
+                writer -> {
 
-                    final GZIPOutputStream compressor = new GZIPOutputStream(outputStream);
+                    final GZIPOutputStream compressor = new GZIPOutputStream(writer);
 
                     rawDiskData.transferTo(compressor);
                     compressor.finish();

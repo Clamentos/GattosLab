@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
+import io.github.clamentos.gattoslab.datastructures.MutableString;
+
+///..
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,8 +27,7 @@ public class SiteCollapser {
     private static final String DESTINATION_ROOT = "merged";
 
     ///
-    @SuppressWarnings("unused")
-    public static void main(final String[] args) throws IOException {
+    public static void main() throws IOException {
 
         for(final String path : ResourceWalker.listSiteResourcePaths(SOURCE_ROOT)) {
 
@@ -89,7 +91,7 @@ public class SiteCollapser {
     ///..
     private static void concatenateCss(final Document html, final Path htmlPath) throws IOException {
 
-        final StringBuilder sb = new StringBuilder();
+        final MutableString sb = new MutableString(16);
 
         for(final Element stylesheetElem : html.getElementsByAttributeValue("rel", "stylesheet")) {
 

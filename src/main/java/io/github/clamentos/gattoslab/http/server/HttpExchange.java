@@ -4,17 +4,21 @@ package io.github.clamentos.gattoslab.http.server;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
 import io.github.clamentos.gattoslab.http.HttpHeader;
+import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.util.EnumMap;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 ///..
 import lombok.Getter;
@@ -36,21 +40,20 @@ public final class HttpExchange implements Closeable {
     private final String uri;
     private final String path;
 
-    private final Map<HttpHeader, String> requestHeaders;
-    private final Map<HttpHeader, byte[]> responseHeaders;
+    private final Map<HttpHeaderName, String> requestHeaders;
+    private final List<HttpHeader> responseHeaders;
 
-    private final SocketReader requestBody;
-    private final OutputStream outputStream;
+    private final SocketReader reader;
+    private final StreamWriter writer;
 
     ///..
-    @Setter
-    private Resource resource;
-
-    @Setter
-    private boolean isTracked;
-
-    private boolean isHandled;
+    @Setter private Resource resource;
     private HttpStatus responseStatus;
+
+    private final boolean isKeepAlive;
+
+    @Setter private boolean isTracked;
+    private boolean isHandled;
     private boolean forceClose;
 
     ///
@@ -60,9 +63,9 @@ public final class HttpExchange implements Closeable {
         final byte[] remoteAddress,
         final HttpMethod method,
         final String uri,
-        final Map<HttpHeader, String> requestHeaders,
-        final SocketReader requestBody,
-        final OutputStream outputStream
+        final Map<HttpHeaderName, String> requestHeaders,
+        final SocketReader reader,
+        final StreamWriter writer
     ) {
 
         this.requestId = requestId;
@@ -73,69 +76,107 @@ public final class HttpExchange implements Closeable {
         this.method = method;
         this.uri = uri;
 
-        final int queryIdx = uri.indexOf('?');
-        this.path = queryIdx > 0 ? uri.substring(0, queryIdx) : uri;
+        final int endOfPath = this.endOfPath(uri);
+        this.path = endOfPath > 0 ? uri.substring(0, endOfPath) : uri;
 
         this.requestHeaders = requestHeaders;
-        this.responseHeaders = new EnumMap<>(HttpHeader.class);
+        this.responseHeaders = new ArrayList<>();
 
-        this.requestBody = requestBody;
-        this.outputStream = outputStream;
+        this.reader = reader;
+        this.writer = writer;
 
         this.resource = null;
+        this.responseStatus = null;
+
         this.isTracked = false;
         this.isHandled = false;
-        this.responseStatus = null;
         this.forceClose = false;
+
+        final String connectionHeader = this.requestHeaders.get(HttpHeaderName.CONNECTION);
+
+        if(connectionHeader != null && connectionHeader.contains("close")) {
+
+            this.responseHeaders.add(ApplicationProperties.CLOSE_CONNECTION_HEADER);
+            this.isKeepAlive = false;
+        }
+
+        else {
+
+            this.responseHeaders.addAll(ApplicationProperties.KEEP_ALIVE_HEADERS);
+            this.isKeepAlive = true;
+        }
     }
 
     ///
-    public void respond(final HttpStatus status, final Map<HttpHeader, byte[]> headers, final MimeType mimeType, final Object body)
-    throws IOException {
+    public void respond(final HttpStatus status, final List<HttpHeader> headers, final MimeType mimeType, final Object body) throws IOException {
 
-        this.responseHeaders.putAll(ApplicationProperties.EXTRA_HEADERS);
-        this.responseHeaders.putAll(ApplicationProperties.NO_CACHE_HEADERS);
-        this.responseHeaders.putAll(headers);
+        this.responseHeaders.addAll(ApplicationProperties.EXTRA_HEADERS);
+        this.responseHeaders.addAll(headers);
 
-        if(mimeType != null) this.responseHeaders.put(HttpHeader.CONTENT_TYPE, mimeType.getValueForResponse());
+        this.responseHeaders.add(new HttpHeader(
+
+            HttpHeaderName.DATE,
+            DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime), GenericUtils.DEFAULT_ZONE_ID))
+        ));
+
+        if(this.forceClose) this.responseHeaders.add(ApplicationProperties.CLOSE_CONNECTION_HEADER);
+        if(mimeType != null) this.responseHeaders.add(mimeType.getValueForResponse());
 
         if(body != null) {
 
             if(body instanceof final byte[] byteBody) {
 
-                this.responseHeaders.put(HttpHeader.CONTENT_LENGTH, Integer.toString(byteBody.length).getBytes());
+                this.responseHeaders.add(new HttpHeader(HttpHeaderName.CONTENT_LENGTH, Integer.toString(byteBody.length)));
             }
 
             else if(body instanceof ResponseBodyCallback) {
 
-                this.responseHeaders.putAll(ApplicationProperties.TRANSFER_CHUNKED_HEADERS);
+                this.responseHeaders.add(ApplicationProperties.TRANSFER_CHUNKED_HEADER);
             }
         }
 
         else {
 
-            this.responseHeaders.put(HttpHeader.CONTENT_LENGTH, "0".getBytes());
+            this.responseHeaders.add(ApplicationProperties.NO_LENGTH_HEADER);
         }
 
         this.responseStatus = status;
-        this.outputStream.write(status.getValueForResponse());
+        this.writer.write(status.getValueForResponse());
 
-        for(final Entry<HttpHeader, byte[]> header : this.responseHeaders.entrySet()) {
+        final int length = this.responseHeaders.size();
 
-            this.outputStream.write(header.getKey().getValueForResponse());
-            this.outputStream.write(header.getValue());
-            this.outputStream.write("\r\n".getBytes());
+        for(int i = 0; i < length; i++) {
+
+            final HttpHeader header = this.responseHeaders.get(i);
+
+            this.writer.write(header.getName().getValueForResponse());
+            this.writer.write(header.getValue());
+            this.writer.write(ApplicationProperties.NEW_LINE_BYTES);
         }
 
-        this.outputStream.write("\r\n".getBytes());
+        this.writer.write(ApplicationProperties.NEW_LINE_BYTES);
 
         if(body != null) {
 
-            if(body instanceof final byte[] byteBody) this.outputStream.write(byteBody);
-            else if(body instanceof final ResponseBodyCallback bodyCallback) bodyCallback.writeBody(this.outputStream);
+            if(body instanceof final byte[] byteBody) {
+
+                this.writer.write(byteBody);
+                this.writer.flush();
+            }
+
+            else if(body instanceof final ResponseBodyCallback bodyCallback) {
+
+                this.writer.startChunked();
+                bodyCallback.writeBody(this.writer);
+                this.writer.endChunked();
+            }
         }
 
-        this.outputStream.flush();
+        else {
+
+            this.writer.flush();
+        }
+
         this.isHandled = true;
     }
 
@@ -144,6 +185,21 @@ public final class HttpExchange implements Closeable {
     public void close() {
 
         this.forceClose = true;
+    }
+
+    ///.
+    private int endOfPath(final String uri) {
+
+        if(uri == null) return -1;
+        final int length = uri.length();
+
+        for(int i = 0; i < length; i++) {
+
+            final char currentChar = uri.charAt(i);
+            if(currentChar == '?' || currentChar == '#') return i;
+        }
+
+        return -1;
     }
 
     ///

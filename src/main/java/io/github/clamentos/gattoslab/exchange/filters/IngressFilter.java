@@ -3,11 +3,14 @@ package io.github.clamentos.gattoslab.exchange.filters;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.IpV4Range;
+import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
 import io.github.clamentos.gattoslab.http.HttpHeader;
+import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.http.server.Filter;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
@@ -15,24 +18,29 @@ import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.util.List;
+import java.util.stream.Collectors;
 
 ///
 public final class IngressFilter extends Responder implements Filter {
 
     ///
+    private static final String BLOCKED_MESSAGE = "Blocked";
+    private static final byte[] BLOCKED_MESSAGE_BYTES = BLOCKED_MESSAGE.getBytes();
+
+    ///.
     private final SquashingLogger squashingLogger;
     private final ResourceMappings resourceMappings;
 
     ///..
     private final IpV4Range[] blockedIpV4s;
-    private final Entry<byte[], byte[]>[] blockedIpV6s;
+    private final Pair<byte[], byte[]>[] blockedIpV6s;
     private final String[] illegalUserAgentContains;
 
     ///..
-    private final Map<HttpHeader, byte[]> corsHeaders;
+    private final List<HttpHeader> corsHeaders;
 
     ///
     @SuppressWarnings("unchecked")
@@ -54,8 +62,8 @@ public final class IngressFilter extends Responder implements Filter {
             .stream()
             .map(e -> new IpV4Range(
 
-                GenericUtils.ipV4ToLong(e.getKey().getAddress()),
-                GenericUtils.ipV4ToLong(e.getValue().getAddress())
+                GenericUtils.ipV4ToLong(e.getA().getAddress()),
+                GenericUtils.ipV4ToLong(e.getB().getAddress())
             ))
             .toArray(IpV4Range[]::new)
         ;
@@ -63,18 +71,18 @@ public final class IngressFilter extends Responder implements Filter {
         this.blockedIpV6s = applicationProperties.getBlockedIpV6s()
 
             .stream()
-            .map(e -> Map.entry(e.getKey().getAddress(), e.getValue().getAddress()))
-            .toArray(Entry[]::new)
+            .map(e -> new Pair<>(e.getA().getAddress(), e.getB().getAddress()))
+            .toArray(Pair[]::new)
         ;
 
         this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
-        this.corsHeaders = ApplicationProperties.CORS_HEADERS;
+        this.corsHeaders = ApplicationProperties.CORS_HEADERS.stream().collect(Collectors.toCollection(ArrayList::new));
 
-        this.corsHeaders.put(
+        this.corsHeaders.add(new HttpHeader(
 
-            HttpHeader.ACCESS_CONTROL_ALLOW_ORIGIN,
-            GenericUtils.concatenateAsCsv(applicationProperties.getAllowedOrigins()).getBytes()
-        );
+            HttpHeaderName.ACCESS_CONTROL_ALLOW_ORIGIN,
+            GenericUtils.concatenateAsCsv(applicationProperties.getAllowedOrigins())
+        ));
     }
 
     ///
@@ -83,12 +91,10 @@ public final class IngressFilter extends Responder implements Filter {
 
         super.observabilityService.requestStarted();
 
-        final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
-        final byte[] rawAddress = exchange.getRemoteAddress();
-
+        final String userAgent = exchange.getRequestHeaders().get(HttpHeaderName.USER_AGENT);
         exchange.setResource(this.resourceMappings.get(exchange.getPath()));
 
-        if(this.isBlocked(rawAddress)) {
+        if(this.isBlocked(exchange.getRemoteAddress())) {
 
             this.respondBlocked(exchange);
             return false;
@@ -133,9 +139,9 @@ public final class IngressFilter extends Responder implements Filter {
 
         if(this.blockedIpV6s.length > 0) {
 
-            for(final Entry<byte[], byte[]> range : this.blockedIpV6s) {
+            for(final Pair<byte[], byte[]> range : this.blockedIpV6s) {
 
-                if(Arrays.compare(address, range.getKey()) >= 0 && Arrays.compare(address, range.getValue()) <= 0) return true;
+                if(Arrays.compare(address, range.getA()) >= 0 && Arrays.compare(address, range.getB()) <= 0) return true;
             }
 
             return false;
@@ -147,8 +153,8 @@ public final class IngressFilter extends Responder implements Filter {
     ///..
     private void respondBlocked(final HttpExchange exchange) {
 
-        this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Blocked", exchange));
-        super.respond(exchange, HttpStatus.FORBIDDEN);
+        this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
+        super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
         exchange.close();
     }
 

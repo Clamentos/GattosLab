@@ -105,7 +105,7 @@ public final class SystemMetricsService implements Closeable {
         this.enableRecording("jdk.GarbageCollection", event -> {
 
             this.gcCounts.incrementAndGet();
-            this.gcPause.addAndGet(event.getDuration().get(ChronoUnit.NANOS) / 1000000);
+            this.gcPause.addAndGet(event.getDuration().get(ChronoUnit.NANOS) / 1_000_000);
         });
 
         this.enablePeriodicRecording("jdk.CPULoad", samplingPeriod, event -> {
@@ -156,7 +156,7 @@ public final class SystemMetricsService implements Closeable {
 
             catch(final IOException exc) {
 
-                this.logger.error("Could not get filesystem usage because", exc);
+                this.logger.error("Could not get filesystem usage", exc);
             }
 
             return new SystemMetricsEntity(

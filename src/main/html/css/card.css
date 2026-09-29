@@ -63,10 +63,9 @@
     justify-content: space-between;
     width: 100%;
     padding-top: 15px;
-    border-top: 1px solid #ffb86c;
+    border-top: 1px solid #ffb86cbf;
 }
 
-/* Mobile screens */
 @media screen and (max-width: 500px) {
 
     .card {

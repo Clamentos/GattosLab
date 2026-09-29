@@ -2,48 +2,49 @@ package io.github.clamentos.gattoslab.http.server;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.datastructures.MutableString;
 
 ///..
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 ///
 public final class SocketReader {
 
     ///
-    private final ByteBuffer buffer;
+    private final byte[] buffer;
     private final InputStream inputStream;
 
+    ///..
     private int maxAllowed;
     private int usableBytes;
+    private int position;
 
     ///
     public SocketReader(final InputStream inputStream, final int size) {
 
-        this.buffer = ByteBuffer.allocate(size);
+        this.buffer = new byte[size];
         this.inputStream = inputStream;
 
         this.maxAllowed = ApplicationProperties.MAX_REQUEST_SIZE;
         this.usableBytes = 0;
+        this.position = 0;
     }
 
     ///
     public CharSequence readLine() throws IOException {
 
-        final StringBuilder stringBuilder = new StringBuilder(80);
+        final MutableString mutableString = new MutableString(80);
+        boolean crFound = false;
 
         while(true) {
 
-            boolean crFound = false;
             if(this.usableBytes == 0 && !this.fill()) return null;
 
             while(this.usableBytes > 0) {
 
-                final byte currentByte = this.buffer.get();
-
+                final byte currentByte = this.buffer[this.position++];
                 this.usableBytes--;
-                stringBuilder.append((char)currentByte);
 
                 if(currentByte == '\r') {
 
@@ -52,9 +53,11 @@ public final class SocketReader {
 
                 else if(currentByte == '\n' && crFound) {
 
-                    stringBuilder.setLength(stringBuilder.length() - 2);
-                    return stringBuilder;
+                    mutableString.deleteLastChars(1);
+                    return mutableString;
                 }
+
+                mutableString.append(currentByte);
             }
         }
     }
@@ -68,13 +71,13 @@ public final class SocketReader {
     ///.
     private boolean fill() throws IOException {
 
-        if(this.maxAllowed <= 0) throw new IOException("Maximum request size exceeded");
+        if(this.maxAllowed <= 0) throw new RequestTooBigException();
 
-        this.buffer.rewind();
-        final int bytesRead = this.inputStream.read(this.buffer.array(), this.buffer.position(), this.buffer.remaining());
 
+        final int bytesRead = this.inputStream.read(this.buffer, 0, this.buffer.length);
         if(bytesRead == -1) return false;
 
+        this.position = 0;
         this.maxAllowed -= bytesRead;
         this.usableBytes += bytesRead;
 

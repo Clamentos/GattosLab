@@ -5,7 +5,7 @@
     padding: 0px;
     font-family: 'Courier New', Courier, monospace;
     font-size: 18px;
-    color: white;
+    color: #ffffff;
 }
 
 a {
@@ -109,7 +109,7 @@ button {
 
 .error-toast {
 
-    width: 500px;
+    width: 83%;
     background-color: #14151b;
     border: 1px solid #bd93f9bf;
     border-radius: 15px;
@@ -134,7 +134,6 @@ button {
     bottom: 30px;
 }
 
-/* Mobile screens */
 @media screen and (max-width: 1000px) {
 
     figcaption {
@@ -146,16 +145,24 @@ button {
 
         padding: 80px 30px;
     }
+
+    #error-container {
+
+        width: 420px;
+        margin-left: -210px;
+    }
 }
 
 @keyframes fadein {
 
     from {
+
         opacity: 0;
         transform: translateY(10px);
     }
 
     to {
+
         opacity: 1;
         transform: translateY(0);
     }
@@ -164,11 +171,13 @@ button {
 @keyframes fadeout {
 
     from {
+
         opacity: 1;
         transform: translateY(0);
     }
 
     to {
+
         opacity: 0;
         transform: translateY(10px);
     }

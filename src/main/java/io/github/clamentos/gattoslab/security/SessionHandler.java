@@ -2,20 +2,15 @@ package io.github.clamentos.gattoslab.security;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.exchange.handling.BasicHandler;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
 import io.github.clamentos.gattoslab.exchange.handling.components.Api;
-import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
-import io.github.clamentos.gattoslab.utils.GenericUtils;
-
-///..
-import java.util.List;
-import java.util.Map;
 
 ///
 public final class SessionHandler extends BasicHandler {
@@ -46,16 +41,18 @@ public final class SessionHandler extends BasicHandler {
             case LOGIN:
 
                 if(super.rejectMethodNotAllowed(exchange, HttpMethod.POST)) return;
-                final SecurityFailure securityFailure = this.sessionService.login(exchange);
+
+                final Pair<SecurityFailure, Long> loginResult = this.sessionService.login(exchange);
+                final SecurityFailure securityFailure = loginResult.getA();
 
                 if(securityFailure == null) {
 
-                    super.respond(exchange, HttpStatus.OK);
+                    super.respond(exchange, HttpStatus.OK, MimeType.TEXT, Long.toString(loginResult.getB()).getBytes());
                 }
 
                 else {
 
-                    super.respond(exchange, HttpStatus.UNAUTHORIZED, Map.of(), MimeType.TEXT, securityFailure.getMessage());
+                    super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
                     exchange.close();
                 }
 
@@ -64,17 +61,8 @@ public final class SessionHandler extends BasicHandler {
             case LOGOUT:
 
                 if(super.rejectMethodNotAllowed(exchange, HttpMethod.DELETE)) return;
-                final List<String> cookies = GenericUtils.fastSplit(exchange.getRequestHeaders().get(HttpHeader.COOKIE), ';');
 
-                if(cookies == null || cookies.isEmpty()) {
-
-                    this.respond(exchange, HttpStatus.OK, ApplicationProperties.CLEAR_SITE_DATA_HEADERS);
-                    exchange.close();
-
-                    return;
-                }
-
-                this.sessionService.logout(cookies);
+                this.sessionService.logout(exchange);
                 super.respond(exchange, HttpStatus.OK, ApplicationProperties.CLEAR_SITE_DATA_HEADERS);
                 exchange.close();
 
@@ -83,7 +71,7 @@ public final class SessionHandler extends BasicHandler {
             case GET_SESSIONS:
 
                 if(super.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
-                super.respond(exchange, HttpStatus.OK, Map.of(), MimeType.TEXT, this.sessionService.getSessions());
+                super.respond(exchange, HttpStatus.OK, MimeType.TEXT, this.sessionService.getSessions());
 
             return;
 

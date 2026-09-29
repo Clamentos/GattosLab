@@ -13,20 +13,27 @@ import lombok.Getter;
 public enum HttpStatus {
 
     ///
-    OK(200, "HTTP/1.1 200 OK\r\n".getBytes()),
-    NO_CONTENT(204, "HTTP/1.1 204 No Content\r\n".getBytes()),
-    SEE_OTHER(303, "HTTP/1.1 303 See Other\r\n".getBytes()),
-    BAD_REQUEST(400, "HTTP/1.1 400 Bad Request\r\n".getBytes()),
-    UNAUTHORIZED(401, "HTTP/1.1 401 Unauthorized\r\n".getBytes()),
-    FORBIDDEN(403, "HTTP/1.1 403 Forbidden\r\n".getBytes()),
-    NOT_FOUND(404, "HTTP/1.1 404 Not Found\r\n".getBytes()),
-    METHOD_NOT_ALLOWED(405, "HTTP/1.1 405 Method Not Allowed\r\n".getBytes()),
-    TOO_MANY_REQUESTS(429, "HTTP/1.1 429 Too Many Requests\r\n".getBytes()),
-    INTERNAL_SERVER_ERROR(500, "HTTP/1.1 500 Internal Server Error\r\n".getBytes()),
-    SERVICE_UNAVAILABLE(503, "HTTP/1.1 503 Service Unavailable\r\n".getBytes()),
+    OK(200, "HTTP/1.1 200 OK\r\n"),
+    NO_CONTENT(204, "HTTP/1.1 204 No Content\r\n"),
+    SEE_OTHER(303, "HTTP/1.1 303 See Other\r\n"),
+    BAD_REQUEST(400, "HTTP/1.1 400 Bad Request\r\n"),
+    UNAUTHORIZED(401, "HTTP/1.1 401 Unauthorized\r\n"),
+    FORBIDDEN(403, "HTTP/1.1 403 Forbidden\r\n"),
+    NOT_FOUND(404, "HTTP/1.1 404 Not Found\r\n"),
+    METHOD_NOT_ALLOWED(405, "HTTP/1.1 405 Method Not Allowed\r\n"),
+    CONTENT_TOO_LARGE(413, "HTTP/1.1 413 Content Too Large\r\n"),
+    UNPROCESSABLE(422, "HTTP/1.1 422 Unprocessable Content\r\n"),
+    TOO_MANY_REQUESTS(429, "HTTP/1.1 429 Too Many Requests\r\n"),
+    INTERNAL_SERVER_ERROR(500, "HTTP/1.1 500 Internal Server Error\r\n"),
+    SERVICE_UNAVAILABLE(503, "HTTP/1.1 503 Service Unavailable\r\n"),
+    HTTP_VERSION_NOT_SUPPORTED(505, "HTTP/1.1 HTTP Version Not Supported\r\n"),
 
     ///..
-    TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n".getBytes());
+    TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n");
+
+    ///
+    private final int code;
+    private final String valueForResponse;
 
     ///
     public static HttpStatus decode(final int code) {
@@ -41,18 +48,17 @@ public enum HttpStatus {
             case 403: return HttpStatus.FORBIDDEN;
             case 404: return HttpStatus.NOT_FOUND;
             case 405: return HttpStatus.METHOD_NOT_ALLOWED;
+            case 413: return HttpStatus.CONTENT_TOO_LARGE;
+            case 422: return HttpStatus.UNPROCESSABLE;
             case 429: return HttpStatus.TOO_MANY_REQUESTS;
             case 500: return HttpStatus.INTERNAL_SERVER_ERROR;
             case 503: return HttpStatus.SERVICE_UNAVAILABLE;
+            case 505: return HttpStatus.HTTP_VERSION_NOT_SUPPORTED;
             case 599: return HttpStatus.TRUNCATED;
 
             default: return null;
         }
     }
-
-    ///
-    private final int code;
-    private final byte[] valueForResponse;
 
     ///
 }

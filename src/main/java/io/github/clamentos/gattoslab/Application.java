@@ -28,13 +28,18 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 
 ///
 public class Application {
 
     ///
     private static final Logger logger = new Logger();
-    private static ResourceMappings resourceMappingsForTests = null;
+
+    ///..
+    private static final AtomicReference<ResourceMappings> resourceMappingsForTests = new AtomicReference<>();
+    private static final AtomicReference<ApplicationProperties> applicationPropertiesForTests = new AtomicReference<>();
 
     ///
     public static void main(final String[] args) {
@@ -44,9 +49,9 @@ public class Application {
             start(args);
         }
 
-        catch(final Exception exc) {
+        catch(final GeneralSecurityException | IOException | RuntimeException exc) {
 
-            logger.error("Could not start because", exc);
+            logger.error("Could not start", exc);
         }
     }
 
@@ -72,11 +77,11 @@ public class Application {
         final SquashingLogger squashingLogger = new SquashingLogger(batchScheduler);
         shutdownHook.add(squashingLogger, classPriorities.getPriority(SquashingLogger.class));
 
-        final ObservabilityService observabilityService = new ObservabilityService(batchScheduler);
+        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, batchScheduler);
         shutdownHook.add(observabilityService, classPriorities.getPriority(ObservabilityService.class));
 
-        final ResourceMappings resourceMappings = new ResourceMappings();
-        final SessionService sessionService = new SessionService(applicationProperties, batchScheduler);
+        final ResourceMappings resourceMappings = new ResourceMappings(applicationProperties);
+        final SessionService sessionService = new SessionService(squashingLogger, applicationProperties, batchScheduler);
         final ExceptionHandler exceptionHandler = new ExceptionHandler(observabilityService);
         final WebsiteHandler websiteHandler = new WebsiteHandler(observabilityService, exceptionHandler);
         final ObservabilityHandler observabilityHandler = new ObservabilityHandler(observabilityService, exceptionHandler);
@@ -90,7 +95,7 @@ public class Application {
             resourceMappings
         );
 
-        final RateLimitFilter rateLimitFilter = new RateLimitFilter(observabilityService, squashingLogger, batchScheduler);
+        final RateLimitFilter rateLimitFilter = new RateLimitFilter(applicationProperties, observabilityService, squashingLogger, batchScheduler);
 
         final AuthorizationFilter authorizationFilter = new AuthorizationFilter(
 
@@ -111,13 +116,21 @@ public class Application {
         );
 
         shutdownHook.add(requestExchanger, classPriorities.getPriority(ServerContainer.class));
-        resourceMappingsForTests = resourceMappings;
+
+        resourceMappingsForTests.set(resourceMappings);
+        applicationPropertiesForTests.set(applicationProperties);
     }
 
     ///..
     public static ResourceMappings exposeMappingsForTests() {
 
-        return resourceMappingsForTests;
+        return resourceMappingsForTests.get();
+    }
+
+    ///..
+    public static ApplicationProperties exposePropertiesForTests() {
+
+        return applicationPropertiesForTests.get();
     }
 
     ///.
@@ -131,9 +144,9 @@ public class Application {
 
         else {
 
-            final String profileLower = profile.toLowerCase();
+            final String profileLower = profile.toLowerCase(Locale.US);
 
-            if(!profileLower.equals("dev") && !profileLower.equals("prod")) {
+            if(!"dev".equals(profileLower) && !"prod".equals(profileLower) && !"test".equals(profileLower)) {
 
                 logger.warning("Unknown profile '" + profile + "', defaulting to dev");
                 return new ApplicationProperties("dev");

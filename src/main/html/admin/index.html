@@ -5,6 +5,7 @@
 
         <meta charset = "utf-8"/>
         <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
+        <meta name = "description" content = "Admin site home page."/>
 
         <link rel = "stylesheet" href = "../css/base.css"/>
         <link rel = "stylesheet" href = "../css/header.css"/>
@@ -24,14 +25,14 @@
             <div class = "nav-container">
 
                 <div class = "nav-item">
-                    <img src = "../images/github-logo.svg" class = "nav-icon" alt = "GitHub logo"/>
+                    <img class = "nav-icon" src = "../images/github-logo.svg" alt = "GitHub logo"/>
                     <a href = "https://github.com/Clamentos" target = "_blank">Follow me on GitHub</a>
                 </div>
 
                 <div class = "nav-item">
-                    <button class = "logout-button" onclick = "logout('ADMIN', '../login.html')">
+                    <button class = "logout-button" onclick = "logout('../login.html')">
                         <img src = "../images/logout-img.svg" alt = ""/>
-                        Logout
+                        <div id = "logout-text">Logout</div>
                     </button>
                 </div>
 
@@ -59,7 +60,7 @@
                 <div class = "card">
 
                     <div class = "card-header" style = "padding: 20px 0px">
-                        <img src = "./images/metrics-img.svg" alt = ""/>
+                        <img src = "./images/request-metrics-img.svg" alt = ""/>
                     </div>
 
                     <div class = "card-content-container">
@@ -83,7 +84,7 @@
                 <div class = "card">
 
                     <div class = "card-header" style = "padding: 20px 0px">
-                        <img src = "./images/metrics-img.svg" alt = ""/>
+                        <img src = "./images/system-metrics-img.svg" alt = ""/>
                     </div>
 
                     <div class = "card-content-container">
@@ -91,7 +92,7 @@
                         <h1 class = "card-title">System metrics</h1>
 
                         <p class = "card-description">
-                            View the site server resource usage, such as JVM memory and cpu load.
+                            View the site server resource usage, such as JVM memory and CPU load.
                         </p>
 
                         <div class = "card-footer-container">
@@ -131,12 +132,12 @@
                 <div class = "card">
 
                     <div class = "card-header" style = "padding: 35px 0px">
-                        <img src = "./images/invocations-img.svg" alt = ""/>
+                        <img src = "./images/crawls-img.svg" alt = ""/>
                     </div>
 
                     <div class = "card-content-container">
 
-                        <h1 class = "card-title">Invocations</h1>
+                        <h1 class = "card-title">Crawls</h1>
 
                         <p class = "card-description">
                             View the site requested paths, including non existing ones, and user agents.
@@ -144,7 +145,7 @@
 
                         <div class = "card-footer-container">
                             <div class = "card-footer">
-                                <a href = "./observability/invocations.html" target = "_blank">Goto invocations</a>
+                                <a href = "./observability/crawls.html" target = "_blank">Goto crawls</a>
                             </div>
                         </div>
 
@@ -163,7 +164,7 @@
                         <h1 class = "card-title">Sessions</h1>
 
                         <p class = "card-description">
-                            View the session metadata of the currently logged ADMIN users.
+                            View the session metadata of the currently logged administrator users.
                         </p>
 
                         <div class = "card-footer-container">
