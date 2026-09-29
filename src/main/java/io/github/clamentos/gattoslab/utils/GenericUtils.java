@@ -3,16 +3,19 @@ package io.github.clamentos.gattoslab.utils;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 
 ///..
+import java.io.IOException;
 import java.lang.Thread.Builder.OfVirtual;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -40,7 +43,7 @@ public final class GenericUtils {
 
             composeAddressString(exchange.getRemoteAddress()) +
             ApplicationProperties.FINGERPRINT_SEPARATOR +
-            normalizedForObservability(exchange.getRequestHeaders().get(HttpHeaderName.USER_AGENT))
+            normalizedForObservability(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT))
         ;
     }
 
@@ -188,6 +191,33 @@ public final class GenericUtils {
     public static String concatenateAsCsv(final Collection<?> values) {
 
         return values.stream().map(Objects::toString).collect(Collectors.joining(", "));
+    }
+
+    ///..
+    public static String headerToString(final Map<HttpHeader, String> headers) {
+
+        final MutableString mutableString = new MutableString(100);
+
+        for(final Entry<HttpHeader, String> header : headers.entrySet()) {
+
+            mutableString.append(new String(header.getKey().getValueForResponse()));
+            mutableString.append(header.getValue());
+            mutableString.append("\r\n");
+        }
+
+        return mutableString.toString();
+    }
+
+    ///..
+    public static boolean isExceptionNotable(final Throwable exc) {
+
+        final String msg = exc.getMessage();
+
+        return
+
+            !(exc instanceof IOException) ||
+            (msg != null && !msg.contains("closed") && !msg.contains("reset") && !msg.contains("interrupt") && !msg.contains("pipe"))
+        ;
     }
 
     ///.

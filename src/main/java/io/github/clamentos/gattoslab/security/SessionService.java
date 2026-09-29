@@ -5,7 +5,6 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.http.HttpHeader;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -82,7 +81,7 @@ public final class SessionService {
     ///
     public Pair<SecurityFailure, Long> login(final HttpExchange exchange) {
 
-        if(!this.loginPassword.equals(exchange.getRequestHeaders().get(HttpHeaderName.AUTHORIZATION))) {
+        if(!this.loginPassword.equals(exchange.getRequestHeaders().get(HttpHeader.AUTHORIZATION))) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Login failed for", exchange));
             GenericUtils.silentSleep(ApplicationProperties.LOGIN_FAILURE_PAUSE_DURATION.toMillis());
@@ -115,11 +114,11 @@ public final class SessionService {
             expiration
         );
 
-        exchange.getResponseHeaders().add(new HttpHeader(
+        exchange.getResponseHeaders().put(
 
-            HttpHeaderName.SET_COOKIE,
+            HttpHeader.SET_COOKIE,
             (ApplicationProperties.SESSION_COOKIE_NAME + "=" + session.getSessionId() + this.cookieProperties + " Max-Age=" + (duration / 1000))
-        ));
+        );
 
         this.sessions.put(session.getSessionId(), session);
         this.logger.info("Login successfull for " + GenericUtils.composeFingerprint(exchange));
@@ -130,7 +129,7 @@ public final class SessionService {
     ///..
     public SecurityFailure isAllowed(final HttpExchange exchange) {
 
-        final String cookies = exchange.getRequestHeaders().get(HttpHeaderName.COOKIE);
+        final String cookies = exchange.getRequestHeaders().get(HttpHeader.COOKIE);
         if(cookies == null || cookies.isEmpty()) return SecurityFailure.INVALID_COOKIE_HEADER;
 
         final MutableString sessionId = this.extractSessionIdCookie(cookies);
@@ -147,10 +146,10 @@ public final class SessionService {
     ///..
     public void logout(final HttpExchange exchange) {
 
-        final String cookies = exchange.getRequestHeaders().get(HttpHeaderName.COOKIE);
+        final String cookies = exchange.getRequestHeaders().get(HttpHeader.COOKIE);
         if(cookies == null || cookies.isEmpty()) return;
 
-        if(this.sessions.remove(this.extractSessionIdCookie(exchange.getRequestHeaders().get(HttpHeaderName.COOKIE))) != null) {
+        if(this.sessions.remove(this.extractSessionIdCookie(exchange.getRequestHeaders().get(HttpHeader.COOKIE))) != null) {
 
             this.logger.info("Logout successfull for " + GenericUtils.composeFingerprint(exchange));
             this.sessionCounter.decrementAndGet();

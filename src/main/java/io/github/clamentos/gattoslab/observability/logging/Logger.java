@@ -49,6 +49,12 @@ public final class Logger {
     }
 
     ///..
+    public void warning(final String message, final String callingMethodOverride) {
+
+        this.loggerRoot.warn(this.name + callingMethodOverride, message, null);
+    }
+
+    ///..
     public void warning(final String message, final Throwable exception) {
 
         this.loggerRoot.warn(this.name + this.getCallerMethod(), message, exception);

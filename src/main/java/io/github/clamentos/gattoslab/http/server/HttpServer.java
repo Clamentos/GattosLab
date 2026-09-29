@@ -3,7 +3,9 @@ package io.github.clamentos.gattoslab.http.server;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.exceptions.MalformedRequestException;
+import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -41,18 +43,16 @@ public final class HttpServer implements Closeable {
     private static final byte[] RESPONSE_FOR_MALFORMED = (
 
         HttpStatus.BAD_REQUEST.getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getName().getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getValue() +
-        "\r\n\r\n"
+        GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
+        "\r\n"
 
     ).getBytes();
 
     private static final byte[] RESPONSE_FOR_TOO_BIG = (
 
         HttpStatus.CONTENT_TOO_LARGE.getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getName().getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getValue() +
-        "\r\n\r\n"
+        GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
+        "\r\n"
 
     ).getBytes();
 
@@ -289,13 +289,13 @@ public final class HttpServer implements Closeable {
             throw new MalformedRequestException("Bad first line");
         }
 
-        final Map<HttpHeaderName, String> headers = new EnumMap<>(HttpHeaderName.class);
+        final Map<HttpHeader, String> headers = new EnumMap<>(HttpHeader.class);
         CharSequence line;
 
         while((line = reader.readLine()) != null && !line.isEmpty()) {
 
             final String[] headerSplits = this.splitHeader(line, socket);
-            final HttpHeaderName header = HttpHeaderName.decode(headerSplits[0]);
+            final HttpHeader header = HttpHeader.decode(headerSplits[0]);
 
             if(header != null) headers.put(header, headerSplits[1]);
         }
@@ -363,30 +363,15 @@ public final class HttpServer implements Closeable {
     ///..
     private void logException(final Exception exc) {
 
-        switch(exc) {
+        if(!(exc instanceof SocketTimeoutException) && !(exc instanceof SSLException)) {
 
-            case final SocketTimeoutException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Socket timed-out"));
-            case final SSLException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("SSL error"));
-            case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.getMessage()));
-            case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
+            switch(exc) {
 
-            case final IOException _ -> {
+                case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.getMessage()));
+                case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
 
-                final String message = exc.getMessage();
-
-                if(
-                    message != null &&
-                    !message.contains("closed") &&
-                    !message.contains("reset") &&
-                    !message.contains("interrupt") &&
-                    !message.contains("pipe")
-                ) {
-
-                    this.logger.error("Uncaught exception", exc);
-                }
+                default -> { if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Uncaught exception", exc); }
             }
-
-            default -> this.logger.error("Uncaught exception", exc);
         }
     }
 
