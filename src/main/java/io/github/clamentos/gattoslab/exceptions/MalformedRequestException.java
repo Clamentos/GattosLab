@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.http.server;
+package io.github.clamentos.gattoslab.exceptions;
 
 ///
 import java.io.IOException;

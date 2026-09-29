@@ -6,7 +6,7 @@ import io.github.clamentos.gattoslab.datastructures.IpV4Range;
 import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
@@ -38,7 +38,7 @@ public final class IngressFilter extends Responder implements Filter {
     private final String[] illegalUserAgentContains;
 
     ///..
-    private final Map<HttpHeaderName, String> corsHeaders;
+    private final Map<HttpHeader, String> corsHeaders;
 
     ///
     @SuppressWarnings("unchecked")
@@ -75,12 +75,12 @@ public final class IngressFilter extends Responder implements Filter {
 
         this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
 
-        this.corsHeaders = new EnumMap<>(HttpHeaderName.class);
+        this.corsHeaders = new EnumMap<>(HttpHeader.class);
         this.corsHeaders.putAll(ApplicationProperties.CORS_HEADERS);
 
         this.corsHeaders.put(
 
-            HttpHeaderName.ACCESS_CONTROL_ALLOW_ORIGIN,
+            HttpHeader.ACCESS_CONTROL_ALLOW_ORIGIN,
             GenericUtils.concatenateAsCsv(applicationProperties.getAllowedOrigins())
         );
     }
@@ -91,7 +91,7 @@ public final class IngressFilter extends Responder implements Filter {
 
         super.observabilityService.requestStarted();
 
-        final String userAgent = exchange.getRequestHeaders().get(HttpHeaderName.USER_AGENT);
+        final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
         exchange.setResource(this.resourceMappings.get(exchange.getPath()));
 
         if(this.isBlocked(exchange.getRemoteAddress())) {

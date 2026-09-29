@@ -13,7 +13,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public enum HttpHeaderName {
+public enum HttpHeader {
 
     ///
     ACCESS_CONTROL_ALLOW_CREDENTIALS("Access-Control-Allow-Credentials: ".getBytes()),
@@ -43,16 +43,16 @@ public enum HttpHeaderName {
     private final byte[] valueForResponse;
 
     ///
-    public static HttpHeaderName decode(final String value) {
+    public static HttpHeader decode(final String value) {
 
         switch(value.toLowerCase(Locale.US)) {
 
-            case "authorization": return HttpHeaderName.AUTHORIZATION;
-            case "content-length": return HttpHeaderName.CONTENT_LENGTH;
-            case "cookie": return HttpHeaderName.COOKIE;
-            case "connection": return HttpHeaderName.CONNECTION;
-            case "transfer-encoding": return HttpHeaderName.TRANSFER_ENCODING;
-            case "user-agent": return HttpHeaderName.USER_AGENT;
+            case "authorization": return HttpHeader.AUTHORIZATION;
+            case "content-length": return HttpHeader.CONTENT_LENGTH;
+            case "cookie": return HttpHeader.COOKIE;
+            case "connection": return HttpHeader.CONNECTION;
+            case "transfer-encoding": return HttpHeader.TRANSFER_ENCODING;
+            case "user-agent": return HttpHeader.USER_AGENT;
 
             default: return null;
         }

@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.http.server;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
+import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
 
 ///..
 import java.io.IOException;

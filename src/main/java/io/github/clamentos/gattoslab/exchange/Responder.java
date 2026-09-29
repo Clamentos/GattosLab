@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.exchange;
 
 ///
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
@@ -37,7 +37,7 @@ public abstract class Responder {
     }
 
     ///..
-    protected void respond(final HttpExchange exchange, final HttpStatus status, final Map<HttpHeaderName, String> headers) {
+    protected void respond(final HttpExchange exchange, final HttpStatus status, final Map<HttpHeader, String> headers) {
 
         this.respond(exchange, status, headers, null, (byte[])null);
     }
@@ -53,7 +53,7 @@ public abstract class Responder {
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final Map<HttpHeaderName, String> headers,
+        final Map<HttpHeader, String> headers,
         final MimeType mimeType,
         final byte[] body
     ) {
@@ -72,7 +72,7 @@ public abstract class Responder {
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final Map<HttpHeaderName, String> headers,
+        final Map<HttpHeader, String> headers,
         final MimeType mimeType,
         final ResponseBodyCallback body
     ) {
@@ -85,7 +85,7 @@ public abstract class Responder {
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final Map<HttpHeaderName, String> headers,
+        final Map<HttpHeader, String> headers,
         final MimeType mimeType,
         final Object body
     ) {

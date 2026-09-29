@@ -17,21 +17,21 @@ import lombok.Getter;
 public enum MimeType {
 
     ///
-    HTML(Map.of(HttpHeaderName.CONTENT_TYPE, "text/html")),
-    CSS(Map.of(HttpHeaderName.CONTENT_TYPE, "text/css")),
-    PNG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/png")),
-    JPG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/jpg")),
-    JPEG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/jpeg")),
-    SVG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/svg+xml")),
-    XML(Map.of(HttpHeaderName.CONTENT_TYPE, "application/xml")),
-    TEXT(Map.of(HttpHeaderName.CONTENT_TYPE, "text/plain")),
-    ICO(Map.of(HttpHeaderName.CONTENT_TYPE, "image/x-icon")),
-    GIF(Map.of(HttpHeaderName.CONTENT_TYPE, "image/gif")),
-    JS(Map.of(HttpHeaderName.CONTENT_TYPE, "application/javascript")),
-    JSON(Map.of(HttpHeaderName.CONTENT_TYPE, "application/json"));
+    HTML(Map.of(HttpHeader.CONTENT_TYPE, "text/html")),
+    CSS(Map.of(HttpHeader.CONTENT_TYPE, "text/css")),
+    PNG(Map.of(HttpHeader.CONTENT_TYPE, "image/png")),
+    JPG(Map.of(HttpHeader.CONTENT_TYPE, "image/jpg")),
+    JPEG(Map.of(HttpHeader.CONTENT_TYPE, "image/jpeg")),
+    SVG(Map.of(HttpHeader.CONTENT_TYPE, "image/svg+xml")),
+    XML(Map.of(HttpHeader.CONTENT_TYPE, "application/xml")),
+    TEXT(Map.of(HttpHeader.CONTENT_TYPE, "text/plain")),
+    ICO(Map.of(HttpHeader.CONTENT_TYPE, "image/x-icon")),
+    GIF(Map.of(HttpHeader.CONTENT_TYPE, "image/gif")),
+    JS(Map.of(HttpHeader.CONTENT_TYPE, "application/javascript")),
+    JSON(Map.of(HttpHeader.CONTENT_TYPE, "application/json"));
 
     ///
-    private final Map<HttpHeaderName, String> valueForResponse;
+    private final Map<HttpHeader, String> valueForResponse;
 
     ///
     public static MimeType decode(final String fileExtension) {

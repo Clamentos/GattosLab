@@ -3,7 +3,7 @@ package io.github.clamentos.gattoslab.http.server;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
@@ -39,8 +39,8 @@ public final class HttpExchange implements Closeable {
     private final String uri;
     private final String path;
 
-    private final Map<HttpHeaderName, String> requestHeaders;
-    private final Map<HttpHeaderName, String> responseHeaders;
+    private final Map<HttpHeader, String> requestHeaders;
+    private final Map<HttpHeader, String> responseHeaders;
 
     private final SocketReader reader;
     private final StreamWriter writer;
@@ -62,7 +62,7 @@ public final class HttpExchange implements Closeable {
         final byte[] remoteAddress,
         final HttpMethod method,
         final String uri,
-        final Map<HttpHeaderName, String> requestHeaders,
+        final Map<HttpHeader, String> requestHeaders,
         final SocketReader reader,
         final StreamWriter writer
     ) {
@@ -79,7 +79,7 @@ public final class HttpExchange implements Closeable {
         this.path = endOfPath > 0 ? uri.substring(0, endOfPath) : uri;
 
         this.requestHeaders = requestHeaders;
-        this.responseHeaders = new EnumMap<>(HttpHeaderName.class);
+        this.responseHeaders = new EnumMap<>(HttpHeader.class);
 
         this.reader = reader;
         this.writer = writer;
@@ -91,7 +91,7 @@ public final class HttpExchange implements Closeable {
         this.isHandled = false;
         this.forceClose = false;
 
-        final String connectionHeader = this.requestHeaders.get(HttpHeaderName.CONNECTION);
+        final String connectionHeader = this.requestHeaders.get(HttpHeader.CONNECTION);
 
         if(connectionHeader != null && connectionHeader.contains("close")) {
 
@@ -110,7 +110,7 @@ public final class HttpExchange implements Closeable {
     public void respond(
 
         final HttpStatus status,
-        final Map<HttpHeaderName, String> headers,
+        final Map<HttpHeader, String> headers,
         final MimeType mimeType,
         final Object body
 
@@ -121,7 +121,7 @@ public final class HttpExchange implements Closeable {
 
         this.responseHeaders.put(
 
-            HttpHeaderName.DATE,
+            HttpHeader.DATE,
             DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime), GenericUtils.DEFAULT_ZONE_ID))
         );
 
@@ -132,7 +132,7 @@ public final class HttpExchange implements Closeable {
 
             if(body instanceof final byte[] byteBody) {
 
-                this.responseHeaders.put(HttpHeaderName.CONTENT_LENGTH, Integer.toString(byteBody.length));
+                this.responseHeaders.put(HttpHeader.CONTENT_LENGTH, Integer.toString(byteBody.length));
             }
 
             else if(body instanceof ResponseBodyCallback) {
@@ -149,7 +149,7 @@ public final class HttpExchange implements Closeable {
         this.responseStatus = status;
         this.writer.write(status.getValueForResponse());
 
-        for(final Entry<HttpHeaderName, String> header : this.responseHeaders.entrySet()) {
+        for(final Entry<HttpHeader, String> header : this.responseHeaders.entrySet()) {
 
             this.writer.write(header.getKey().getValueForResponse());
             this.writer.write(header.getValue());

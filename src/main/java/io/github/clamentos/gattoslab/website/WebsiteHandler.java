@@ -5,7 +5,7 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.BasicHandler;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
 import io.github.clamentos.gattoslab.exchange.handling.components.StaticResource;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
@@ -34,7 +34,7 @@ public final class WebsiteHandler extends BasicHandler {
 
         final String diskPath = resource.getDiskPath();
 
-        final Map<HttpHeaderName, String> headers = resource.isCacheable() ?
+        final Map<HttpHeader, String> headers = resource.isCacheable() ?
 
             ApplicationProperties.GZIP_CACHE_HEADERS :
             ApplicationProperties.GZIP_HEADER

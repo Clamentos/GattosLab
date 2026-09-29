@@ -3,7 +3,9 @@ package io.github.clamentos.gattoslab.http.server;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.exceptions.MalformedRequestException;
+import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -287,13 +289,13 @@ public final class HttpServer implements Closeable {
             throw new MalformedRequestException("Bad first line");
         }
 
-        final Map<HttpHeaderName, String> headers = new EnumMap<>(HttpHeaderName.class);
+        final Map<HttpHeader, String> headers = new EnumMap<>(HttpHeader.class);
         CharSequence line;
 
         while((line = reader.readLine()) != null && !line.isEmpty()) {
 
             final String[] headerSplits = this.splitHeader(line, socket);
-            final HttpHeaderName header = HttpHeaderName.decode(headerSplits[0]);
+            final HttpHeader header = HttpHeader.decode(headerSplits[0]);
 
             if(header != null) headers.put(header, headerSplits[1]);
         }
@@ -367,9 +369,8 @@ public final class HttpServer implements Closeable {
 
                 case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.getMessage()));
                 case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
-                case final IOException _  when GenericUtils.isExceptionNotable(exc) -> this.logger.error("Uncaught exception", exc);
 
-                default -> this.logger.error("Uncaught exception", exc);
+                default -> { if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Uncaught exception", exc); }
             }
         }
     }

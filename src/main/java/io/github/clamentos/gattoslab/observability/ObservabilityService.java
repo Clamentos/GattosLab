@@ -4,7 +4,7 @@ package io.github.clamentos.gattoslab.observability;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
@@ -513,7 +513,7 @@ public final class ObservabilityService implements Closeable {
         requestMetricsEntity.setTimestamp(startTime);
         requestMetricsEntity.setLatency((int)(System.currentTimeMillis() - startTime));
         requestMetricsEntity.setPath(exchange.getPath());
-        requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeaderName.USER_AGENT));
+        requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT));
         requestMetricsEntity.setUnknown(exchange.getResource() == null);
         requestMetricsEntity.setHttpStatus((short)status.getCode());
     }

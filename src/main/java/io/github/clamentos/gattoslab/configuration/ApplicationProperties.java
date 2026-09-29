@@ -2,7 +2,7 @@ package io.github.clamentos.gattoslab.configuration;
 
 ///
 import io.github.clamentos.gattoslab.datastructures.Pair;
-import io.github.clamentos.gattoslab.http.HttpHeaderName;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
@@ -93,44 +93,44 @@ public final class ApplicationProperties {
     public static final boolean SOCKET_TCP_NO_DELAY = true;
 
     ///..
-    public static final Map<HttpHeaderName, String> LOGIN_REDIRECT_HEADERS = Map.of(HttpHeaderName.LOCATION, REDIRECT_PATH);
-    public static final Map<HttpHeaderName, String> CLEAR_SITE_DATA_HEADERS = Map.of(HttpHeaderName.CLEAR_SITE_DATA, "cookies");
-    public static final Map<HttpHeaderName, String> GZIP_HEADER = Map.of(HttpHeaderName.CONTENT_ENCODING, "gzip");
-    public static final Map<HttpHeaderName, String> TRANSFER_CHUNKED_HEADER = Map.of(HttpHeaderName.TRANSFER_ENCODING, "chunked");
-    public static final Map<HttpHeaderName, String> CLOSE_CONNECTION_HEADER = Map.of(HttpHeaderName.CONNECTION, "close");
-    public static final Map<HttpHeaderName, String> NO_LENGTH_HEADER = Map.of(HttpHeaderName.CONTENT_LENGTH, "0");
+    public static final Map<HttpHeader, String> LOGIN_REDIRECT_HEADERS = Map.of(HttpHeader.LOCATION, REDIRECT_PATH);
+    public static final Map<HttpHeader, String> CLEAR_SITE_DATA_HEADERS = Map.of(HttpHeader.CLEAR_SITE_DATA, "cookies");
+    public static final Map<HttpHeader, String> GZIP_HEADER = Map.of(HttpHeader.CONTENT_ENCODING, "gzip");
+    public static final Map<HttpHeader, String> TRANSFER_CHUNKED_HEADER = Map.of(HttpHeader.TRANSFER_ENCODING, "chunked");
+    public static final Map<HttpHeader, String> CLOSE_CONNECTION_HEADER = Map.of(HttpHeader.CONNECTION, "close");
+    public static final Map<HttpHeader, String> NO_LENGTH_HEADER = Map.of(HttpHeader.CONTENT_LENGTH, "0");
 
-    public static final Map<HttpHeaderName, String> KEEP_ALIVE_HEADERS = Map.of(
+    public static final Map<HttpHeader, String> KEEP_ALIVE_HEADERS = Map.of(
 
-        HttpHeaderName.CONNECTION, "keep-alive",
-        HttpHeaderName.KEEP_ALIVE, "max=" + SERVER_MAX_KEEP_ALIVE_DURATION.toSeconds()
+        HttpHeader.CONNECTION, "keep-alive",
+        HttpHeader.KEEP_ALIVE, "max=" + SERVER_MAX_KEEP_ALIVE_DURATION.toSeconds()
     );
 
-    public static final Map<HttpHeaderName, String> RETRY_AFTER_HEADERS = Map.of(
+    public static final Map<HttpHeader, String> RETRY_AFTER_HEADERS = Map.of(
 
-        HttpHeaderName.RETRY_AFTER,
+        HttpHeader.RETRY_AFTER,
         Long.toString(RATE_LIMIT_BLOCK_DURATION.toSeconds())
     );
 
-    public static final Map<HttpHeaderName, String> EXTRA_HEADERS = Map.of(
+    public static final Map<HttpHeader, String> EXTRA_HEADERS = Map.of(
 
-        HttpHeaderName.CACHE_CONTROL, "no-cache",
-        HttpHeaderName.CONTENT_SECURITY_POLICY, "require-trusted-types-for 'script'",
-        HttpHeaderName.X_FRAME_OPTIONS, "SAMEORIGIN",
-        HttpHeaderName.STRICT_TRANSPORT_SECURITY, "max-age=63072000; includeSubDomains"
+        HttpHeader.CACHE_CONTROL, "no-cache",
+        HttpHeader.CONTENT_SECURITY_POLICY, "require-trusted-types-for 'script'",
+        HttpHeader.X_FRAME_OPTIONS, "SAMEORIGIN",
+        HttpHeader.STRICT_TRANSPORT_SECURITY, "max-age=63072000; includeSubDomains"
     );
 
-    public static final Map<HttpHeaderName, String> GZIP_CACHE_HEADERS = Map.of(
+    public static final Map<HttpHeader, String> GZIP_CACHE_HEADERS = Map.of(
 
-        HttpHeaderName.CONTENT_ENCODING, "gzip",
-        HttpHeaderName.CACHE_CONTROL, ("max-age=" + CACHE_DURATION.toSeconds() + ", public")
+        HttpHeader.CONTENT_ENCODING, "gzip",
+        HttpHeader.CACHE_CONTROL, ("max-age=" + CACHE_DURATION.toSeconds() + ", public")
     );
 
-    public static final Map<HttpHeaderName, String> CORS_HEADERS = Map.of(
+    public static final Map<HttpHeader, String> CORS_HEADERS = Map.of(
 
-        HttpHeaderName.ACCESS_CONTROL_ALLOW_METHODS, GenericUtils.concatenateAsCsv(Arrays.stream(HttpMethod.values()).toList()),
-        HttpHeaderName.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true",
-        HttpHeaderName.ACCESS_CONTROL_MAX_AGE, Long.toString(ApplicationProperties.CORS_DURATION.toSeconds())
+        HttpHeader.ACCESS_CONTROL_ALLOW_METHODS, GenericUtils.concatenateAsCsv(Arrays.stream(HttpMethod.values()).toList()),
+        HttpHeader.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true",
+        HttpHeader.ACCESS_CONTROL_MAX_AGE, Long.toString(ApplicationProperties.CORS_DURATION.toSeconds())
     );
 
     ///.
