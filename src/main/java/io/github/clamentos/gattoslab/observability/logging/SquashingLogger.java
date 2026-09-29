@@ -4,10 +4,12 @@ package io.github.clamentos.gattoslab.observability.logging;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.FastAtomicCounter;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
+import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 
 ///..
 import java.io.Closeable;
+import java.lang.StackWalker.StackFrame;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -20,7 +22,7 @@ public class SquashingLogger implements Closeable {
     private final Logger logger;
 
     ///..
-    private final Map<String, FastAtomicCounter> squashes;
+    private final Map<Pair<String, String>, FastAtomicCounter> squashes;
 
     ///
     public SquashingLogger(final BatchScheduler batchScheduler) {
@@ -34,7 +36,7 @@ public class SquashingLogger implements Closeable {
     ///
     public void warning(final String key) {
 
-        this.squashes.computeIfAbsent(key, _ -> new FastAtomicCounter()).increment();
+        this.squashes.computeIfAbsent(new Pair<>(key, this.getCallerMethod()), _ -> new FastAtomicCounter()).increment();
     }
 
     ///..
@@ -47,15 +49,28 @@ public class SquashingLogger implements Closeable {
     }
 
     ///.
+    private String getCallerMethod() {
+
+        return StackWalker.getInstance().walk(frames -> frames
+
+            .skip(2)
+            .findFirst()
+            .map(StackFrame::getMethodName)
+            .orElse(ApplicationProperties.UNKNOWN_METHOD_PLACEHOLDER)
+        );
+    }
+
+    ///..
     private void logTask() {
 
-        final Iterator<Entry<String, FastAtomicCounter>> iterator = this.squashes.entrySet().iterator();
+        final Iterator<Entry<Pair<String, String>, FastAtomicCounter>> iterator = this.squashes.entrySet().iterator();
         final MutableString mutableString = new MutableString(128);
 
         while(iterator.hasNext()) {
 
-            final Entry<String, FastAtomicCounter> entry = iterator.next();
-            final String messageTemplate = entry.getKey();
+            final Entry<Pair<String, String>, FastAtomicCounter> entry = iterator.next();
+            final Pair<String, String> entryKey = entry.getKey();
+            final String messageTemplate = entryKey.getA();
             final int messageTemplateLength = messageTemplate.length();
 
             iterator.remove();
@@ -68,7 +83,7 @@ public class SquashingLogger implements Closeable {
                 else mutableString.append(currentChar);
             }
 
-            this.logger.warning(mutableString.toString());
+            this.logger.warning(entryKey.getB(), mutableString.toString());
             mutableString.clear();
         }
     }

@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.http;
 
 ///
 import java.util.Locale;
+import java.util.Map;
 
 ///..
 import lombok.AccessLevel;
@@ -16,21 +17,21 @@ import lombok.Getter;
 public enum MimeType {
 
     ///
-    HTML(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "text/html")),
-    CSS(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "text/css")),
-    PNG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/png")),
-    JPG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/jpg")),
-    JPEG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/jpeg")),
-    SVG(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/svg+xml")),
-    XML(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "application/xml")),
-    TEXT(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "text/plain")),
-    ICO(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/x-icon")),
-    GIF(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "image/gif")),
-    JS(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "application/javascript")),
-    JSON(new HttpHeader(HttpHeaderName.CONTENT_TYPE, "application/json"));
+    HTML(Map.of(HttpHeaderName.CONTENT_TYPE, "text/html")),
+    CSS(Map.of(HttpHeaderName.CONTENT_TYPE, "text/css")),
+    PNG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/png")),
+    JPG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/jpg")),
+    JPEG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/jpeg")),
+    SVG(Map.of(HttpHeaderName.CONTENT_TYPE, "image/svg+xml")),
+    XML(Map.of(HttpHeaderName.CONTENT_TYPE, "application/xml")),
+    TEXT(Map.of(HttpHeaderName.CONTENT_TYPE, "text/plain")),
+    ICO(Map.of(HttpHeaderName.CONTENT_TYPE, "image/x-icon")),
+    GIF(Map.of(HttpHeaderName.CONTENT_TYPE, "image/gif")),
+    JS(Map.of(HttpHeaderName.CONTENT_TYPE, "application/javascript")),
+    JSON(Map.of(HttpHeaderName.CONTENT_TYPE, "application/json"));
 
     ///
-    private final HttpHeader valueForResponse;
+    private final Map<HttpHeaderName, String> valueForResponse;
 
     ///
     public static MimeType decode(final String fileExtension) {

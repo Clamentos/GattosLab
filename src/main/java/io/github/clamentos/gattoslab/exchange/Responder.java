@@ -1,17 +1,18 @@
 package io.github.clamentos.gattoslab.exchange;
 
 ///
-import io.github.clamentos.gattoslab.http.HttpHeader;
+import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
-import java.util.List;
+import java.util.Map;
 
 ///
 public abstract class Responder {
@@ -32,11 +33,11 @@ public abstract class Responder {
     ///
     protected void respond(final HttpExchange exchange, final HttpStatus status) {
 
-        this.respond(exchange, status, List.of(), null, (byte[])null);
+        this.respond(exchange, status, Map.of(), null, (byte[])null);
     }
 
     ///..
-    protected void respond(final HttpExchange exchange, final HttpStatus status, final List<HttpHeader> headers) {
+    protected void respond(final HttpExchange exchange, final HttpStatus status, final Map<HttpHeaderName, String> headers) {
 
         this.respond(exchange, status, headers, null, (byte[])null);
     }
@@ -44,7 +45,7 @@ public abstract class Responder {
     ///..
     protected void respond(final HttpExchange exchange, final HttpStatus status, final MimeType mimeType, final byte[] body) {
 
-        this.respond(exchange, status, List.of(), mimeType, body);
+        this.respond(exchange, status, Map.of(), mimeType, body);
     }
 
     ///..
@@ -52,7 +53,7 @@ public abstract class Responder {
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final List<HttpHeader> headers,
+        final Map<HttpHeaderName, String> headers,
         final MimeType mimeType,
         final byte[] body
     ) {
@@ -63,7 +64,7 @@ public abstract class Responder {
     ///..
     protected void respond(final HttpExchange exchange, final HttpStatus status, final MimeType mimeType, final ResponseBodyCallback body) {
 
-        this.respond(exchange, status, List.of(), mimeType, body);
+        this.respond(exchange, status, Map.of(), mimeType, body);
     }
 
     ///..
@@ -71,7 +72,7 @@ public abstract class Responder {
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final List<HttpHeader> headers,
+        final Map<HttpHeaderName, String> headers,
         final MimeType mimeType,
         final ResponseBodyCallback body
     ) {
@@ -84,7 +85,7 @@ public abstract class Responder {
 
         final HttpExchange exchange,
         final HttpStatus status,
-        final List<HttpHeader> headers,
+        final Map<HttpHeaderName, String> headers,
         final MimeType mimeType,
         final Object body
     ) {
@@ -97,7 +98,7 @@ public abstract class Responder {
 
         catch(final IOException exc) {
 
-            this.logger.error("Could not respond", exc);
+            if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Could not respond", exc);
             this.observabilityService.requestPartiallyEnded(exchange);
             exchange.close();
         }

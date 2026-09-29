@@ -4,7 +4,6 @@ package io.github.clamentos.gattoslab.security;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.Pair;
-import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
@@ -115,11 +114,11 @@ public final class SessionService {
             expiration
         );
 
-        exchange.getResponseHeaders().add(new HttpHeader(
+        exchange.getResponseHeaders().put(
 
             HttpHeaderName.SET_COOKIE,
             (ApplicationProperties.SESSION_COOKIE_NAME + "=" + session.getSessionId() + this.cookieProperties + " Max-Age=" + (duration / 1000))
-        ));
+        );
 
         this.sessions.put(session.getSessionId(), session);
         this.logger.info("Login successfull for " + GenericUtils.composeFingerprint(exchange));

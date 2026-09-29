@@ -6,7 +6,6 @@ import io.github.clamentos.gattoslab.datastructures.IpV4Range;
 import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
-import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
@@ -18,10 +17,9 @@ import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.EnumMap;
+import java.util.Map;
 
 ///
 public final class IngressFilter extends Responder implements Filter {
@@ -40,7 +38,7 @@ public final class IngressFilter extends Responder implements Filter {
     private final String[] illegalUserAgentContains;
 
     ///..
-    private final List<HttpHeader> corsHeaders;
+    private final Map<HttpHeaderName, String> corsHeaders;
 
     ///
     @SuppressWarnings("unchecked")
@@ -76,13 +74,15 @@ public final class IngressFilter extends Responder implements Filter {
         ;
 
         this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
-        this.corsHeaders = ApplicationProperties.CORS_HEADERS.stream().collect(Collectors.toCollection(ArrayList::new));
 
-        this.corsHeaders.add(new HttpHeader(
+        this.corsHeaders = new EnumMap<>(HttpHeaderName.class);
+        this.corsHeaders.putAll(ApplicationProperties.CORS_HEADERS);
+
+        this.corsHeaders.put(
 
             HttpHeaderName.ACCESS_CONTROL_ALLOW_ORIGIN,
             GenericUtils.concatenateAsCsv(applicationProperties.getAllowedOrigins())
-        ));
+        );
     }
 
     ///

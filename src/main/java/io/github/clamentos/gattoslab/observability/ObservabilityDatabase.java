@@ -167,6 +167,7 @@ public final class ObservabilityDatabase {
             fileNameWithoutExtension = fileNameWithoutExtension.substring(length - 13, length);
             return fileNameWithoutExtension.compareTo(fileStartTimeSegment) >= 0 && fileNameWithoutExtension.compareTo(fileEndTimeSegment) <= 0;
         })
+        .sorted()
         .toList();
     }
 

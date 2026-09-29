@@ -10,7 +10,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
-import java.util.List;
+import java.util.Map;
 
 ///
 public final class ExceptionHandler {
@@ -69,12 +69,12 @@ public final class ExceptionHandler {
 
             try {
 
-                exchange.respond(status, List.of(), MimeType.TEXT, exception.toString().getBytes());
+                exchange.respond(status, Map.of(), MimeType.TEXT, exception.toString().getBytes());
             }
 
             catch(final IOException | RuntimeException exc) {
 
-                this.logger.error("Could not respond", exc);
+                if(GenericUtils.isExceptionNotable(exception)) this.logger.error("Could not respond", exc);
                 isPartial = true;
             }
         }

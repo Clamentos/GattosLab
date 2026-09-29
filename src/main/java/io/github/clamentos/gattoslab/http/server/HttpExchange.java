@@ -3,7 +3,6 @@ package io.github.clamentos.gattoslab.http.server;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
-import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpHeaderName;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
@@ -16,9 +15,9 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.EnumMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 ///..
 import lombok.Getter;
@@ -41,7 +40,7 @@ public final class HttpExchange implements Closeable {
     private final String path;
 
     private final Map<HttpHeaderName, String> requestHeaders;
-    private final List<HttpHeader> responseHeaders;
+    private final Map<HttpHeaderName, String> responseHeaders;
 
     private final SocketReader reader;
     private final StreamWriter writer;
@@ -80,7 +79,7 @@ public final class HttpExchange implements Closeable {
         this.path = endOfPath > 0 ? uri.substring(0, endOfPath) : uri;
 
         this.requestHeaders = requestHeaders;
-        this.responseHeaders = new ArrayList<>();
+        this.responseHeaders = new EnumMap<>(HttpHeaderName.class);
 
         this.reader = reader;
         this.writer = writer;
@@ -96,60 +95,63 @@ public final class HttpExchange implements Closeable {
 
         if(connectionHeader != null && connectionHeader.contains("close")) {
 
-            this.responseHeaders.add(ApplicationProperties.CLOSE_CONNECTION_HEADER);
+            this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
             this.isKeepAlive = false;
         }
 
         else {
 
-            this.responseHeaders.addAll(ApplicationProperties.KEEP_ALIVE_HEADERS);
+            this.responseHeaders.putAll(ApplicationProperties.KEEP_ALIVE_HEADERS);
             this.isKeepAlive = true;
         }
     }
 
     ///
-    public void respond(final HttpStatus status, final List<HttpHeader> headers, final MimeType mimeType, final Object body) throws IOException {
+    public void respond(
 
-        this.responseHeaders.addAll(ApplicationProperties.EXTRA_HEADERS);
-        this.responseHeaders.addAll(headers);
+        final HttpStatus status,
+        final Map<HttpHeaderName, String> headers,
+        final MimeType mimeType,
+        final Object body
 
-        this.responseHeaders.add(new HttpHeader(
+    ) throws IOException {
+
+        this.responseHeaders.putAll(ApplicationProperties.EXTRA_HEADERS);
+        this.responseHeaders.putAll(headers);
+
+        this.responseHeaders.put(
 
             HttpHeaderName.DATE,
             DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime), GenericUtils.DEFAULT_ZONE_ID))
-        ));
+        );
 
-        if(this.forceClose) this.responseHeaders.add(ApplicationProperties.CLOSE_CONNECTION_HEADER);
-        if(mimeType != null) this.responseHeaders.add(mimeType.getValueForResponse());
+        if(this.forceClose) this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
+        if(mimeType != null) this.responseHeaders.putAll(mimeType.getValueForResponse());
 
         if(body != null) {
 
             if(body instanceof final byte[] byteBody) {
 
-                this.responseHeaders.add(new HttpHeader(HttpHeaderName.CONTENT_LENGTH, Integer.toString(byteBody.length)));
+                this.responseHeaders.put(HttpHeaderName.CONTENT_LENGTH, Integer.toString(byteBody.length));
             }
 
             else if(body instanceof ResponseBodyCallback) {
 
-                this.responseHeaders.add(ApplicationProperties.TRANSFER_CHUNKED_HEADER);
+                this.responseHeaders.putAll(ApplicationProperties.TRANSFER_CHUNKED_HEADER);
             }
         }
 
         else {
 
-            this.responseHeaders.add(ApplicationProperties.NO_LENGTH_HEADER);
+            this.responseHeaders.putAll(ApplicationProperties.NO_LENGTH_HEADER);
         }
 
         this.responseStatus = status;
         this.writer.write(status.getValueForResponse());
 
-        final int length = this.responseHeaders.size();
+        for(final Entry<HttpHeaderName, String> header : this.responseHeaders.entrySet()) {
 
-        for(int i = 0; i < length; i++) {
-
-            final HttpHeader header = this.responseHeaders.get(i);
-
-            this.writer.write(header.getName().getValueForResponse());
+            this.writer.write(header.getKey().getValueForResponse());
             this.writer.write(header.getValue());
             this.writer.write(ApplicationProperties.NEW_LINE_BYTES);
         }

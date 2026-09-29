@@ -41,18 +41,16 @@ public final class HttpServer implements Closeable {
     private static final byte[] RESPONSE_FOR_MALFORMED = (
 
         HttpStatus.BAD_REQUEST.getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getName().getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getValue() +
-        "\r\n\r\n"
+        GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
+        "\r\n"
 
     ).getBytes();
 
     private static final byte[] RESPONSE_FOR_TOO_BIG = (
 
         HttpStatus.CONTENT_TOO_LARGE.getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getName().getValueForResponse() +
-        ApplicationProperties.CLOSE_CONNECTION_HEADER.getValue() +
-        "\r\n\r\n"
+        GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
+        "\r\n"
 
     ).getBytes();
 
@@ -363,30 +361,16 @@ public final class HttpServer implements Closeable {
     ///..
     private void logException(final Exception exc) {
 
-        switch(exc) {
+        if(!(exc instanceof SocketTimeoutException) && !(exc instanceof SSLException)) {
 
-            case final SocketTimeoutException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Socket timed-out"));
-            case final SSLException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("SSL error"));
-            case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.getMessage()));
-            case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
+            switch(exc) {
 
-            case final IOException _ -> {
+                case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.getMessage()));
+                case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
+                case final IOException _  when GenericUtils.isExceptionNotable(exc) -> this.logger.error("Uncaught exception", exc);
 
-                final String message = exc.getMessage();
-
-                if(
-                    message != null &&
-                    !message.contains("closed") &&
-                    !message.contains("reset") &&
-                    !message.contains("interrupt") &&
-                    !message.contains("pipe")
-                ) {
-
-                    this.logger.error("Uncaught exception", exc);
-                }
+                default -> this.logger.error("Uncaught exception", exc);
             }
-
-            default -> this.logger.error("Uncaught exception", exc);
         }
     }
 
