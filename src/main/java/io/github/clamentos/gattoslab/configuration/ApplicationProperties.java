@@ -86,7 +86,7 @@ public final class ApplicationProperties {
     public static final int METRICS_SIPHON_CAPACITY = 4096;
     public static final int MAX_SESSIONS = 4;
     public static final int SESSION_ID_SIZE = 40;
-    public static final int MAX_OBSERVABILITY_CHART_LENGTH = 1024;
+    public static final int MAX_OBSERVABILITY_CHART_LENGTH = 4096;
     public static final int SERVER_INPUT_BUFFERS_SIZE = 4096;
     public static final int SERVER_OUTPUT_BUFFERS_SIZE = 65536;
     public static final int MAX_REQUEST_SIZE = 262_144;
