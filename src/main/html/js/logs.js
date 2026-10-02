@@ -45,7 +45,12 @@ function fetchAndRenderLogs(startTimestamp, endTimestamp, severities, threadPatt
 
     const filter = `${startTimestamp}|${endTimestamp}|${severities}|${threadPattern}|${loggerPattern}|${messagePattern}|${exceptionClassPattern}`;
 
-    fetch(`/api/observability/logs?filter=${encodeURI(filter)}`, {method: "GET"}).then((response) => {
+    fetch("/api/observability/logs", {
+
+        method: "GET",
+        headers: { "Filter": filter }
+
+    }).then((response) => {
 
         if(response.status === 200) {
 

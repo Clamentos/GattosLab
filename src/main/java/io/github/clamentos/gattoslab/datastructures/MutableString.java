@@ -44,7 +44,7 @@ public final class MutableString implements CharSequence {
         if(charSequence.isEmpty()) return;
 
         final int length = charSequence.length();
-        final int normalizedLength = length << 2;
+        final int normalizedLength = length << 1;
 
         if(this.index + normalizedLength >= this.characters.length) {
 
@@ -53,8 +53,7 @@ public final class MutableString implements CharSequence {
 
         for(int i = 0; i < length; i++) {
 
-            final char character = charSequence.charAt(i);
-            this.appendChar(character);
+            this.appendChar(charSequence.charAt(i));
         }
     }
 
@@ -86,9 +85,9 @@ public final class MutableString implements CharSequence {
 
     ///..
     @Override
-    public CharSequence subSequence(final int start, final int length) {
+    public CharSequence subSequence(final int start, final int end) {
 
-        return new MutableString(Arrays.copyOfRange(this.characters, start, length - 1));
+        return new MutableString(Arrays.copyOfRange(this.characters, start, end));
     }
 
     ///..

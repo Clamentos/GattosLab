@@ -14,6 +14,12 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 ///
+import lombok.EqualsAndHashCode;
+
+///
+@EqualsAndHashCode(callSuper = true)
+
+///
 public final class Siphon<T extends Resettable> extends AbstractList<T> {
 
     ///
@@ -81,7 +87,9 @@ public final class Siphon<T extends Resettable> extends AbstractList<T> {
     @Override
     public void clear() {
 
-        for(int i = 0; i < this.elements.length(); i++) {
+        final int length = this.elements.length();
+
+        for(int i = 0; i < length; i++) {
 
             this.elements.get(i).reset();
         }
@@ -105,25 +113,13 @@ public final class Siphon<T extends Resettable> extends AbstractList<T> {
         return this.elements.get(index);
     }
 
-    ///..
-    @Override
-    public boolean equals(final Object other) {
-
-        return false;
-    }
-
-    ///..
-    @Override
-    public int hashCode() {
-
-        return -1;
-    }
-
     ///.
     private T getNext() {
 
-        final int indexValue = this.index.getAndUpdate(val -> val < this.elements.length() ? (val + 1) : val);
-        if(indexValue < this.elements.length()) return this.get(indexValue);
+        final int length = this.elements.length();
+        final int indexValue = this.index.getAndUpdate(val -> val < length ? (val + 1) : val);
+
+        if(indexValue < length) return this.get(indexValue);
 
         if(this.isDraining.compareAndSet(false, true)) {
 

@@ -15,10 +15,9 @@ import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 ///
 public final class RateLimitFilter extends Responder implements Filter {
@@ -32,7 +31,6 @@ public final class RateLimitFilter extends Responder implements Filter {
 
     ///..
     private final Map<HashCodedByteArray, RateLimitEntry> rateLimitMap;
-    private final AtomicBoolean tooManyIps;
 
     ///..
     private final int rateLimitAmount;
@@ -50,9 +48,7 @@ public final class RateLimitFilter extends Responder implements Filter {
         super(observabilityService);
 
         this.squashingLogger = squashingLogger;
-
         this.rateLimitMap = new ConcurrentHashMap<>();
-        this.tooManyIps = new AtomicBoolean();
 
         this.rateLimitAmount = applicationProperties.getRateLimitAmount();
 
@@ -68,21 +64,18 @@ public final class RateLimitFilter extends Responder implements Filter {
     @Override
     public boolean filter(final HttpExchange exchange) {
 
-        if(this.tooManyIps.get()) {
-
-            this.respondRateLimited(exchange);
-            return false;
-        }
-
         final RateLimitEntry rateLimitEntry = this.rateLimitMap.computeIfAbsent(
 
-            new HashCodedByteArray(exchange.getRemoteAddress()),
+            new HashCodedByteArray(exchange.getRemoteIpAddress()),
             _ -> new RateLimitEntry(this.rateLimitAmount, this.entryCounterStart)
         );
 
         if(rateLimitEntry.isRateLimited()) {
 
-            this.respondRateLimited(exchange);
+            this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
+            super.respond(exchange, HttpStatus.TOO_MANY_REQUESTS, ApplicationProperties.RETRY_AFTER_HEADERS, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
+            exchange.close();
+
             return false;
         }
 
@@ -90,35 +83,11 @@ public final class RateLimitFilter extends Responder implements Filter {
     }
 
     ///.
-    private void respondRateLimited(final HttpExchange exchange) {
-
-        this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
-        super.respond(exchange, HttpStatus.TOO_MANY_REQUESTS, ApplicationProperties.RETRY_AFTER_HEADERS, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
-        exchange.close();
-    }
-
-    ///..
     private void replenishTask() {
 
-        final Iterator<RateLimitEntry> rateLimitEntries = this.rateLimitMap.values().iterator();
+        for(final Entry<HashCodedByteArray, RateLimitEntry> entry : this.rateLimitMap.entrySet()) {
 
-        while(rateLimitEntries.hasNext()) {
-
-            final RateLimitEntry rateLimitEntry = rateLimitEntries.next();
-            if(rateLimitEntry.replenish(this.rateLimitAmount)) rateLimitEntries.remove();
-        }
-
-        final int uniqueIps = this.rateLimitMap.size();
-
-        if(uniqueIps >= ApplicationProperties.MAX_IPS) {
-
-            this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Too many ips limit tripped"));
-            this.tooManyIps.set(true);
-        }
-
-        else {
-
-            this.tooManyIps.set(false);
+            if(entry.getValue().replenish(this.rateLimitAmount)) this.rateLimitMap.remove(entry.getKey());
         }
     }
 

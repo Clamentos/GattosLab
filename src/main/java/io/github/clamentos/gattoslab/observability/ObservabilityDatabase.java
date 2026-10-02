@@ -26,21 +26,21 @@ import java.util.stream.Stream;
 public final class ObservabilityDatabase {
 
     ///
-    private final ObservabilityFile<LogEvent> logFile;
-    private final ObservabilityFile<RequestMetricsEntity> requestMetricsFile;
-    private final ObservabilityFile<SystemMetricsEntity> systemMetricsFile;
+    private final ObservabilityDirectory<LogEvent> logDirectory;
+    private final ObservabilityDirectory<RequestMetricsEntity> requestMetricsDirectory;
+    private final ObservabilityDirectory<SystemMetricsEntity> systemMetricsDirectory;
 
     ///
     public ObservabilityDatabase(
 
-        final ObservabilityFile<LogEvent> logFile,
-        final ObservabilityFile<RequestMetricsEntity> requestMetricsFile,
-        final ObservabilityFile<SystemMetricsEntity> systemMetricsFile
+        final ObservabilityDirectory<LogEvent> logDirectory,
+        final ObservabilityDirectory<RequestMetricsEntity> requestMetricsDirectory,
+        final ObservabilityDirectory<SystemMetricsEntity> systemMetricsDirectory
     ) {
 
-        this.logFile = logFile;
-        this.requestMetricsFile = requestMetricsFile;
-        this.systemMetricsFile = systemMetricsFile;
+        this.logDirectory = logDirectory;
+        this.requestMetricsDirectory = requestMetricsDirectory;
+        this.systemMetricsDirectory = systemMetricsDirectory;
     }
 
     ///
@@ -56,7 +56,7 @@ public final class ObservabilityDatabase {
 
     ) throws IOException, IllegalArgumentException {
 
-        return this.fetch(startTime, endTime, logFile, (line, start, end) -> {
+        return this.fetch(startTime, endTime, logDirectory, (line, start, end) -> {
 
             final List<String> log = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long logTimestamp = Long.parseLong(log.get(1));
@@ -79,7 +79,7 @@ public final class ObservabilityDatabase {
     public List<String> readRequests(final long startTime, final long endTime, final String isUnknown, final String userAgentPattern)
     throws IOException, IllegalArgumentException {
 
-        return this.fetch(startTime, endTime, requestMetricsFile, (line, start, end) -> {
+        return this.fetch(startTime, endTime, requestMetricsDirectory, (line, start, end) -> {
 
             final List<String> request = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long requestTimestamp = Long.parseLong(request.get(1));
@@ -98,10 +98,10 @@ public final class ObservabilityDatabase {
     ///..
     public List<String> readSystemMetrics(final long startTime, final long endTime) throws IOException, IllegalArgumentException {
 
-        return this.fetch(startTime, endTime, systemMetricsFile, (line, start, end) -> {
+        return this.fetch(startTime, endTime, systemMetricsDirectory, (line, start, end) -> {
 
-            final List<String> request = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
-            final long requestTimestamp = Long.parseLong(request.get(1));
+            final List<String> metrics = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
+            final long requestTimestamp = Long.parseLong(metrics.get(1));
 
             return requestTimestamp >= start && requestTimestamp <= end;
         });
@@ -112,7 +112,7 @@ public final class ObservabilityDatabase {
         
         final long startTime,
         final long endTime,
-        final ObservabilityFile<?> observabilityFile,
+        final ObservabilityDirectory<?> observabilityDirectory,
         final RecordFilter filter
 
     ) throws IOException, IllegalArgumentException {
@@ -127,7 +127,7 @@ public final class ObservabilityDatabase {
             .onUnmappableCharacter(CodingErrorAction.REPLACE)
         ;
 
-        try(final Stream<Path> files = Files.list(Path.of(observabilityFile.toString()))) {
+        try(final Stream<Path> files = Files.list(Path.of(observabilityDirectory.toString()))) {
 
             final List<Path> filteredFiles = this.filterFiles(files, startTime, endTime);
             final int length = filteredFiles.size();
@@ -154,10 +154,19 @@ public final class ObservabilityDatabase {
     ///..
     private List<Path> filterFiles(final Stream<Path> files, final long startTimeFilter, final long endTimeFilter) {
 
-        final LocalDateTime startTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(startTimeFilter), GenericUtils.DEFAULT_ZONE_ID);
-        final LocalDateTime endTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(endTimeFilter), GenericUtils.DEFAULT_ZONE_ID);
-        final String fileStartTimeSegment = startTime.toString().substring(0, 13);
-        final String fileEndTimeSegment = endTime.toString().substring(0, 13);
+        final String fileStartTimeSegment = LocalDateTime
+
+            .ofInstant(Instant.ofEpochMilli(startTimeFilter), GenericUtils.DEFAULT_ZONE_ID)
+            .toString()
+            .substring(0, 13)
+        ;
+
+        final String fileEndTimeSegment = LocalDateTime
+
+            .ofInstant(Instant.ofEpochMilli(endTimeFilter), GenericUtils.DEFAULT_ZONE_ID)
+            .toString()
+            .substring(0, 13)
+        ;
 
         return files.filter(path -> {
 

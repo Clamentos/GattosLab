@@ -39,7 +39,7 @@ public final class BatchScheduler implements Closeable {
         this.workers = new ConcurrentHashMap<>();
 
         this.isClosed = new AtomicBoolean();
-        this.scheduler = GenericUtils.spawnVirtualThread("gattos-lab-batch-scheduler-task", this::triggerJobs);
+        this.scheduler = GenericUtils.spawnVirtualThread("gattos-lab-batch-scheduler-task", this::triggerJobsTask);
     }
 
     ///
@@ -78,7 +78,7 @@ public final class BatchScheduler implements Closeable {
     }
 
     ///.
-    private final void triggerJobs() {
+    private final void triggerJobsTask() {
 
         final long sleep = ApplicationProperties.SCHEDULER_POLL_PERIOD.toMillis();
         final long[] idRef = new long[]{0};

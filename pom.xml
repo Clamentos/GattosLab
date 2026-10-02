@@ -20,7 +20,7 @@
 
     <licenses>
         <license>
-            <name>GNU General Public License v3.0 only</name>
+            <name>GPL-3.0-only</name>
             <url>https://www.gnu.org/licenses/gpl-3.0.html</url>
         </license>
     </licenses>
@@ -62,11 +62,6 @@
         </dependency>
 
     </dependencies>
-
-    <!--
-        mvn clean package -DskipTests
-        jar ... (see deploy.sh)
-    -->
 
     <!-- mvn clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -DskipTests -Dsonar.projectKey=gattoslab -Dsonar.projectName='gattos-lab' -Dsonar.host.url=http://127.0.0.1:9000 -Dsonar.token=... -->
 

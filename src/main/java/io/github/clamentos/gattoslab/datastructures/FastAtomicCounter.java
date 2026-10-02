@@ -14,22 +14,24 @@ public final class FastAtomicCounter {
     public FastAtomicCounter() {
 
         final int cacheLineSize = 64;
-        final int elements = Runtime.getRuntime().availableProcessors() * cacheLineSize;
+        final int length = Runtime.getRuntime().availableProcessors() * cacheLineSize;
 
         this.dwordsPerCacheLine = cacheLineSize / 8;
-        this.paddedCounters = new AtomicLongArray(elements);
+        this.paddedCounters = new AtomicLongArray(length);
     }
 
     ///
     public void increment() {
 
-        this.paddedCounters.incrementAndGet(this.getIndex());
+        this.paddedCounters.incrementAndGet((int)((Thread.currentThread().threadId() * this.dwordsPerCacheLine) % this.paddedCounters.length()));
     }
 
     ///..
     public void reset() {
 
-        for(int i = 0; i < this.paddedCounters.length(); i += this.dwordsPerCacheLine) {
+        final int length = this.paddedCounters.length();
+
+        for(int i = 0; i < length; i += this.dwordsPerCacheLine) {
 
             this.paddedCounters.set(i, 0);
         }
@@ -38,20 +40,15 @@ public final class FastAtomicCounter {
     ///..
     public long get() {
 
+        final int length = this.paddedCounters.length();
         long total = 0;
 
-        for(int i = 0; i < this.paddedCounters.length(); i += this.dwordsPerCacheLine) {
+        for(int i = 0; i < length; i += this.dwordsPerCacheLine) {
 
             total += this.paddedCounters.get(i);
         }
 
         return total;
-    }
-
-    ///.
-    private int getIndex() {
-
-        return (int)((Thread.currentThread().threadId() * this.dwordsPerCacheLine) % this.paddedCounters.length());
     }
 
     ///

@@ -170,7 +170,7 @@ public class ArgumentProviders {
             Arguments.of("GET /api/authentication/sessions HTTP/1.1\r\nHost: localhost\r\nX-Forwarded-For: 1.2.3.4\r\nX-Real-IP: 5.6.7.8\r\nX-Client-IP: 9.9.9.9\r\nTrue-Client-IP: 8.8.8.8\r\n\r\n", HttpStatus.UNAUTHORIZED),
 
             Arguments.of("GET /index .html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.BAD_REQUEST),
-            Arguments.of("GET /index.html?param=\u00e9\u00e8\u00ea HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.OK)
+            Arguments.of("GET /index.html?param=\u00e9\u00e8\u00ea HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND)
         );
     }
 
@@ -192,14 +192,17 @@ public class ArgumentProviders {
     }
 
     ///..
-    public static Stream<Arguments> privilegedPathsWithComponentsProvider() {
+    public static Stream<Arguments> privilegedPathsProvider() {
 
         waitForInit();
 
         return Stream.of(
 
-            Arguments.of("GET /admin/index.html?password=admin HTTP/1.1\r\nHost: localhost\r\n\r\n"),
-            Arguments.of("GET /admin/index.html#secret HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            Arguments.of("GET /admin/index.html?password=admin HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin/index.html#secret HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin/index.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.SEE_OTHER),
+            Arguments.of("GET /admin/observability/logs.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.SEE_OTHER),
+            Arguments.of("GET /prefix/admin/observability/logs.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND)
         );
     }
 
@@ -235,14 +238,14 @@ public class ArgumentProviders {
         return Stream.of(
 
             Arguments.of(Api.GET_SESSIONS.getPath(), null, HttpStatus.OK),
-            Arguments.of(Api.GET_LOGS.getPath(), "?filter=0%7C5000000000000%7C%7C%7C%7C%7C", HttpStatus.OK),
-            Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "?filter=0%7C5000000000000%7C10000000000", HttpStatus.OK),
-            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "?filter=0%7C5000000000000%7C%7C", HttpStatus.OK),
-            Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "?filter=0%7C5000000000000%7C10000000000", HttpStatus.OK),
-            Arguments.of(Api.GET_LOGS.getPath(), "?filter=0%7C5000000000000%7C%7C%7C%7C%7C%7C", HttpStatus.BAD_REQUEST),
-            Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "?filter=0%7C5000000000000%7C10000000000%7C", HttpStatus.BAD_REQUEST),
-            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "?filter=0%7C5000000000000%7C%7C%7C", HttpStatus.BAD_REQUEST),
-            Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "?filter=0%7C5000000000000%7C10000000000%7C", HttpStatus.BAD_REQUEST)
+            Arguments.of(Api.GET_LOGS.getPath(), "0|5000000000000|||||", HttpStatus.OK),
+            Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "0|5000000000000|10000000000", HttpStatus.OK),
+            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000||", HttpStatus.OK),
+            Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "0|5000000000000|10000000000", HttpStatus.OK),
+            Arguments.of(Api.GET_LOGS.getPath(), "0|5000000000000||||||", HttpStatus.BAD_REQUEST),
+            Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "0|5000000000000|10000000000|", HttpStatus.BAD_REQUEST),
+            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000|||", HttpStatus.BAD_REQUEST),
+            Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "0|5000000000000|10000000000|", HttpStatus.BAD_REQUEST)
         );
     }
 

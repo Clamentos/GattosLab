@@ -22,7 +22,7 @@ import lombok.Setter;
 public final class CrawlAggregationEntity implements Streamable {
 
     ///
-    private final String path;
+    private final String uri;
     private final boolean isUnknown;
     private final Set<String> statuses;
 
@@ -31,9 +31,9 @@ public final class CrawlAggregationEntity implements Streamable {
     private int numberOfCalls;
 
     ///
-    public CrawlAggregationEntity(final String path, final boolean isUnknown) {
+    public CrawlAggregationEntity(final String uri, final boolean isUnknown) {
 
-        this.path = path;
+        this.uri = uri;
         this.isUnknown = isUnknown;
         this.statuses = new TreeSet<>();
     }
@@ -42,7 +42,7 @@ public final class CrawlAggregationEntity implements Streamable {
     @Override
     public void stream(final StreamWriter writer) throws IOException {
 
-        writer.write(String.valueOf(this.path));
+        writer.write(String.valueOf(this.uri));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Boolean.toString(this.isUnknown));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

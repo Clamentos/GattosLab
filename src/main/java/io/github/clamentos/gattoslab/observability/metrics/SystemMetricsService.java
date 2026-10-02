@@ -53,8 +53,6 @@ public final class SystemMetricsService implements Closeable {
     private final AtomicLong cpuLoadMachineTotal;
 
     private final AtomicLong systemMemoryUsed;
-    private final AtomicLong directBuffers;
-    private final AtomicLong directBuffersMemoryUsed;
 
     private final AtomicLong requestMetricsEquilibrium;
 
@@ -89,8 +87,6 @@ public final class SystemMetricsService implements Closeable {
         this.cpuLoadMachineTotal = new AtomicLong();
 
         this.systemMemoryUsed = new AtomicLong();
-        this.directBuffers = new AtomicLong();
-        this.directBuffersMemoryUsed = new AtomicLong();
 
         this.requestMetricsEquilibrium = new AtomicLong();
 
@@ -99,7 +95,7 @@ public final class SystemMetricsService implements Closeable {
 
         this.enableRecording("jdk.FileRead", _ -> this.fileReads.incrementAndGet());
         this.enableRecording("jdk.FileWrite", _ -> this.fileWrites.incrementAndGet());
-        this.enableRecording("jdk.SocketWrite", _ -> this.socketReads.incrementAndGet());
+        this.enableRecording("jdk.SocketRead", _ -> this.socketReads.incrementAndGet());
         this.enableRecording("jdk.SocketWrite", _ -> this.socketWrites.incrementAndGet());
 
         this.enableRecording("jdk.GarbageCollection", event -> {
@@ -115,12 +111,6 @@ public final class SystemMetricsService implements Closeable {
             this.cpuLoadJvmUser.set((long)(Math.ceil(event.getDouble("jvmUser") * 100)));
             this.cpuLoadJvmSystem.set((long)(Math.ceil(event.getDouble("jvmSystem") * 100)));
             this.cpuLoadMachineTotal.set((long)(Math.ceil(event.getDouble("machineTotal") * 100)));
-        });
-
-        this.enablePeriodicRecording("jdk.DirectBufferStatistics", samplingPeriod, event -> {
-
-            this.directBuffers.set(event.getLong("count"));
-            this.directBuffersMemoryUsed.set(event.getLong("memoryUsed"));
         });
 
         this.enablePeriodicRecording("jdk.PhysicalMemory", samplingPeriod, event -> this.systemMemoryUsed.set(event.getLong("usedSize")));
@@ -176,8 +166,6 @@ public final class SystemMetricsService implements Closeable {
                 this.cpuLoadMachineTotal.getAndSet(0),
                 this.systemMemoryUsed.getAndSet(0),
                 this.memoryMXBean.getNonHeapMemoryUsage().getUsed(),
-                this.directBuffers.getAndSet(0),
-                this.directBuffersMemoryUsed.getAndSet(0),
                 this.memoryMXBean.getHeapMemoryUsage().getUsed(),
                 storageUsedTmp,
                 this.requestMetricsEquilibrium.get()

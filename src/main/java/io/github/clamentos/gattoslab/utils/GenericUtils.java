@@ -41,7 +41,7 @@ public final class GenericUtils {
 
         return
 
-            composeAddressString(exchange.getRemoteAddress()) +
+            composeAddressString(exchange.getRemoteIpAddress()) +
             ApplicationProperties.FINGERPRINT_SEPARATOR +
             normalizedForObservability(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT))
         ;
@@ -242,7 +242,7 @@ public final class GenericUtils {
 
         for(final byte section : address) {
 
-            mutableString.append(Byte.toString(section));
+            mutableString.append(Short.toString((short)(section & 0x00FF)));
             mutableString.append(address.length == 4 ? '.' : ':');
         }
 

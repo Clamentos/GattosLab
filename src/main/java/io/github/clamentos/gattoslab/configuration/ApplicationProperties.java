@@ -66,7 +66,7 @@ public final class ApplicationProperties {
     public static final Duration SERVER_MAX_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
     public static final Duration LOG_SIPHON_DRAIN_TASK_SLEEP = Duration.ofSeconds(5);
     public static final Duration SCHEDULER_POLL_PERIOD = Duration.ofMillis(100);
-    public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofMillis(100);
+    public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofSeconds(1);
     public static final Duration SOCKET_LINGER = Duration.ofSeconds(1);
     public static final Duration SOCKET_READ_TIMEOUT = Duration.ofSeconds(2);
     public static final String SESSION_COOKIE_NAME = "GattosLabSessionId";
@@ -79,9 +79,9 @@ public final class ApplicationProperties {
     public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
     public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
     public static final Path PID_FILE_PATH = Path.of("./pid.txt");
-    public static final int MAX_IPS = 1024;
     public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 1024;
     public static final int MAX_SERVER_SOCKETS = 1024;
+    public static final int MAX_SOCKETS_PER_IP = 32;
     public static final int LOG_SIPHON_CAPACITY = 1024;
     public static final int METRICS_SIPHON_CAPACITY = 4096;
     public static final int MAX_SESSIONS = 4;
@@ -89,6 +89,7 @@ public final class ApplicationProperties {
     public static final int MAX_OBSERVABILITY_CHART_LENGTH = 4096;
     public static final int SERVER_INPUT_BUFFERS_SIZE = 4096;
     public static final int SERVER_OUTPUT_BUFFERS_SIZE = 65536;
+    public static final int DEFAULT_STREAM_WRITER_BUFFER_SIZE = 8192;
     public static final int MAX_REQUEST_SIZE = 262_144;
     public static final boolean SOCKET_TCP_NO_DELAY = true;
 
@@ -103,7 +104,7 @@ public final class ApplicationProperties {
     public static final Map<HttpHeader, String> KEEP_ALIVE_HEADERS = Map.of(
 
         HttpHeader.CONNECTION, "keep-alive",
-        HttpHeader.KEEP_ALIVE, "max=" + SERVER_MAX_KEEP_ALIVE_DURATION.toSeconds()
+        HttpHeader.KEEP_ALIVE, "timeout=" + SERVER_MAX_KEEP_ALIVE_DURATION.toSeconds()
     );
 
     public static final Map<HttpHeader, String> RETRY_AFTER_HEADERS = Map.of(
@@ -169,7 +170,7 @@ public final class ApplicationProperties {
         this.serverHost = this.resolveProperty(properties, "serverHost", String.class, false);
 
         this.serverPort = this.resolveProperty(properties, "serverPort", Integer.class, false);
-        if(this.serverPort < 0 && this.serverPort > 65535) throw new IllegalArgumentException("'serverPort' must be between 0 and 65535");
+        if(this.serverPort < 0 || this.serverPort > 65535) throw new IllegalArgumentException("'serverPort' must be between 0 and 65535");
 
         this.sslCertificatePath = this.resolveProperty(properties, "sslCertificatePath", String.class, false);
         this.sslKeyStorePassword = this.resolveProperty(properties, "sslKeyStorePassword", String.class, false);
@@ -257,9 +258,16 @@ public final class ApplicationProperties {
 
             if(start == null) throw new IllegalArgumentException("Start address cannot be null");
             if(end == null) throw new IllegalArgumentException("End address cannot be null");
-            if(start.compareTo(end) > 0) throw new IllegalArgumentException("Start address must be smaller than end address");
 
-            addressRanges.add(new Pair<>(InetAddress.ofLiteral(range.get(0).trim()), InetAddress.ofLiteral(range.get(1).trim())));
+            final InetAddress startAddress = InetAddress.ofLiteral(range.get(0).trim());
+            final InetAddress endAddress = InetAddress.ofLiteral(range.get(1).trim());
+
+            if(Arrays.compareUnsigned(startAddress.getAddress(), endAddress.getAddress()) > 0) {
+
+                throw new IllegalArgumentException("Start address must be smaller than end address");
+            }
+
+            addressRanges.add(new Pair<>(startAddress, endAddress));
         }
 
         return addressRanges;

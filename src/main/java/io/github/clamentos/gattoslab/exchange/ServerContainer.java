@@ -134,15 +134,14 @@ public final class ServerContainer implements Closeable {
     }
 
     ///..
-    private SSLContext createSSLContext(final String sslCertificatePath, final String keyStorePassword)
-    throws GeneralSecurityException, IOException  {
+    private SSLContext createSSLContext(final String certificatePath, final String keyStorePassword) throws GeneralSecurityException, IOException  {
 
         this.logger.info("Loading SSL certificate start...");
 
         final char[] rawKeyStorePassword = keyStorePassword.toCharArray();
         final KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
 
-        keyManagerFactory.init(loadKeyStore(sslCertificatePath, rawKeyStorePassword), rawKeyStorePassword);
+        keyManagerFactory.init(this.loadKeyStore(certificatePath, rawKeyStorePassword), rawKeyStorePassword);
 
         final SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(keyManagerFactory.getKeyManagers(), null, null);

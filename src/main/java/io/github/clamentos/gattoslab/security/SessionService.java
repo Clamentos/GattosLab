@@ -13,11 +13,12 @@ import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,7 +36,7 @@ public final class SessionService {
     private final Random randomness;
 
     ///..
-    private final String loginPassword;
+    private final byte[] loginPassword;
     private final String cookieProperties;
 
     ///..
@@ -67,7 +68,7 @@ public final class SessionService {
 
         this.randomness = secureRandom;
 
-        this.loginPassword = applicationProperties.getLoginPassword();
+        this.loginPassword = applicationProperties.getLoginPassword().getBytes();
         this.cookieProperties = applicationProperties.getCookieProperties();
 
         batchScheduler.schedule(
@@ -81,7 +82,9 @@ public final class SessionService {
     ///
     public Pair<SecurityFailure, Long> login(final HttpExchange exchange) {
 
-        if(!this.loginPassword.equals(exchange.getRequestHeaders().get(HttpHeader.AUTHORIZATION))) {
+        final String authorizationHeader = exchange.getRequestHeaders().get(HttpHeader.AUTHORIZATION);
+
+        if(authorizationHeader == null || !MessageDigest.isEqual(authorizationHeader.getBytes(), this.loginPassword)) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Login failed for", exchange));
             GenericUtils.silentSleep(ApplicationProperties.LOGIN_FAILURE_PAUSE_DURATION.toMillis());
@@ -193,19 +196,18 @@ public final class SessionService {
     private void removeExpiredTask() {
 
         final long now = System.currentTimeMillis();
-        final int initialSize = this.sessionCounter.get();
-        final Iterator<Session> iterator = this.sessions.values().iterator();
+        int removedCounter = 0;
 
-        while(iterator.hasNext()) {
+        for(final Entry<MutableString, Session> entry : this.sessions.entrySet()) {
 
-            if(iterator.next().getExpiresAt() < now) iterator.remove();
+            if(entry.getValue().getExpiresAt() < now && this.sessions.remove(entry.getKey()) != null) {
+
+                this.sessionCounter.decrementAndGet();
+                removedCounter++;
+            }
         }
 
-        final int newSize = this.sessions.size();
-        final int sizeDifference = initialSize - newSize;
-
-        this.sessionCounter.set(newSize);
-        if(sizeDifference > 0) this.logger.info("Removed " + sizeDifference + " expired sessions");
+        if(removedCounter > 0) this.logger.info("Removed " + removedCounter + " expired sessions");
     }
 
     ///

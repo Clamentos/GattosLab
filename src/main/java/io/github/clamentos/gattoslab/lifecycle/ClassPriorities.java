@@ -30,9 +30,9 @@ public final class ClassPriorities {
     }
 
     ///
-    public <T> int getPriority(final Class<T> clazz) {
+    public <T> int getPriority(final Class<T> type) {
 
-        return this.priorities.get(clazz);
+        return this.priorities.get(type);
     }
 
     ///

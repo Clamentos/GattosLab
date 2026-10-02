@@ -3,7 +3,7 @@ package io.github.clamentos.gattoslab.observability.logging;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
-import io.github.clamentos.gattoslab.observability.ObservabilityFile;
+import io.github.clamentos.gattoslab.observability.ObservabilityDirectory;
 import io.github.clamentos.gattoslab.observability.logging.entities.LogEvent;
 import io.github.clamentos.gattoslab.observability.logging.entities.LogSeverity;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
@@ -19,9 +19,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 
 ///
-@SuppressWarnings("java:S106")
-
-///
 public final class LoggerRoot implements Closeable {
 
     ///
@@ -29,7 +26,7 @@ public final class LoggerRoot implements Closeable {
 
     ///.
     @Getter
-    private final ObservabilityFile<LogEvent> logFile;
+    private final ObservabilityDirectory<LogEvent> logDirectory;
 
     private final AtomicLong logEventIdCounter;
     private final Siphon<LogEvent> primarySiphon;
@@ -40,25 +37,16 @@ public final class LoggerRoot implements Closeable {
     private final Thread drainWorker;
 
     ///
-    private LoggerRoot() throws IllegalStateException {
+    private LoggerRoot() {
 
-        try {
+        this.logDirectory = new ObservabilityDirectory<>(null, ApplicationProperties.LOG_FILE_PATH);
 
-            this.logFile = new ObservabilityFile<>(ApplicationProperties.LOG_FILE_PATH, null);
+        this.logEventIdCounter = new AtomicLong();
+        this.primarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
+        this.secondarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
+        this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
 
-            this.logEventIdCounter = new AtomicLong();
-            this.primarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
-            this.secondarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
-            this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
-
-            this.drainWorker = GenericUtils.spawnVirtualThread("gattos-lab-log-siphon-drain-task", this::forceDrainSiphonTask);
-        }
-
-        catch(final IOException exc) {
-
-            System.err.println("FATAL: Could not instantiate LoggerRoot because: " + exc);
-            throw new IllegalStateException(exc);
-        }
+        this.drainWorker = GenericUtils.spawnVirtualThread("gattos-lab-log-siphon-drain-task", this::forceDrainSiphonTask);
     }
 
     ///
@@ -154,7 +142,7 @@ public final class LoggerRoot implements Closeable {
 
             try {
 
-                this.logFile.write(logEvents);
+                this.logDirectory.write(logEvents, true);
             }
 
             catch(final IOException exc) {
@@ -168,9 +156,7 @@ public final class LoggerRoot implements Closeable {
     private void forceDrainSiphonTask() {
 
         final long sleepAmount = ApplicationProperties.LOG_SIPHON_DRAIN_TASK_SLEEP.toMillis();
-        final long now = System.currentTimeMillis();
-
-        GenericUtils.silentSleep(sleepAmount - (now % sleepAmount));
+        GenericUtils.silentSleep(sleepAmount - (System.currentTimeMillis() % sleepAmount));
 
         while(true) {
 

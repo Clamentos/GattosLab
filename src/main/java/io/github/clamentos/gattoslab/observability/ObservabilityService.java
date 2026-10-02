@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.observability;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
@@ -43,8 +42,8 @@ public final class ObservabilityService implements Closeable {
     private final Logger logger;
 
     ///..
-    private final ObservabilityFile<RequestMetricsEntity> requestMetricsFile;
-    private final ObservabilityFile<SystemMetricsEntity> systemMetricsFile;
+    private final ObservabilityDirectory<RequestMetricsEntity> requestMetricsDirectory;
+    private final ObservabilityDirectory<SystemMetricsEntity> systemMetricsDirectory;
 
     private final Siphon<RequestMetricsEntity> primarySiphon;
     private final Siphon<RequestMetricsEntity> secondarySiphon;
@@ -57,10 +56,10 @@ public final class ObservabilityService implements Closeable {
     public ObservabilityService(final ApplicationProperties applicationProperties, final BatchScheduler batchScheduler) throws IOException {
 
         this.logger = new Logger();
-        final Logger fileLogger = new Logger(ObservabilityFile.class.getSimpleName());
+        final Logger fileLogger = new Logger(ObservabilityDirectory.class.getSimpleName());
 
-        this.requestMetricsFile = new ObservabilityFile<>(ApplicationProperties.REQUEST_METRICS_FILE_PATH, fileLogger);
-        this.systemMetricsFile = new ObservabilityFile<>(ApplicationProperties.SYSTEM_METRICS_FILE_PATH, fileLogger);
+        this.requestMetricsDirectory = new ObservabilityDirectory<>(fileLogger, ApplicationProperties.REQUEST_METRICS_FILE_PATH);
+        this.systemMetricsDirectory = new ObservabilityDirectory<>(fileLogger, ApplicationProperties.SYSTEM_METRICS_FILE_PATH);
 
         final Class<RequestMetricsEntity> type = RequestMetricsEntity.class;
 
@@ -77,9 +76,9 @@ public final class ObservabilityService implements Closeable {
 
         this.observabilityDatabase = new ObservabilityDatabase(
 
-            LoggerRoot.getInstance().getLogFile(),
-            this.requestMetricsFile,
-            this.systemMetricsFile
+            LoggerRoot.getInstance().getLogDirectory(),
+            this.requestMetricsDirectory,
+            this.systemMetricsDirectory
         );
 
         batchScheduler.schedule(
@@ -124,7 +123,7 @@ public final class ObservabilityService implements Closeable {
                 reqd     |reqd   |ok or ""|ok or ""     |ok or ""     |ok or ""      |ok or ""
         */
 
-        final List<String> filter = this.validateAndExtractQuery(exchange, 7);
+        final List<String> filter = this.validateAndExtractFilter(exchange, 7);
 
         final List<String> logs = this.observabilityDatabase.readLogs(
 
@@ -158,11 +157,13 @@ public final class ObservabilityService implements Closeable {
                 reqd     |reqd   |reqd
         */
 
-        final List<String> filter = this.validateAndExtractQuery(exchange, 3);
+        final List<String> filter = this.validateAndExtractFilter(exchange, 3);
 
         final long startTimestamp = Long.parseLong(filter.get(0));
         final long endTimestamp = Long.parseLong(filter.get(1));
         final long bucketSize = Long.parseLong(filter.get(2));
+
+        if(bucketSize <= 0) throw new IllegalArgumentException("Filter field 'bucketSize' must be > 0");
 
         final List<String> requests = this.observabilityDatabase.readRequests(startTimestamp, endTimestamp, "", "");
         final int length = requests.size();
@@ -263,11 +264,13 @@ public final class ObservabilityService implements Closeable {
                 reqd     |reqd   |reqd
         */
 
-        final List<String> filter = this.validateAndExtractQuery(exchange, 3);
+        final List<String> filter = this.validateAndExtractFilter(exchange, 3);
 
         final long startTimestamp = Long.parseLong(filter.get(0));
         final long endTimestamp = Long.parseLong(filter.get(1));
         final long bucketSize = Long.parseLong(filter.get(2));
+
+        if(bucketSize <= 0) throw new IllegalArgumentException("Filter field 'bucketSize' must be > 0");
 
         final List<String> systemMetrics = this.observabilityDatabase.readSystemMetrics(startTimestamp, endTimestamp);
         final int length = systemMetrics.size();
@@ -296,11 +299,9 @@ public final class ObservabilityService implements Closeable {
             aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(12)));
             aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(13)));
             aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(14)));
-            aggregation.setDirectBuffersUsed(aggregation.getDirectBuffersUsed() + Long.parseLong(splits.get(15)));
-            aggregation.setDirectBuffersMemoryUsed(aggregation.getDirectBuffersMemoryUsed() + Long.parseLong(splits.get(16)));
-            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(17)));
-            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(18)));
-            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(19)));
+            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(15)));
+            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(16)));
+            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(17)));
             aggregation.setCount(aggregation.getCount() + 1);
         }
 
@@ -349,11 +350,9 @@ public final class ObservabilityService implements Closeable {
                 datasets[10].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), aggregation.getCount());
                 datasets[11].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), aggregation.getCount());
                 datasets[12].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), aggregation.getCount());
-                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getDirectBuffersUsed(), aggregation.getCount());
-                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getDirectBuffersMemoryUsed(), aggregation.getCount());
-                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), aggregation.getCount());
-                datasets[16].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), aggregation.getCount());
-                datasets[17].getData()[i] = aggregation.getRequestMetricsEquilibrium();
+                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), aggregation.getCount());
+                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), aggregation.getCount());
+                datasets[15].getData()[i] = aggregation.getRequestMetricsEquilibrium();
             }
         }
 
@@ -376,9 +375,9 @@ public final class ObservabilityService implements Closeable {
         charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[2], datasets[3], datasets[4], datasets[5]});
         charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[6], datasets[7]});
         charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[8], datasets[9], datasets[10]});
-        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[11], datasets[12], datasets[13], datasets[14], datasets[15]});
-        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[16]});
-        charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[17]});
+        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[11], datasets[12], datasets[13]});
+        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[14]});
+        charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[15]});
 
         return writer -> {
 
@@ -403,7 +402,6 @@ public final class ObservabilityService implements Closeable {
     }
 
     ///..
-    @SuppressWarnings("java:S9354")
     public ResponseBodyCallback getCrawlMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
@@ -412,7 +410,7 @@ public final class ObservabilityService implements Closeable {
                 reqd     |reqd   | ok or ""| ok or ""
         */
 
-        final List<String> filter = this.validateAndExtractQuery(exchange, 4);
+        final List<String> filter = this.validateAndExtractFilter(exchange, 4);
 
         final List<String> requests = this.observabilityDatabase.readRequests(
 
@@ -512,64 +510,25 @@ public final class ObservabilityService implements Closeable {
         requestMetricsEntity.setId(exchange.getRequestId());
         requestMetricsEntity.setTimestamp(startTime);
         requestMetricsEntity.setLatency((int)(System.currentTimeMillis() - startTime));
-        requestMetricsEntity.setPath(exchange.getPath());
+        requestMetricsEntity.setUri(exchange.getUri());
         requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT));
         requestMetricsEntity.setUnknown(exchange.getResource() == null);
         requestMetricsEntity.setHttpStatus((short)status.getCode());
     }
 
     ///..
-    private List<String> validateAndExtractQuery(final HttpExchange exchange, final int numComponents) throws IllegalArgumentException {
+    private List<String> validateAndExtractFilter(final HttpExchange exchange, final int numComponents) throws IllegalArgumentException {
 
-        final String uri = exchange.getUri();
-        final int length = uri.length();
-        final String separator = ApplicationProperties.FIELD_SEPARATOR_URL_ENCODED;
-        final int separatorLength = separator.length();
+        final List<String> splits = GenericUtils.fastSplit(
 
-        final MutableString mutableString = new MutableString(length);
-        final List<String> components = new ArrayList<>(7);
+            exchange.getRequestHeaders().get(HttpHeader.FILTER),
+            ApplicationProperties.FIELD_SEPARATOR
+        );
 
-        final int index = uri.indexOf("?filter=");
-        if(index == -1) throw new IllegalArgumentException("Query parameter 'filter' must be provided");
+        if(splits.isEmpty()) throw new IllegalArgumentException("Header 'Filter' must be provided");
+        if(splits.size() != numComponents) throw new IllegalArgumentException("'Filter' must have " + numComponents + " components");
 
-        int i = index + 8;
-
-        while(i < length) {
-
-            final char currentChar = uri.charAt(i++);
-            if(currentChar == '&') break;
-
-            if(currentChar == '%') {
-
-                mutableString.append(currentChar);
-                boolean correct = true;
-
-                for(int j = 0; j < separatorLength && i < length; j++) {
-
-                    final char separatorChar = uri.charAt(i++);
-
-                    if(separatorChar == separator.charAt(j)) mutableString.append(separatorChar);
-                    else correct = false;
-                }
-
-                if(correct) {
-
-                    mutableString.deleteLastChars(separatorLength + 1);
-                    components.add(mutableString.toString());
-                    mutableString.clear();
-                }
-            }
-
-            else {
-
-                mutableString.append(currentChar);
-            }
-        }
-
-        components.add(mutableString.toString());
-        if(components.size() != numComponents) throw new IllegalArgumentException("'filter' must have " + numComponents + " components");
-
-        return components;
+        return splits;
     }
 
     ///..
@@ -593,7 +552,7 @@ public final class ObservabilityService implements Closeable {
 
             try {
 
-                this.requestMetricsFile.write(requestMetrics);
+                this.requestMetricsDirectory.write(requestMetrics, false);
             }
 
             catch(final IOException exc) {
@@ -614,7 +573,7 @@ public final class ObservabilityService implements Closeable {
 
                 try {
 
-                    this.systemMetricsFile.write(List.of(systemMetric));
+                    this.systemMetricsDirectory.write(List.of(systemMetric), false);
                 }
 
                 catch(final IOException exc) {
@@ -631,17 +590,23 @@ public final class ObservabilityService implements Closeable {
         final long days = retention.toDays();
         final LocalDateTime boundaryDate = LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID).minusDays(days).truncatedTo(ChronoUnit.HOURS);
 
-        int numDeleted = 0;
+        final int numLogFilesDeleted = this.applyRetention(LoggerRoot.getInstance().getLogDirectory(), boundaryDate);
+        final int numRequestMetricFilesDeleted = this.applyRetention(requestMetricsDirectory, boundaryDate);
+        final int numSystemMetricFilesDeleted = this.applyRetention(systemMetricsDirectory, boundaryDate);
 
-        numDeleted += this.applyRetention(LoggerRoot.getInstance().getLogFile(), boundaryDate);
-        numDeleted += this.applyRetention(requestMetricsFile, boundaryDate);
-        numDeleted += this.applyRetention(systemMetricsFile, boundaryDate);
+        if(numLogFilesDeleted > 0 || numRequestMetricFilesDeleted > 0 || numSystemMetricFilesDeleted > 0) {
 
-        if(numDeleted > 0) this.logger.info("Deleted " + numDeleted + " observability files");
+            this.logger.info(
+
+                "Deleted " + numLogFilesDeleted + " log files, " +
+                numRequestMetricFilesDeleted + " request metric files, " +
+                numSystemMetricFilesDeleted + " system metric files"
+            );
+        }
     }
 
     ///..
-    private int applyRetention(final ObservabilityFile<?> observabilityFile, final LocalDateTime boundaryDate) {
+    private int applyRetention(final ObservabilityDirectory<?> observabilityFile, final LocalDateTime boundaryDate) {
 
         try {
 

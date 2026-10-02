@@ -19,6 +19,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
 
 ///
@@ -77,12 +78,7 @@ public final class IngressFilter extends Responder implements Filter {
 
         this.corsHeaders = new EnumMap<>(HttpHeader.class);
         this.corsHeaders.putAll(ApplicationProperties.CORS_HEADERS);
-
-        this.corsHeaders.put(
-
-            HttpHeader.ACCESS_CONTROL_ALLOW_ORIGIN,
-            GenericUtils.concatenateAsCsv(applicationProperties.getAllowedOrigins())
-        );
+        this.corsHeaders.put(HttpHeader.ACCESS_CONTROL_ALLOW_ORIGIN, GenericUtils.concatenateAsCsv(applicationProperties.getAllowedOrigins()));
     }
 
     ///
@@ -92,20 +88,20 @@ public final class IngressFilter extends Responder implements Filter {
         super.observabilityService.requestStarted();
 
         final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
-        exchange.setResource(this.resourceMappings.get(exchange.getPath()));
+        exchange.setResource(this.resourceMappings.get(exchange.getUri()));
 
-        if(this.isBlocked(exchange.getRemoteAddress())) {
+        if(this.isBlocked(exchange.getRemoteIpAddress())) {
 
             this.respondBlocked(exchange);
             return false;
         }
 
-        for(final String illegalUserAgentContain : this.illegalUserAgentContains) {
+        for(final String illegalContains : this.illegalUserAgentContains) {
 
             if(
-                (illegalUserAgentContain == null && userAgent == null) ||
-                ("".equals(illegalUserAgentContain) && "".equals(userAgent)) ||
-                (illegalUserAgentContain != null && illegalUserAgentContain.equalsIgnoreCase(userAgent))
+                (illegalContains == null && userAgent == null) ||
+                ("".equals(illegalContains) && "".equals(userAgent)) ||
+                (illegalContains != null && userAgent != null && illegalContains.toLowerCase(Locale.US).contains(userAgent.toLowerCase(Locale.US)))
             ) {
     
                 this.respondBlocked(exchange);
@@ -125,7 +121,9 @@ public final class IngressFilter extends Responder implements Filter {
     ///.
     private boolean isBlocked(final byte[] address) {
 
-        if(this.blockedIpV4s.length > 0 && address.length == 4) {
+        final int addressLength = address.length;
+
+        if(this.blockedIpV4s.length > 0 && addressLength == 4) {
 
             final long addressAsLong = GenericUtils.ipV4ToLong(address);
 
@@ -137,7 +135,7 @@ public final class IngressFilter extends Responder implements Filter {
             return false;
         }
 
-        if(this.blockedIpV6s.length > 0) {
+        if(this.blockedIpV6s.length > 0 && addressLength == 16) {
 
             for(final Pair<byte[], byte[]> range : this.blockedIpV6s) {
 

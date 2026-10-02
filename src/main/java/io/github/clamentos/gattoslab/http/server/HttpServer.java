@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.http.server;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.exceptions.MalformedRequestException;
 import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
@@ -23,9 +24,9 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.EnumMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,7 +43,7 @@ public final class HttpServer implements Closeable {
     ///
     private static final byte[] RESPONSE_FOR_MALFORMED = (
 
-        HttpStatus.BAD_REQUEST.getValueForResponse() +
+        new String(HttpStatus.BAD_REQUEST.getValueForResponse()) +
         GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
         "\r\n"
 
@@ -50,14 +51,14 @@ public final class HttpServer implements Closeable {
 
     private static final byte[] RESPONSE_FOR_TOO_BIG = (
 
-        HttpStatus.CONTENT_TOO_LARGE.getValueForResponse() +
+        new String(HttpStatus.CONTENT_TOO_LARGE.getValueForResponse()) +
         GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
         "\r\n"
 
     ).getBytes();
 
     private static final String TOO_MANY_SOCKETS_MESSAGE = "Too many sockets";
-    private static final byte[] TOO_MANY_SOCKETS_BYTES = TOO_MANY_SOCKETS_MESSAGE.getBytes();
+    private static final byte[] TOO_MANY_SOCKETS_MESSAGE_BYTES = TOO_MANY_SOCKETS_MESSAGE.getBytes();
 
     ///.
     private final Logger logger;
@@ -70,6 +71,7 @@ public final class HttpServer implements Closeable {
 
     ///..
     private final Map<Thread, HttpConnection> connections;
+    private final Map<HashCodedByteArray, AtomicInteger> socketsPerIp;
     private final AtomicInteger connectionCounter;
     private final AtomicLong requestIdCounter;
     private final AtomicBoolean isClosed;
@@ -79,15 +81,15 @@ public final class HttpServer implements Closeable {
     private final Handler handler;
 
     ///..
-    private final boolean keepAliveByDefault;
+    private final boolean dokeepAliveByDefault;
 
     ///
     public HttpServer(
 
         final SquashingLogger squashingLogger,
-        final InetAddress address,
+        final InetAddress bindAddress,
         final int port,
-        final boolean keepAliveByDefault,
+        final boolean dokeepAliveByDefault,
         final SSLContext sslContext,
         final List<Filter> filters,
         final Handler handler
@@ -101,17 +103,18 @@ public final class HttpServer implements Closeable {
         this.logger.info("Server SSL enabled: " + isSsl);
 
         final ServerSocketFactory serverSocketFactory = isSsl ? sslContext.getServerSocketFactory() : ServerSocketFactory.getDefault();
-        this.serverSocket = serverSocketFactory.createServerSocket(port, ApplicationProperties.SERVER_SOCKET_ACCEPT_QUEUE_SIZE, address);
+        this.serverSocket = serverSocketFactory.createServerSocket(port, ApplicationProperties.SERVER_SOCKET_ACCEPT_QUEUE_SIZE, bindAddress);
 
         this.connections = new ConcurrentHashMap<>();
-        connectionCounter = new AtomicInteger();
+        this.socketsPerIp = new ConcurrentHashMap<>();
+        this.connectionCounter = new AtomicInteger();
         this.requestIdCounter = new AtomicLong();
         this.isClosed = new AtomicBoolean();
 
         this.filters = filters.stream().toArray(Filter[]::new);
         this.handler = handler;
 
-        this.keepAliveByDefault = keepAliveByDefault;
+        this.dokeepAliveByDefault = dokeepAliveByDefault;
 
         this.acceptor = GenericUtils.spawnVirtualThread("gattos-lab-http-acceptor-task", this::accept);
         this.sweeper = GenericUtils.spawnVirtualThread("gattos-lab-http-sweeper-task", this::sweep);
@@ -126,9 +129,11 @@ public final class HttpServer implements Closeable {
 
         try {
 
+            this.logger.info("Joining '" + this.acceptor.getName() + "'");
             this.acceptor.interrupt();
             if(!this.acceptor.join(timeout)) this.logger.warning("Timed-out while joining the acceptor thread");
 
+            this.logger.info("Joining '" + this.sweeper.getName() + "'");
             this.sweeper.interrupt();
             if(!this.sweeper.join(timeout)) this.logger.warning("Timed-out while joining the sweeper thread");
 
@@ -181,18 +186,15 @@ public final class HttpServer implements Closeable {
         while(!this.isClosed.get()) {
 
             final long now = System.currentTimeMillis();
-            final Iterator<HttpConnection> iterator = this.connections.values().iterator();
 
-            while(iterator.hasNext()) {
+            for(final Entry<Thread, HttpConnection> entry : this.connections.entrySet()) {
 
-                final HttpConnection connection = iterator.next();
+                final HttpConnection connection = entry.getValue();
 
                 if(connection.getCreatedAt() + keepAliveDuration < now) {
 
                     connection.getSwept().set(true);
                     this.closeOrLog(connection.getSocket());
-                    iterator.remove();
-                    this.connectionCounter.decrementAndGet();
                 }
             }
 
@@ -203,20 +205,8 @@ public final class HttpServer implements Closeable {
     ///..
     private void handleConnection(final Socket client) {
 
-        final int currentConnectionCount = this.connectionCounter.getAndUpdate((currentValue -> Math.min(
-
-            currentValue + 1,
-            ApplicationProperties.MAX_SERVER_SOCKETS
-        )));
-
-        if(currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS) {
-
-            this.squashingLogger.warning(GenericUtils.composeMessageForSquash(TOO_MANY_SOCKETS_MESSAGE));
-            this.respondError(client, TOO_MANY_SOCKETS_BYTES);
-            this.closeOrLog(client);
-
-            return;
-        }
+        final HashCodedByteArray rawRemoteIpAddress = this.isConnectionAllowed(client);
+        if(rawRemoteIpAddress == null) return;
 
         final Thread self = Thread.currentThread();
         final HttpConnection connection = new HttpConnection(client);
@@ -226,7 +216,7 @@ public final class HttpServer implements Closeable {
         final int lingerAmount = (int)ApplicationProperties.SOCKET_LINGER.toSeconds();
         final int keepAliveAmount = (int)ApplicationProperties.SERVER_MAX_KEEP_ALIVE_DURATION.toMillis();
 
-        boolean readTimeoutFlag = false;
+        boolean doEnlargeReadTimeout = false;
 
         try {
 
@@ -243,7 +233,7 @@ public final class HttpServer implements Closeable {
 
                 reader.resetAllowed();
 
-                final HttpExchange exchange = this.parseRequest(client, reader, writer, firstLine);
+                final HttpExchange exchange = this.parseRequest(client, rawRemoteIpAddress, reader, writer, firstLine);
                 boolean doDispatch = true;
 
                 for(final Filter filter : this.filters) {
@@ -256,12 +246,12 @@ public final class HttpServer implements Closeable {
                 }
 
                 if(doDispatch) this.handler.handle(exchange);
-                if(!exchange.isKeepAlive() || exchange.isForceClose() || !this.keepAliveByDefault) break;
+                if(!exchange.isKeepAlive() || exchange.isDoForceClose() || !this.dokeepAliveByDefault) break;
 
-                if(!readTimeoutFlag) {
+                if(!doEnlargeReadTimeout) {
 
                     client.setSoTimeout(keepAliveAmount);
-                    readTimeoutFlag = true;
+                    doEnlargeReadTimeout = true;
                 }
             }
         }
@@ -275,11 +265,55 @@ public final class HttpServer implements Closeable {
         this.closeOrLog(client);
         this.connections.remove(self);
         this.connectionCounter.decrementAndGet();
+
+        if(this.socketsPerIp.get(rawRemoteIpAddress).decrementAndGet() == 0) {
+
+            this.socketsPerIp.remove(rawRemoteIpAddress);
+        }
     }
 
     ///..
-    private HttpExchange parseRequest(final Socket socket, final SocketReader reader, final StreamWriter writer, final CharSequence firstLine)
-    throws IOException {
+    private HashCodedByteArray isConnectionAllowed(final Socket client) {
+
+        final int currentConnectionCount = this.connectionCounter.getAndUpdate((currentValue -> Math.min(
+
+            currentValue + 1,
+            ApplicationProperties.MAX_SERVER_SOCKETS
+        )));
+
+        final HashCodedByteArray remoteIp = new HashCodedByteArray(((InetSocketAddress)client.getRemoteSocketAddress()).getAddress().getAddress());
+        final int currentIpConnectionCount = this.socketsPerIp.computeIfAbsent(remoteIp, _ -> new AtomicInteger()).incrementAndGet();
+
+        if(
+            currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS ||
+            currentIpConnectionCount >= ApplicationProperties.MAX_SOCKETS_PER_IP
+        ) {
+
+            this.squashingLogger.warning(GenericUtils.composeMessageForSquash(TOO_MANY_SOCKETS_MESSAGE));
+            this.respondError(client, TOO_MANY_SOCKETS_MESSAGE_BYTES);
+            this.closeOrLog(client);
+
+            if(this.socketsPerIp.get(remoteIp).decrementAndGet() == 0) {
+
+                this.socketsPerIp.remove(remoteIp);
+            }
+
+            return null;
+        }
+
+        return remoteIp;
+    }
+
+    ///..
+    private HttpExchange parseRequest(
+        
+        final Socket socket,
+        final HashCodedByteArray rawRemoteIpAddress,
+        final SocketReader reader,
+        final StreamWriter writer,
+        final CharSequence firstLine
+
+    ) throws IOException {
 
         final List<String> firstLineSplits = GenericUtils.fastSplit(firstLine, ' ');
 
@@ -303,7 +337,7 @@ public final class HttpServer implements Closeable {
         return new HttpExchange(
 
             this.requestIdCounter.getAndIncrement(),
-            ((InetSocketAddress)socket.getRemoteSocketAddress()).getAddress().getAddress(),
+            rawRemoteIpAddress.getData(),
             HttpMethod.decode(firstLineSplits.get(0)),
             firstLineSplits.get(1),
             headers,
@@ -315,9 +349,9 @@ public final class HttpServer implements Closeable {
     ///..
     private String[] splitHeader(final CharSequence rawHeader, final Socket socket) throws IOException {
 
-        final String[] splits = new String[]{null, ""};
+        final String[] header = new String[]{null, ""};
         final int length = rawHeader.length();
-        final MutableString builder = new MutableString(length);
+        final MutableString mutableString = new MutableString(length);
 
         boolean separatorFound = false;
         int i = 0;
@@ -328,12 +362,12 @@ public final class HttpServer implements Closeable {
 
             if(currentChar != ':') {
 
-                builder.append(currentChar);
+                mutableString.append(currentChar);
             }
 
             else {
 
-                splits[0] = builder.toString();
+                header[0] = mutableString.toString();
                 separatorFound = true;
             }
 
@@ -346,18 +380,18 @@ public final class HttpServer implements Closeable {
             throw new MalformedRequestException("Bad header line");
         }
 
-        if(i == length) return splits;
+        if(i == length) return header;
 
-        builder.clear();
+        mutableString.clear();
         if(rawHeader.charAt(i) == ' ') i++;
 
         while(i < length) {
 
-            builder.append(rawHeader.charAt(i++));
+            mutableString.append(rawHeader.charAt(i++));
         }
 
-        splits[1] = builder.toString();
-        return splits;
+        header[1] = mutableString.toString();
+        return header;
     }
 
     ///..
@@ -370,7 +404,10 @@ public final class HttpServer implements Closeable {
                 case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.getMessage()));
                 case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
 
-                default -> { if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Uncaught exception", exc); }
+                default -> {
+
+                    if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Uncaught exception", exc);
+                }
             }
         }
     }

@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.lifecycle;
 
 ///
 import io.github.clamentos.gattoslab.observability.logging.Logger;
+import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 
 ///..
 import java.io.Closeable;
@@ -48,11 +49,12 @@ public class ShutdownHook implements Runnable {
 
             for(int i = 0; i < length; i++) {
 
-                this.tryClose(closeableList.get(i));
+                final Object closeable = closeableList.get(i);
+
+                if(closeable instanceof LoggerRoot) this.logger.info("End shutdown");
+                this.tryClose(closeable);
             }
         }
-
-        this.logger.info("End shutdown");
     }
 
     ///.
@@ -68,17 +70,8 @@ public class ShutdownHook implements Runnable {
 
         try {
 
-            switch(closeable) {
-
-                case final Closeable casted -> casted.close();
-                case final AutoCloseable casted -> casted.close();
-
-                default -> {
-
-                    this.logger.warning("Closeable was not actually a closeable, bot: '" + closeableClassName + "'");
-                    return;
-                }
-            }
+            if(closeable instanceof final Closeable casted) casted.close();
+            else ((AutoCloseable)closeable).close();
 
             this.logger.info("Closed '" + closeableClassName + "'");
         }

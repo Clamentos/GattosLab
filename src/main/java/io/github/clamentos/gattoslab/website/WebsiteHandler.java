@@ -59,11 +59,11 @@ public final class WebsiteHandler extends BasicHandler {
 
                 writer -> {
 
-                    final GZIPOutputStream compressor = new GZIPOutputStream(writer);
+                    try(final GZIPOutputStream compressor = new GZIPOutputStream(writer); rawDiskData) {
 
-                    rawDiskData.transferTo(compressor);
-                    compressor.finish();
-                    rawDiskData.close();
+                        rawDiskData.transferTo(compressor);
+                        compressor.finish();
+                    }
                 }
             );
         }

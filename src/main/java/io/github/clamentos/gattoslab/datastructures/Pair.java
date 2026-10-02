@@ -7,8 +7,8 @@ import lombok.Getter;
 
 ///
 @AllArgsConstructor
-@Getter
 @EqualsAndHashCode
+@Getter
 
 ///
 public class Pair<A, B> {

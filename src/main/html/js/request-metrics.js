@@ -46,9 +46,12 @@ function onSubmitEvent(event) {
 
 function fetchAndRenderPerformanceMetrics(startTimestamp, endTimestamp, resolution) {
 
-    const filter = `${startTimestamp}|${endTimestamp}|${resolution}`;
+    fetch("/api/observability/request-metrics", {
 
-    fetch(`/api/observability/request-metrics?filter=${encodeURI(filter)}`, {method: "GET"}).then(response => {
+        method: "GET",
+        headers: { "Filter": `${startTimestamp}|${endTimestamp}|${resolution}` }
+
+    }).then(response => {
 
         if(response.status === 200) {
 

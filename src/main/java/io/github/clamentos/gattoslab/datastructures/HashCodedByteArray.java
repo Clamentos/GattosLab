@@ -2,9 +2,11 @@ package io.github.clamentos.gattoslab.datastructures;
 
 ///
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 ///
 @EqualsAndHashCode
+@Getter
 
 ///
 public final class HashCodedByteArray {

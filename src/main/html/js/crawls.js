@@ -41,9 +41,12 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgent
     invocationsTableBody.replaceChildren();
     userAgentsTableBody.replaceChildren();
 
-    const filter = `${startTimestamp}|${endTimestamp}|${isUnknown}|${userAgentPattern}`;
+    fetch("/api/observability/crawl-metrics", {
+        
+        method: "GET",
+        headers: { "Filter": `${startTimestamp}|${endTimestamp}|${isUnknown}|${userAgentPattern}` }
 
-    fetch(`/api/observability/crawl-metrics?filter=${encodeURI(filter)}`, {method: "GET"}).then((response) => {
+    }).then((response) => {
 
         if(response.status === 200) {
 

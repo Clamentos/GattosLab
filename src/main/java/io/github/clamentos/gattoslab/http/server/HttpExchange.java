@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -33,11 +34,10 @@ public final class HttpExchange implements Closeable {
     private final long requestId;
     private final long startTime;
 
-    private final byte[] remoteAddress;
+    private final byte[] remoteIpAddress;
 
     private final HttpMethod method;
     private final String uri;
-    private final String path;
 
     private final Map<HttpHeader, String> requestHeaders;
     private final Map<HttpHeader, String> responseHeaders;
@@ -53,13 +53,13 @@ public final class HttpExchange implements Closeable {
 
     @Setter private boolean isTracked;
     private boolean isHandled;
-    private boolean forceClose;
+    private boolean doForceClose;
 
     ///
     public HttpExchange(
 
         final long requestId,
-        final byte[] remoteAddress,
+        final byte[] remoteIpAddress,
         final HttpMethod method,
         final String uri,
         final Map<HttpHeader, String> requestHeaders,
@@ -70,13 +70,10 @@ public final class HttpExchange implements Closeable {
         this.requestId = requestId;
         this.startTime = System.currentTimeMillis();
 
-        this.remoteAddress = remoteAddress;
+        this.remoteIpAddress = remoteIpAddress;
 
         this.method = method;
         this.uri = uri;
-
-        final int endOfPath = this.endOfPath(uri);
-        this.path = endOfPath > 0 ? uri.substring(0, endOfPath) : uri;
 
         this.requestHeaders = requestHeaders;
         this.responseHeaders = new EnumMap<>(HttpHeader.class);
@@ -89,11 +86,11 @@ public final class HttpExchange implements Closeable {
 
         this.isTracked = false;
         this.isHandled = false;
-        this.forceClose = false;
+        this.doForceClose = false;
 
         final String connectionHeader = this.requestHeaders.get(HttpHeader.CONNECTION);
 
-        if(connectionHeader != null && connectionHeader.contains("close")) {
+        if(connectionHeader != null && connectionHeader.toLowerCase(Locale.US).contains("close")) {
 
             this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
             this.isKeepAlive = false;
@@ -125,7 +122,7 @@ public final class HttpExchange implements Closeable {
             DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime), GenericUtils.DEFAULT_ZONE_ID))
         );
 
-        if(this.forceClose) this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
+        if(this.doForceClose) this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
         if(mimeType != null) this.responseHeaders.putAll(mimeType.getValueForResponse());
 
         if(body != null) {
@@ -186,22 +183,7 @@ public final class HttpExchange implements Closeable {
     @Override
     public void close() {
 
-        this.forceClose = true;
-    }
-
-    ///.
-    private int endOfPath(final String uri) {
-
-        if(uri == null) return -1;
-        final int length = uri.length();
-
-        for(int i = 0; i < length; i++) {
-
-            final char currentChar = uri.charAt(i);
-            if(currentChar == '?' || currentChar == '#') return i;
-        }
-
-        return -1;
+        this.doForceClose = true;
     }
 
     ///

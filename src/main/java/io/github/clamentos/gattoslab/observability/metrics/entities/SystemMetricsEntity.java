@@ -2,8 +2,8 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
 import io.github.clamentos.gattoslab.http.server.StreamWriter;
+import io.github.clamentos.gattoslab.observability.Entity;
 
 ///..
 import java.io.IOException;
@@ -17,7 +17,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public final class SystemMetricsEntity implements Streamable {
+public final class SystemMetricsEntity implements Entity {
 
     ///
     private final long id;
@@ -35,8 +35,6 @@ public final class SystemMetricsEntity implements Streamable {
     private final long cpuLoadMachineTotal;
     private final long systemMemoryUsed;
     private final long metaSpaceUsed;
-    private final long directBuffersUsed;
-    private final long directBuffersMemoryUsed;
     private final long heapUsed;
     private final long storageUsed;
     private final long requestMetricsEquilibrium;
@@ -74,10 +72,6 @@ public final class SystemMetricsEntity implements Streamable {
         writer.write(Long.toString(this.systemMemoryUsed));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.metaSpaceUsed));
-        writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Long.toString(this.directBuffersUsed));
-        writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Long.toString(this.directBuffersMemoryUsed));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.heapUsed));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

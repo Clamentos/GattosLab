@@ -13,11 +13,14 @@ import java.io.InputStream;
 public final class SocketReader {
 
     ///
+    private static final String REQUEST_TOO_BIG_MESSAGE = "Request too big, maximum is " + ApplicationProperties.MAX_REQUEST_SIZE + " bytes";
+
+    ///.
     private final byte[] buffer;
     private final InputStream inputStream;
 
     ///..
-    private int maxAllowed;
+    private int maxAllowedBytes;
     private int usableBytes;
     private int position;
 
@@ -27,7 +30,7 @@ public final class SocketReader {
         this.buffer = new byte[size];
         this.inputStream = inputStream;
 
-        this.maxAllowed = ApplicationProperties.MAX_REQUEST_SIZE;
+        this.maxAllowedBytes = ApplicationProperties.MAX_REQUEST_SIZE;
         this.usableBytes = 0;
         this.position = 0;
     }
@@ -66,20 +69,19 @@ public final class SocketReader {
     ///..
     public void resetAllowed() {
 
-        this.maxAllowed = ApplicationProperties.MAX_REQUEST_SIZE;
+        this.maxAllowedBytes = ApplicationProperties.MAX_REQUEST_SIZE;
     }
 
     ///.
     private boolean fill() throws IOException {
 
-        if(this.maxAllowed <= 0) throw new RequestTooBigException();
-
+        if(this.maxAllowedBytes <= 0) throw new RequestTooBigException(REQUEST_TOO_BIG_MESSAGE);
 
         final int bytesRead = this.inputStream.read(this.buffer, 0, this.buffer.length);
         if(bytesRead == -1) return false;
 
         this.position = 0;
-        this.maxAllowed -= bytesRead;
+        this.maxAllowedBytes -= bytesRead;
         this.usableBytes += bytesRead;
 
         return true;

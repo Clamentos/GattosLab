@@ -10,7 +10,6 @@ import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 ///..
 import java.io.Closeable;
 import java.lang.StackWalker.StackFrame;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,17 +62,15 @@ public class SquashingLogger implements Closeable {
     ///..
     private void logTask() {
 
-        final Iterator<Entry<Pair<String, String>, FastAtomicCounter>> iterator = this.squashes.entrySet().iterator();
         final MutableString mutableString = new MutableString(128);
 
-        while(iterator.hasNext()) {
+        for(final Entry<Pair<String, String>, FastAtomicCounter> entry : this.squashes.entrySet()) {
 
-            final Entry<Pair<String, String>, FastAtomicCounter> entry = iterator.next();
             final Pair<String, String> entryKey = entry.getKey();
             final String messageTemplate = entryKey.getA();
             final int messageTemplateLength = messageTemplate.length();
 
-            iterator.remove();
+            this.squashes.remove(entryKey);
 
             for(int i = 0; i < messageTemplateLength; i++) {
 
@@ -83,7 +80,7 @@ public class SquashingLogger implements Closeable {
                 else mutableString.append(currentChar);
             }
 
-            this.logger.warning(entryKey.getB(), mutableString.toString());
+            this.logger.warning(mutableString.toString(), entryKey.getB());
             mutableString.clear();
         }
     }

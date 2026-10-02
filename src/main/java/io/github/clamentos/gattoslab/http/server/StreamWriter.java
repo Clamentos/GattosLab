@@ -15,8 +15,8 @@ public final class StreamWriter extends OutputStream {
     private final OutputStream outputStream;
 
     ///..
-    private int index;
-    private boolean chunkedMode;
+    private int position;
+    private boolean isChunkedMode;
 
     ///
     public StreamWriter(final OutputStream outputStream, final int bufferSize) {
@@ -24,14 +24,14 @@ public final class StreamWriter extends OutputStream {
         this.buffer = new byte[bufferSize];
         this.outputStream = outputStream;
 
-        this.index = 0;
-        this.chunkedMode = false;
+        this.position = 0;
+        this.isChunkedMode = false;
     }
 
     ///..
     public StreamWriter(final OutputStream outputStream) {
 
-        this(outputStream, 8192);
+        this(outputStream, ApplicationProperties.DEFAULT_STREAM_WRITER_BUFFER_SIZE);
     }
 
     ///
@@ -42,7 +42,7 @@ public final class StreamWriter extends OutputStream {
 
         while(true) {
 
-            int amountPossible = this.buffer.length - this.index;
+            int amountPossible = this.buffer.length - this.position;
 
             while(amountPossible >= 2 && dataIndex < length) {
 
@@ -62,7 +62,7 @@ public final class StreamWriter extends OutputStream {
 
         while(true) {
 
-            int amountPossible = this.buffer.length - this.index;
+            int amountPossible = this.buffer.length - this.position;
 
             while(amountPossible >= 2 && dataIndex < length) {
 
@@ -73,14 +73,14 @@ public final class StreamWriter extends OutputStream {
 
                     case '\n':
 
-                        this.buffer[this.index++] = ApplicationProperties.NEWLINE_REPLACEMENT;
+                        this.buffer[this.position++] = ApplicationProperties.NEWLINE_REPLACEMENT;
                         written = 1;
 
                     break;
 
                     case ApplicationProperties.FIELD_SEPARATOR:
 
-                        this.buffer[this.index++] = ApplicationProperties.FIELD_SEPARATOR_REPLACEMENT;
+                        this.buffer[this.position++] = ApplicationProperties.FIELD_SEPARATOR_REPLACEMENT;
                         written = 1;
 
                     break;
@@ -99,7 +99,7 @@ public final class StreamWriter extends OutputStream {
     ///..
     public void write(final char data) throws IOException {
 
-        if(this.index >= this.buffer.length - 1) this.flush();
+        if(this.position >= this.buffer.length - 1) this.flush();
         this.writeChar(data);
     }
 
@@ -107,24 +107,24 @@ public final class StreamWriter extends OutputStream {
     public void startChunked() throws IOException {
 
         this.flush();
-        this.chunkedMode = true;
+        this.isChunkedMode = true;
     }
 
     ///..
     public void endChunked() throws IOException {
 
-        if(this.index > 0) this.flush();
+        if(this.position > 0) this.flush();
 
         this.flush();
-        this.chunkedMode = false;
+        this.isChunkedMode = false;
     }
 
     ///..
     @Override
     public void write(final int data) throws IOException {
 
-        if(this.index >= this.buffer.length) this.flush();
-        this.buffer[this.index++] = (byte)(data & 0x000000FF);
+        if(this.position >= this.buffer.length) this.flush();
+        this.buffer[this.position++] = (byte)(data & 0x000000FF);
     }
 
     ///..
@@ -135,11 +135,11 @@ public final class StreamWriter extends OutputStream {
 
         while(true) {
 
-            final int amount = Math.min(this.buffer.length - this.index, length - dataIndex);
+            final int amount = Math.min(this.buffer.length - this.position, length - dataIndex);
 
-            System.arraycopy(data, dataIndex, this.buffer, this.index, amount);
+            System.arraycopy(data, dataIndex, this.buffer, this.position, amount);
             dataIndex += amount;
-            this.index += amount;
+            this.position += amount;
 
             if(dataIndex >= length) break;
             else this.flush();
@@ -150,19 +150,19 @@ public final class StreamWriter extends OutputStream {
     @Override
     public void flush() throws IOException {
 
-        if(this.chunkedMode) {
+        if(this.isChunkedMode) {
 
-            this.outputStream.write((Integer.toHexString(this.index) + "\r\n").getBytes());
-            this.outputStream.write(buffer, 0, this.index);
+            this.outputStream.write((Integer.toHexString(this.position) + "\r\n").getBytes());
+            this.outputStream.write(buffer, 0, this.position);
             this.outputStream.write(ApplicationProperties.NEW_LINE_BYTES);
         }
 
         else {
 
-            this.outputStream.write(buffer, 0, this.index);
+            this.outputStream.write(buffer, 0, this.position);
         }
 
-        this.index = 0;
+        this.position = 0;
     }
 
     ///..
@@ -178,14 +178,14 @@ public final class StreamWriter extends OutputStream {
 
         if(data <= 0x007F) {
 
-            this.buffer[this.index++] = (byte)(data & 0x00FF);
+            this.buffer[this.position++] = (byte)(data & 0x00FF);
             return 1;
         }
 
         else {
 
-            this.buffer[this.index++] = (byte)((data & 0xFF00) >> 8);
-            this.buffer[this.index++] = (byte)(data & 0x00FF);
+            this.buffer[this.position++] = (byte)((data & 0xFF00) >> 8);
+            this.buffer[this.position++] = (byte)(data & 0x00FF);
 
             return 2;
         }

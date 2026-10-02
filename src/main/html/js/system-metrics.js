@@ -40,9 +40,12 @@ function onSubmitEvent(event) {
 
 function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
 
-    const filter = `${startTimestamp}|${endTimestamp}|${resolution}`;
+    fetch("/api/observability/system-metrics", {
 
-    fetch(`/api/observability/system-metrics?filter=${encodeURI(filter)}`, {method: "GET"}).then(response => {
+        method: "GET",
+        headers: { "Filter": `${startTimestamp}|${endTimestamp}|${resolution}` }
+
+    }).then(response => {
 
         if(response.status === 200) {
 

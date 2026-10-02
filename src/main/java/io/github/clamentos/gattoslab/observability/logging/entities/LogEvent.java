@@ -3,8 +3,8 @@ package io.github.clamentos.gattoslab.observability.logging.entities;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.Resettable;
-import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
 import io.github.clamentos.gattoslab.http.server.StreamWriter;
+import io.github.clamentos.gattoslab.observability.Entity;
 
 ///..
 import java.io.IOException;
@@ -20,7 +20,7 @@ import lombok.Setter;
 @Setter
 
 ///
-public final class LogEvent implements Resettable, Streamable {
+public final class LogEvent implements Resettable, Entity {
 
     ///
     private long id;

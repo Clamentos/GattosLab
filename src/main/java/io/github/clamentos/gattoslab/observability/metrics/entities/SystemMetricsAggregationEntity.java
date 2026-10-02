@@ -27,8 +27,6 @@ public final class SystemMetricsAggregationEntity {
         "cpuLoadMachineTotal",
         "systemMemoryUsed",
         "metaSpaceUsed",
-        "directBuffersUsed",
-        "directBuffersMemoryUsed",
         "heapUsed",
         "storageUsed",
         "requestMetricsEquilibrium"
@@ -48,8 +46,6 @@ public final class SystemMetricsAggregationEntity {
     private long cpuLoadMachineTotal;
     private long systemMemoryUsed;
     private long metaSpaceUsed;
-    private long directBuffersUsed;
-    private long directBuffersMemoryUsed;
     private long heapUsed;
     private long storageUsed;
     private long requestMetricsEquilibrium;

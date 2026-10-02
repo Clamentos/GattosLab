@@ -5,6 +5,7 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.exchange.handling.components.Api;
 import io.github.clamentos.gattoslab.exchange.handling.components.StaticResource;
+import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
@@ -23,6 +24,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -325,13 +327,13 @@ class ApplicationTests {
 
     ///..
     @ParameterizedTest @Order(0)
-    @MethodSource("io.github.clamentos.gattoslab.ArgumentProviders#privilegedPathsWithComponentsProvider")
-    void testPrivilegedPathsWithComponents(final String request) throws Exception {
+    @MethodSource("io.github.clamentos.gattoslab.ArgumentProviders#privilegedPathsProvider")
+    void testPrivilegedPaths(final String request, final HttpStatus httpStatus) throws Exception {
 
         final byte[] response = rawRequest(request.getBytes());
 
         Assertions.assertTrue(response.length > 0);
-        Assertions.assertEquals(HttpStatus.SEE_OTHER.getCode(), extractStatusCode(response));
+        Assertions.assertEquals(httpStatus.getCode(), extractStatusCode(response));
     }
 
     ///..
@@ -444,8 +446,9 @@ class ApplicationTests {
     void testConcurrentRequestsToAdminPath() throws Exception {
 
         final List<CompletableFuture<Integer>> futures = new ArrayList<>();
+        final int numConnections = ApplicationProperties.MAX_SOCKETS_PER_IP - 1;
 
-        for(int i = 0; i < 100; i++) {
+        for(int i = 0; i < numConnections; i++) {
 
             futures.add(CompletableFuture.supplyAsync(() -> {
 
@@ -637,12 +640,12 @@ class ApplicationTests {
 
         Assertions.assertTrue(sessionCookie.contains(ApplicationProperties.SESSION_COOKIE_NAME));
 
-        final HttpResponse<byte[]> apiResponse = exchange(
+        final Map<String, String> headers = new HashMap<>();
 
-            path + (filterOptional != null ? filterOptional : ""),
-            HttpMethod.GET,
-            Map.of("Cookie", sessionCookie)
-        );
+        headers.put("Cookie", sessionCookie);
+        if(filterOptional != null) headers.put(HttpHeader.FILTER.name(), filterOptional);
+
+        final HttpResponse<byte[]> apiResponse = exchange(path, HttpMethod.GET, headers);
 
         Assertions.assertEquals(status.getCode(), apiResponse.statusCode());
         if(status == HttpStatus.OK) Assertions.assertTrue(apiResponse.body().length > 0);
