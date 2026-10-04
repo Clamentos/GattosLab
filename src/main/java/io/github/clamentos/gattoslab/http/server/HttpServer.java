@@ -6,6 +6,8 @@ import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.exceptions.MalformedRequestException;
 import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
+import io.github.clamentos.gattoslab.exchange.filters.Filter;
+import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
@@ -77,7 +79,7 @@ public final class HttpServer implements Closeable {
     private final AtomicBoolean isClosed;
 
     ///..
-    private final Filter[] filters;
+    private final Filter filter;
     private final Handler handler;
 
     ///..
@@ -91,7 +93,7 @@ public final class HttpServer implements Closeable {
         final int port,
         final boolean dokeepAliveByDefault,
         final SSLContext sslContext,
-        final List<Filter> filters,
+        final Filter filter,
         final Handler handler
 
     ) throws IOException {
@@ -111,7 +113,7 @@ public final class HttpServer implements Closeable {
         this.requestIdCounter = new AtomicLong();
         this.isClosed = new AtomicBoolean();
 
-        this.filters = filters.stream().toArray(Filter[]::new);
+        this.filter = filter;
         this.handler = handler;
 
         this.dokeepAliveByDefault = dokeepAliveByDefault;
@@ -234,18 +236,8 @@ public final class HttpServer implements Closeable {
                 reader.resetAllowed();
 
                 final HttpExchange exchange = this.parseRequest(client, rawRemoteIpAddress, reader, writer, firstLine);
-                boolean doDispatch = true;
 
-                for(final Filter filter : this.filters) {
-
-                    if(!filter.filter(exchange)) {
-
-                        doDispatch = false;
-                        break;
-                    }
-                }
-
-                if(doDispatch) this.handler.handle(exchange);
+                if(this.filter.filter(exchange)) this.handler.handle(exchange);
                 if(!exchange.isKeepAlive() || exchange.isDoForceClose() || !this.dokeepAliveByDefault) break;
 
                 if(!doEnlargeReadTimeout) {
@@ -266,7 +258,9 @@ public final class HttpServer implements Closeable {
         this.connections.remove(self);
         this.connectionCounter.decrementAndGet();
 
-        if(this.socketsPerIp.get(rawRemoteIpAddress).decrementAndGet() == 0) {
+        final AtomicInteger socketsPerIpCounter = this.socketsPerIp.get(rawRemoteIpAddress);
+
+        if(socketsPerIpCounter != null && socketsPerIpCounter.decrementAndGet() == 0) {
 
             this.socketsPerIp.remove(rawRemoteIpAddress);
         }
@@ -293,7 +287,9 @@ public final class HttpServer implements Closeable {
             this.respondError(client, TOO_MANY_SOCKETS_MESSAGE_BYTES);
             this.closeOrLog(client);
 
-            if(this.socketsPerIp.get(remoteIp).decrementAndGet() == 0) {
+            final AtomicInteger socketsPerIpCounter = this.socketsPerIp.get(remoteIp);
+
+            if(socketsPerIpCounter != null && socketsPerIpCounter.decrementAndGet() == 0) {
 
                 this.socketsPerIp.remove(remoteIp);
             }

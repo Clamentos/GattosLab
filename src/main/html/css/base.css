@@ -30,6 +30,14 @@ button {
     font-weight: bold;
 }
 
+code {
+
+    color: #f1fa8c;
+    background-color: #323443;
+    padding: 0px 4px 0px 4px;
+    border-radius: 8px;
+}
+
 .icon-button {
 
     background-color: #0a0a0d;

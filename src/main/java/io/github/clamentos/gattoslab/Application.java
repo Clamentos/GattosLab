@@ -3,31 +3,25 @@ package io.github.clamentos.gattoslab;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.ServerContainer;
-import io.github.clamentos.gattoslab.exchange.filters.AuthorizationFilter;
-import io.github.clamentos.gattoslab.exchange.filters.IngressFilter;
-import io.github.clamentos.gattoslab.exchange.filters.RateLimitFilter;
+import io.github.clamentos.gattoslab.exchange.filters.Filter;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
+import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
-import io.github.clamentos.gattoslab.exchange.handling.RootHandler;
 import io.github.clamentos.gattoslab.lifecycle.ClassPriorities;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
-import io.github.clamentos.gattoslab.observability.ObservabilityHandler;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
-import io.github.clamentos.gattoslab.security.SessionHandler;
 import io.github.clamentos.gattoslab.security.SessionService;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.website.WebsiteHandler;
 
 ///..
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
-import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -83,36 +77,25 @@ public class Application {
         final ResourceMappings resourceMappings = new ResourceMappings(applicationProperties);
         final SessionService sessionService = new SessionService(squashingLogger, applicationProperties, batchScheduler);
         final ExceptionHandler exceptionHandler = new ExceptionHandler(observabilityService);
-        final WebsiteHandler websiteHandler = new WebsiteHandler(observabilityService, exceptionHandler);
-        final ObservabilityHandler observabilityHandler = new ObservabilityHandler(observabilityService, exceptionHandler);
-        final SessionHandler sessionHandler = new SessionHandler(observabilityService, exceptionHandler, sessionService);
+        final Handler handler = new Handler(observabilityService, sessionService, exceptionHandler);
 
-        final IngressFilter ingressFilter = new IngressFilter(
+        final Filter filter = new Filter(
 
             observabilityService,
             applicationProperties,
             squashingLogger,
-            resourceMappings
+            resourceMappings,
+            sessionService,
+            batchScheduler
         );
-
-        final RateLimitFilter rateLimitFilter = new RateLimitFilter(applicationProperties, observabilityService, squashingLogger, batchScheduler);
-
-        final AuthorizationFilter authorizationFilter = new AuthorizationFilter(
-
-            observabilityService,
-            squashingLogger,
-            sessionService
-        );
-
-        final RootHandler rootHandler = new RootHandler(observabilityService, exceptionHandler, websiteHandler, sessionHandler, observabilityHandler);
 
         final ServerContainer requestExchanger = new ServerContainer(
 
             applicationProperties,
             squashingLogger,
             batchScheduler,
-            List.of(ingressFilter, rateLimitFilter, authorizationFilter),
-            rootHandler
+            filter,
+            handler
         );
 
         shutdownHook.add(requestExchanger, classPriorities.getPriority(ServerContainer.class));

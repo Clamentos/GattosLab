@@ -2,8 +2,8 @@ package io.github.clamentos.gattoslab.exchange;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.exchange.handling.RootHandler;
-import io.github.clamentos.gattoslab.http.server.Filter;
+import io.github.clamentos.gattoslab.exchange.filters.Filter;
+import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.http.server.HttpServer;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
@@ -20,7 +20,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -37,8 +36,8 @@ public final class ServerContainer implements Closeable {
 
     ///..
     private final ApplicationProperties applicationProperties;
-    private final List<Filter> filters;
-    private final RootHandler rootHandler;
+    private final Filter filter;
+    private final Handler handler;
 
     ///..
     private final AtomicReference<HttpServer> httpServerReference;
@@ -50,8 +49,8 @@ public final class ServerContainer implements Closeable {
         final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
         final BatchScheduler batchScheduler,
-        final List<Filter> filters,
-        final RootHandler rootHandler
+        final Filter filter,
+        final Handler handler
 
     ) throws GeneralSecurityException, IOException {
 
@@ -59,13 +58,13 @@ public final class ServerContainer implements Closeable {
         this.squashingLogger = squashingLogger;
 
         this.applicationProperties = applicationProperties;
-        this.filters = filters;
-        this.rootHandler = rootHandler;
+        this.filter = filter;
+        this.handler = handler;
 
         this.httpServerReference = new AtomicReference<>();
         this.keystoreTimestamp = new AtomicLong(Long.MIN_VALUE);
 
-        this.instantiateServer(applicationProperties, squashingLogger, filters, rootHandler);
+        this.instantiateServer(applicationProperties, squashingLogger, filter, handler);
 
         batchScheduler.schedule(
 
@@ -98,7 +97,7 @@ public final class ServerContainer implements Closeable {
                 this.logger.info("Begin server regeneration...");
 
                 this.close();
-                this.instantiateServer(this.applicationProperties, this.squashingLogger, this.filters, this.rootHandler);
+                this.instantiateServer(this.applicationProperties, this.squashingLogger, this.filter, this.handler);
                 this.keystoreTimestamp.set(millis);
 
                 this.logger.info("End server regeneration");
@@ -116,8 +115,8 @@ public final class ServerContainer implements Closeable {
 
         final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
-        final List<Filter> filters,
-        final RootHandler rootHandler
+        final Filter filter,
+        final Handler handler
 
     ) throws GeneralSecurityException, IOException {
 
@@ -128,8 +127,8 @@ public final class ServerContainer implements Closeable {
             applicationProperties.getServerPort(),
             applicationProperties.isKeepAliveByDefault(),
             this.createSSLContext(applicationProperties.getSslCertificatePath(), applicationProperties.getSslKeyStorePassword()),
-            filters,
-            rootHandler
+            filter,
+            handler
         ));
     }
 

@@ -2,18 +2,24 @@ package io.github.clamentos.gattoslab.exchange.filters;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
 import io.github.clamentos.gattoslab.datastructures.IpV4Range;
 import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.exchange.Responder;
+import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
+import io.github.clamentos.gattoslab.exchange.filters.components.RateLimitEntry;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
+import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
-import io.github.clamentos.gattoslab.http.server.Filter;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.security.SecurityFailure;
+import io.github.clamentos.gattoslab.security.SessionService;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
@@ -21,40 +27,56 @@ import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 ///
-public final class IngressFilter extends Responder implements Filter {
+public final class Filter extends Responder {
 
     ///
     private static final String BLOCKED_MESSAGE = "Blocked";
     private static final byte[] BLOCKED_MESSAGE_BYTES = BLOCKED_MESSAGE.getBytes();
+    private static final String RATE_LIMITED_MESSAGE = "Rate limited";
+    private static final byte[] RATE_LIMITED_MESSAGE_BYTES = RATE_LIMITED_MESSAGE.getBytes();
 
     ///.
     private final SquashingLogger squashingLogger;
+
+    ///..
     private final ResourceMappings resourceMappings;
+    private final SessionService sessionService;
 
     ///..
     private final IpV4Range[] blockedIpV4s;
     private final Pair<byte[], byte[]>[] blockedIpV6s;
     private final String[] illegalUserAgentContains;
+    private final Map<HashCodedByteArray, RateLimitEntry> rateLimitMap;
 
     ///..
     private final Map<HttpHeader, String> corsHeaders;
 
+    ///..
+    private final int rateLimitAmount;
+    private final int entryCounterStart;
+
     ///
     @SuppressWarnings("unchecked")
-    public IngressFilter(
+    public Filter(
 
         final ObservabilityService observabilityService,
         final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
-        final ResourceMappings resourceMappings
+        final ResourceMappings resourceMappings,
+        final SessionService sessionService,
+        final BatchScheduler batchScheduler
     ) {
 
         super(observabilityService);
 
         this.squashingLogger = squashingLogger;
+
         this.resourceMappings = resourceMappings;
+        this.sessionService = sessionService;
 
         this.blockedIpV4s = applicationProperties.getBlockedIpV4s()
 
@@ -75,15 +97,33 @@ public final class IngressFilter extends Responder implements Filter {
         ;
 
         this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
+        this.rateLimitMap = new ConcurrentHashMap<>();
 
         this.corsHeaders = new EnumMap<>(HttpHeader.class);
         this.corsHeaders.putAll(ApplicationProperties.CORS_HEADERS);
         this.corsHeaders.put(HttpHeader.ACCESS_CONTROL_ALLOW_ORIGIN, GenericUtils.concatenateAsCsv(applicationProperties.getAllowedOrigins()));
+
+        this.rateLimitAmount = applicationProperties.getRateLimitAmount();
+
+        this.entryCounterStart = (int)(ApplicationProperties.RATE_LIMIT_BLOCK_DURATION.toMillis() / batchScheduler.schedule(
+
+            this::replenishTask,
+            "gattos-lab-rate-limit-replenish-task",
+            ApplicationProperties.RATE_LIMIT_REPLENISH_CRON
+        ));
     }
 
     ///
-    @Override
     public boolean filter(final HttpExchange exchange) {
+
+        if(!this.doIngressFilter(exchange)) return false;
+        if(!this.doRateLimitFilter(exchange)) return false;
+
+        return this.doAuthorizationFilter(exchange);
+    }
+
+    ///.
+    private boolean doIngressFilter(final HttpExchange exchange) {
 
         super.observabilityService.requestStarted();
 
@@ -118,7 +158,61 @@ public final class IngressFilter extends Responder implements Filter {
         return true;
     }
 
-    ///.
+    ///..
+    private boolean doRateLimitFilter(final HttpExchange exchange) {
+
+        final RateLimitEntry rateLimitEntry = this.rateLimitMap.computeIfAbsent(
+
+            new HashCodedByteArray(exchange.getRemoteIpAddress()),
+            _ -> new RateLimitEntry(this.rateLimitAmount, this.entryCounterStart)
+        );
+
+        if(rateLimitEntry.isRateLimited()) {
+
+            this.squashingLogger.warning(GenericUtils.composeMessageForSquash(RATE_LIMITED_MESSAGE, exchange));
+            super.respond(exchange, HttpStatus.TOO_MANY_REQUESTS, ApplicationProperties.RETRY_AFTER_HEADERS, MimeType.TEXT, RATE_LIMITED_MESSAGE_BYTES);
+            exchange.close();
+
+            return false;
+        }
+
+        return true;
+    }
+
+    ///..
+    private boolean doAuthorizationFilter(final HttpExchange exchange) {
+
+        final Resource resource = exchange.getResource();
+        if(resource == null) return true;
+
+        final AuthorizationAction authorizationAction = resource.getAuthorizationAction();
+
+        if(authorizationAction != AuthorizationAction.ALLOW) {
+
+            final SecurityFailure securityFailure = this.sessionService.isAllowed(exchange);
+
+            if(securityFailure != null) {
+
+                if(authorizationAction == AuthorizationAction.REDIRECT) {
+
+                    super.respond(exchange, HttpStatus.SEE_OTHER, ApplicationProperties.LOGIN_REDIRECT_HEADERS);
+                }
+
+                else {
+
+                    this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Authorization failed for", exchange));
+                    super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
+                    exchange.close();
+                }
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    ///..
     private boolean isBlocked(final byte[] address) {
 
         final int addressLength = address.length;
@@ -154,6 +248,15 @@ public final class IngressFilter extends Responder implements Filter {
         this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
         super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
         exchange.close();
+    }
+
+    ///..
+    private void replenishTask() {
+
+        for(final Entry<HashCodedByteArray, RateLimitEntry> entry : this.rateLimitMap.entrySet()) {
+
+            if(entry.getValue().replenish(this.rateLimitAmount)) this.rateLimitMap.remove(entry.getKey());
+        }
     }
 
     ///

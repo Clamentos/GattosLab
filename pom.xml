@@ -95,6 +95,14 @@
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.15</version>
 
+                <configuration>
+
+                    <excludes>
+                        <exclude>io/github/clamentos/gattoslab/utils/SiteCollapser.class</exclude>
+                    </excludes>
+
+                </configuration>
+
                 <executions>
 
                     <execution>
