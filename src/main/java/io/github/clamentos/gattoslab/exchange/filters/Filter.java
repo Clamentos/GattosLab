@@ -3,8 +3,6 @@ package io.github.clamentos.gattoslab.exchange.filters;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
-import io.github.clamentos.gattoslab.datastructures.IpV4Range;
-import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.exchange.filters.components.RateLimitEntry;
@@ -23,7 +21,6 @@ import io.github.clamentos.gattoslab.security.SessionService;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
-import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
@@ -47,8 +44,6 @@ public final class Filter extends Responder {
     private final SessionService sessionService;
 
     ///..
-    private final IpV4Range[] blockedIpV4s;
-    private final Pair<byte[], byte[]>[] blockedIpV6s;
     private final String[] illegalUserAgentContains;
     private final Map<HashCodedByteArray, RateLimitEntry> rateLimitMap;
 
@@ -60,7 +55,6 @@ public final class Filter extends Responder {
     private final int entryCounterStart;
 
     ///
-    @SuppressWarnings("unchecked")
     public Filter(
 
         final ObservabilityService observabilityService,
@@ -77,24 +71,6 @@ public final class Filter extends Responder {
 
         this.resourceMappings = resourceMappings;
         this.sessionService = sessionService;
-
-        this.blockedIpV4s = applicationProperties.getBlockedIpV4s()
-
-            .stream()
-            .map(e -> new IpV4Range(
-
-                GenericUtils.ipV4ToLong(e.getA().getAddress()),
-                GenericUtils.ipV4ToLong(e.getB().getAddress())
-            ))
-            .toArray(IpV4Range[]::new)
-        ;
-
-        this.blockedIpV6s = applicationProperties.getBlockedIpV6s()
-
-            .stream()
-            .map(e -> new Pair<>(e.getA().getAddress(), e.getB().getAddress()))
-            .toArray(Pair[]::new)
-        ;
 
         this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
         this.rateLimitMap = new ConcurrentHashMap<>();
@@ -130,12 +106,6 @@ public final class Filter extends Responder {
         final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
         exchange.setResource(this.resourceMappings.get(exchange.getUri()));
 
-        if(this.isBlocked(exchange.getRemoteIpAddress())) {
-
-            this.respondBlocked(exchange);
-            return false;
-        }
-
         for(final String illegalContains : this.illegalUserAgentContains) {
 
             if(
@@ -144,7 +114,10 @@ public final class Filter extends Responder {
                 (illegalContains != null && userAgent != null && illegalContains.toLowerCase(Locale.US).contains(userAgent.toLowerCase(Locale.US)))
             ) {
     
-                this.respondBlocked(exchange);
+                this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
+                super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
+                exchange.close();
+
                 return false;
             }
         }
@@ -210,44 +183,6 @@ public final class Filter extends Responder {
         }
 
         return true;
-    }
-
-    ///..
-    private boolean isBlocked(final byte[] address) {
-
-        final int addressLength = address.length;
-
-        if(this.blockedIpV4s.length > 0 && addressLength == 4) {
-
-            final long addressAsLong = GenericUtils.ipV4ToLong(address);
-
-            for(final IpV4Range range : this.blockedIpV4s) {
-
-                if(addressAsLong >= range.getStart() && addressAsLong <= range.getEnd()) return true;
-            }
-
-            return false;
-        }
-
-        if(this.blockedIpV6s.length > 0 && addressLength == 16) {
-
-            for(final Pair<byte[], byte[]> range : this.blockedIpV6s) {
-
-                if(Arrays.compare(address, range.getA()) >= 0 && Arrays.compare(address, range.getB()) <= 0) return true;
-            }
-
-            return false;
-        }
-
-        return false;
-    }
-
-    ///..
-    private void respondBlocked(final HttpExchange exchange) {
-
-        this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
-        super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
-        exchange.close();
     }
 
     ///..

@@ -1,7 +1,6 @@
 package io.github.clamentos.gattoslab.configuration;
 
 ///
-import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
@@ -9,7 +8,6 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
@@ -153,8 +151,6 @@ public final class ApplicationProperties {
     private final String diskBasedStaticResourcePathSegment;
     private final Duration observabilityDataRetention;
     private final int rateLimitAmount;
-    private final Set<Pair<InetAddress, InetAddress>> blockedIpV4s;
-    private final Set<Pair<InetAddress, InetAddress>> blockedIpV6s;
     private final Set<String> illegalUserAgentContains;
 
     ///
@@ -194,8 +190,6 @@ public final class ApplicationProperties {
         this.rateLimitAmount = this.resolveProperty(properties, "rateLimitAmount", Integer.class, false);
         if(this.rateLimitAmount <= 0) throw new IllegalArgumentException("Rate limit amount must be greater than 0");
 
-        this.blockedIpV4s = this.parseAddressRanges(this.resolveProperty(properties, "blockedIpV4s", String.class, true));
-        this.blockedIpV6s = this.parseAddressRanges(this.resolveProperty(properties, "blockedIpV6s", String.class, true));
         this.illegalUserAgentContains = this.parseList(this.resolveProperty(properties, "illegalUserAgentContains", String.class, true));
     }
 
@@ -235,42 +229,6 @@ public final class ApplicationProperties {
         if(clazz == Boolean.class) return clazz.cast(Boolean.parseBoolean(propertyValue));
 
         throw new IllegalArgumentException("Unsupported class '" + clazz + "'");
-    }
-
-    ///..
-    private Set<Pair<InetAddress, InetAddress>> parseAddressRanges(final String data) throws IllegalArgumentException {
-
-        if(data == null || data.isBlank()) return Set.of();
-
-        final Set<Pair<InetAddress, InetAddress>> addressRanges = new LinkedHashSet<>();
-        final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
-        final int length = splits.size();
-
-        for(int i = 0; i < length; i++) {
-
-            final String split = splits.get(i);
-            final List<String> range = GenericUtils.fastSplit(split, RANGE_SEPARATOR);
-
-            if(range.size() != 2) throw new IllegalArgumentException("Address ranges must have 2 components");
-
-            final String start = range.get(0);
-            final String end = range.get(1);
-
-            if(start == null) throw new IllegalArgumentException("Start address cannot be null");
-            if(end == null) throw new IllegalArgumentException("End address cannot be null");
-
-            final InetAddress startAddress = InetAddress.ofLiteral(range.get(0).trim());
-            final InetAddress endAddress = InetAddress.ofLiteral(range.get(1).trim());
-
-            if(Arrays.compareUnsigned(startAddress.getAddress(), endAddress.getAddress()) > 0) {
-
-                throw new IllegalArgumentException("Start address must be smaller than end address");
-            }
-
-            addressRanges.add(new Pair<>(startAddress, endAddress));
-        }
-
-        return addressRanges;
     }
 
     ///..
