@@ -170,7 +170,9 @@ public class ArgumentProviders {
             Arguments.of("GET /api/authentication/sessions HTTP/1.1\r\nHost: localhost\r\nX-Forwarded-For: 1.2.3.4\r\nX-Real-IP: 5.6.7.8\r\nX-Client-IP: 9.9.9.9\r\nTrue-Client-IP: 8.8.8.8\r\n\r\n", HttpStatus.UNAUTHORIZED),
 
             Arguments.of("GET /index .html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.BAD_REQUEST),
-            Arguments.of("GET /index.html?param=\u00e9\u00e8\u00ea HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND)
+            Arguments.of("GET /index.html?param=\u00e9\u00e8\u00ea HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: bad-string\r\n\r\n", HttpStatus.FORBIDDEN),
+            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: very-bad-string\r\n\r\n", HttpStatus.FORBIDDEN)
         );
     }
 
