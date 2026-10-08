@@ -1,18 +1,18 @@
 .chartjs-canvas {
 
     display: block;
-    width: 100%;
-    padding: 15px;
     border: 1px solid #bd93f9bf;
-    background-color: #14151b;
-    color: #ffffff;
     border-radius: 30px;
+    background-color: #14151b;
+    padding: 15px;
+    width: 100%;
+    color: #ffffff;
 }
 
 #RequestsPerSecondChart, #LatencyChart, #SystemMemoryChart, #SystemCpuChart, #SystemThreadChart {
 
     display: flex;
-    flex-wrap: nowrap;
     flex-direction: column;
+    flex-wrap: nowrap;
     width: 100%;
 }

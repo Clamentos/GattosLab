@@ -54,14 +54,12 @@
 
                 <p>
                     I originally used Java 25 with Spring Boot as the language and framework, but i decided to remove the framework entirely and design a custom web-server and manage everything manually, because i wanted to have more control and to see what it would be like to develop something without the help of a framework. The system serves the whole site directly from memory, thus completely eliminating disk usage (totally overkill of the sub 1 RPS i receive on average, but it was fun to implement). The backend also communicates with a simple hand-made file-based database to store logs, usage and request metrics. This observability system is fully custom and took me a while to get right as i mostly played around with different techniques and implementations.
-
-                    <figure>
-                        <img src = "./images/gattos-lab-BE-arch.svg" alt = "Gatto's Lab BE architecture" style = "width: 100%; padding-top: 100px"/>
-                        <figcaption>The simplified backend architecture.</figcaption>
-                    </figure>
-
-                    <br/><br/>
                 </p>
+
+                <figure>
+                    <img src = "./images/gattos-lab-BE-arch.svg" alt = "Gatto's Lab BE architecture"/>
+                    <figcaption>The simplified backend architecture.</figcaption>
+                </figure>
 
                 <h1 class = "project-subtitle">Frontend</h1>
 
@@ -80,11 +78,9 @@
                 </p>
 
                 <figure>
-                    <img src = "./images/gattos-lab-arch.svg" alt = "Gatto's Lab architecture" style = "width: 100%; padding-top: 100px"/>
+                    <img src = "./images/gattos-lab-arch.svg" alt = "Gatto's Lab architecture"/>
                     <figcaption>The extremely basic architecture of this website.</figcaption>
                 </figure>
-
-                <br/><br/>
 
                 <h1 class = "project-subtitle">Performance and minimalism</h1>
 
@@ -93,11 +89,9 @@
                 </p>
 
                 <figure>
-                    <img src = "./images/gattos-lab-jmeter.png" alt = "JMeter test" style = "width: 100%; padding-top: 100px"/>
+                    <img src = "./images/gattos-lab-jmeter.png" alt = "JMeter test"/>
                     <figcaption>A quick and simple JMeter test focused on achieving maximum RPS thoughput.</figcaption>
                 </figure>
-
-                <br/><br/>
 
                 <p>
                     The JMeter test was to get an idea on how fast the HTTP server could handle incoming requests and it simply generates 100 threads and requests the <code>/robots.txt</code> file as hard as it can. The file itself is very small at less than 100 Bytes, so this setup should accentuate overheads in the handling logic. The requests performed by JMeter are simple HTTP/1.1 requests and the whole setup ran on my desktop PC which is equipped with a Ryzen 9 9950X and 32GB of DDR5 @ 6000 MT/s (both JMeter and the webserver were running on my PC, which is not the best way, but this test was to get a feeling of the system). I want to note that the application did not have the request-metric recording login enabled, as that would interfere with the raw throughput results of the HTTP server itself and it would also write massive log files. In short, this test is not super representative of the system as a whole.
@@ -108,16 +102,14 @@
                 </p>
 
                 <figure>
-                    <img src = "./images/gattos-lab-visualvm-1.png" alt = "VisualVM monitoring" style = "width: 100%; padding-top: 100px"/>
+                    <img src = "./images/gattos-lab-visualvm-1.png" alt = "VisualVM monitoring"/>
                     <figcaption>VisualVM monitoring for heap and threads during the test.</figcaption>
                 </figure>
 
                 <figure>
-                    <img src = "./images/gattos-lab-visualvm-2.png" alt = "VisualVM monitoring" style = "width: 100%; padding-top: 100px"/>
+                    <img src = "./images/gattos-lab-visualvm-2.png" alt = "VisualVM monitoring"/>
                     <figcaption>VisualVM monitoring for metaspace and virtual threads during the test.</figcaption>
                 </figure>
-
-                <br/><br/>
 
                 <p>
                     The system behaved very well under this test: the heap had a consistent sawtooth pattern and it never went above ~ 500MB in used heap, while the allocated heap remained well below 1GB. The number of loaded classes was also very small, which compared to the 10K+ i usually see on enterprise Spring Boot apps is pretty good, though it's obvious since the whole app has zero external dependencies (the JAR is less than 2MB!). The metaspace was also small and basically flat for the entire duration of the test. The cpu usage was very consistent and the virtual threads were flipping all over the place as requests come and go. The server uses a simple virtual-thread-based approach by spawing a new virtual thread each time a socket is accepted. Those virtual threads then remain active up to the maximum keep alive duration and they handle one request per connection at a time. No pipelining is implemented as that would complicate the design quite a bit and i didn't feel like it was worth pursuing.

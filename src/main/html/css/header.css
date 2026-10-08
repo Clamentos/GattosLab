@@ -5,15 +5,15 @@
 
 .header-title {
 
-    font-size: 144px;
     text-shadow: 0px 8px #bd93f9;
+    font-size: 144px;
 }
 
 .header-text {
 
     max-width: 700px;
+    text-align: left;
     font-size: 22px;
-    text-align: justify;
 }
 
 @media screen and (max-width: 1000px) {
@@ -25,6 +25,7 @@
 
     .header-title {
 
+        text-shadow: 0px 4px #bd93f9;
         font-size: 64px;
     }
 

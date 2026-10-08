@@ -3,9 +3,9 @@
     box-sizing: border-box;
     margin: 0px;
     padding: 0px;
+    color: #ffffff;
     font-family: 'Courier New', Courier, monospace;
     font-size: 18px;
-    color: #ffffff;
 }
 
 a {
@@ -32,17 +32,17 @@ button {
 
 code {
 
-    color: #f1fa8c;
+    border-radius: 8px;
     background-color: #323443;
     padding: 0px 4px 0px 4px;
-    border-radius: 8px;
+    color: #f1fa8c;
 }
 
 .icon-button {
 
-    background-color: #0a0a0d;
     border: 1px solid #ffb86c;
     border-radius: 10px;
+    background-color: #0a0a0d;
     width: 25px;
 }
 
@@ -53,9 +53,9 @@ code {
 
 .background {
 
-    background-size: 32px 32px, 32px 32px, 100% 100%;
-    background-color: #14151b;
     background-attachment: fixed;
+    background-color: #14151b;
+    background-size: 32px 32px, 32px 32px, 100% 100%;
 
     background-image:
         linear-gradient(to right, #4755694d 1px, transparent 1px),
@@ -68,10 +68,9 @@ code {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background-color: #14151b;
     border-bottom: 1px solid #bd93f9bf;
-    border-bottom-left-radius: 30px;
-    border-bottom-right-radius: 30px;
+    border-radius: 0px 0px 30px 30px;
+    background-color: #14151b;
 }
 
 .nav-container {
@@ -83,8 +82,8 @@ code {
 .nav-item {
 
     display: flex;
-    justify-content: left;
     align-items: center;
+    justify-content: left;
 }
 
 .nav-item:first-child {
@@ -94,57 +93,57 @@ code {
 
 .nav-icon {
 
-    width: 35px;
     margin-right: 10px;
+    width: 35px;
 }
 
 .nav-crumb {
 
     display: flex;
-    gap: 10px;
     justify-content: center;
     padding-bottom: 15px;
+    gap: 10px;
 }
 
 .default-container {
 
     display: flex;
     flex-wrap: wrap;
-    gap: 100px;
     justify-content: center;
     padding: 200px 50px;
+    gap: 100px;
 }
 
 .error-toast {
 
-    width: 83%;
-    background-color: #14151b;
+    bottom: 30px;
+    z-index: 1;
+    margin: 15px auto;
     border: 1px solid #bd93f9bf;
     border-radius: 15px;
+    background-color: #14151b;
     padding: 16px;
-    z-index: 1;
-    bottom: 30px;
-    color: #ff5555;
-    margin: 15px auto;
-    -webkit-animation: fadein 1s, fadeout 1s 4s;
+    width: 83%;
     animation: fadein 1s, fadeout 1s 4s;
+    color: #ff5555;
+    -webkit-animation: fadein 1s, fadeout 1s 4s;
 }
 
 #error-container {
 
-    width: 600px;
     display: block;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    z-index: 1;
     margin-left: -300px;
     padding: 16px;
-    position: fixed;
-    z-index: 1;
-    left: 50%;
-    bottom: 30px;
+    width: 600px;
 }
 
 @media screen and (max-width: 1000px) {
 
-    figcaption {
+    p, p > a, figcaption {
 
         font-size: 14px;
     }
@@ -156,8 +155,8 @@ code {
 
     #error-container {
 
-        width: 420px;
         margin-left: -210px;
+        width: 420px;
     }
 }
 

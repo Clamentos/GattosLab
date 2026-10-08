@@ -2,11 +2,11 @@
 
     display: flex;
     flex-direction: column;
-    width: 100%;
-    padding: 50px;
-    background-color: #14151b;
     border: 1px solid #bd93f9bf;
     border-radius: 30px;
+    background-color: #14151b;
+    padding: 50px;
+    width: 100%;
 }
 
 .form-input-group {
@@ -18,47 +18,47 @@
 
 .form-input {
 
-    width: 400px;
-    height: 40px;
     flex-shrink: 0;
-    padding: 0px 10px;
-    background-color: #0a0a0d;
     border: 1px solid #8be9fdbf;
     border-radius: 15px;
+    background-color: #0a0a0d;
+    padding: 0px 10px;
+    width: 400px;
+    height: 40px;
 }
 
 .form-field-description {
 
+    padding-left: 50px;
     width: 100%;
     min-width: 200px;
-    padding-left: 50px;
 }
 
 .form-button {
 
-    width: 100%;
-    height: 40px;
     margin-top: 45px;
-    background-color: #0a0a0d;
     border: 1px solid #ff79c6bf;
     border-radius: 15px;
+    background-color: #0a0a0d;
+    width: 100%;
+    height: 40px;
 }
 
 .form-button:hover {
 
-    cursor: pointer;
     transition: 0.15s;
     box-shadow: 0px 0px 6px #ff79c6bf;
+    cursor: pointer;
 }
 
 .login-input {
 
-    width: 100%;
-    height: 40px;
-    padding-left: 10px;
-    background-color: #0a0a0d;
     border: 1px solid #8be9fdbf;
     border-radius: 15px;
+    background-color: #0a0a0d;
+    padding-left: 10px;
+    width: 100%;
+    height: 40px;
 }
 
 p > strong {
@@ -75,8 +75,7 @@ p > strong {
 
     .form-field-description {
 
-        padding-left: 0px;
-        padding-top: 15px;
+        padding: 15px 0px 0px 0px;
     }
 
     .form-input {
