@@ -165,17 +165,15 @@ public final class ObservabilityService implements Closeable {
 
         if(bucketSize <= 0) throw new IllegalArgumentException("Filter field 'bucketSize' must be > 0");
 
-        final List<String> requests = this.observabilityDatabase.readRequests(startTimestamp, endTimestamp, "", "");
+        final List<String> requests = this.observabilityDatabase.readRequests(startTimestamp, endTimestamp, "", "", "");
         final int length = requests.size();
 
-        // bucket -> status -> entity
         final Map<Long, Map<String, RequestMetricsAggregationEntity>> aggregationMap = new HashMap<>();
         final Set<String> allStatuses = new HashSet<>();
 
         for(int i = 0; i < length; i++) {
 
-            final String request = requests.get(i);
-            final List<String> splits = GenericUtils.fastSplit(request, ApplicationProperties.FIELD_SEPARATOR);
+            final List<String> splits = GenericUtils.fastSplit(requests.get(i), ApplicationProperties.FIELD_SEPARATOR);
             final long bucket = (Long.parseLong(splits.get(1)) / bucketSize) * bucketSize;
             final String status = HttpStatus.decode(Integer.parseInt(splits.get(6))).toString();
 
@@ -275,13 +273,11 @@ public final class ObservabilityService implements Closeable {
         final List<String> systemMetrics = this.observabilityDatabase.readSystemMetrics(startTimestamp, endTimestamp);
         final int length = systemMetrics.size();
 
-        // bucket -> status -> entity
         final Map<Long, SystemMetricsAggregationEntity> aggregationMap = new HashMap<>();
 
         for(int i = 0; i < length; i++) {
 
-            final String request = systemMetrics.get(i);
-            final List<String> splits = GenericUtils.fastSplit(request, ApplicationProperties.FIELD_SEPARATOR);
+            final List<String> splits = GenericUtils.fastSplit(systemMetrics.get(i), ApplicationProperties.FIELD_SEPARATOR);
             final long bucket = (Long.parseLong(splits.get(1)) / bucketSize) * bucketSize;
 
             final SystemMetricsAggregationEntity aggregation = aggregationMap.computeIfAbsent(bucket, _ -> new SystemMetricsAggregationEntity());
@@ -406,18 +402,19 @@ public final class ObservabilityService implements Closeable {
 
         /*
             filter:
-                startTime|endTime|isUnknown|userAgentPattern
-                reqd     |reqd   | ok or ""| ok or ""
+                startTime|endTime|isUnknown|isUserAgentBlocked|userAgentPattern
+                reqd     |reqd   | ok or ""| ok or ""         | ok or ""
         */
 
-        final List<String> filter = this.validateAndExtractFilter(exchange, 4);
+        final List<String> filter = this.validateAndExtractFilter(exchange, 5);
 
         final List<String> requests = this.observabilityDatabase.readRequests(
 
             Long.parseLong(filter.get(0)),
             Long.parseLong(filter.get(1)),
             filter.get(2),
-            filter.get(3)
+            filter.get(3),
+            filter.get(4)
         );
 
         final int length = requests.size();
@@ -443,7 +440,11 @@ public final class ObservabilityService implements Closeable {
             crawl.setNumberOfCalls(crawl.getNumberOfCalls() + 1);
             crawl.getStatuses().add(splits.get(6));
 
-            final UserAgentAggregationEntity agent = userAgentAggregation.computeIfAbsent(userAgent, _ -> new UserAgentAggregationEntity(userAgent));
+            final UserAgentAggregationEntity agent = userAgentAggregation.computeIfAbsent(userAgent, _ -> new UserAgentAggregationEntity(
+
+                userAgent,
+                Boolean.parseBoolean(splits.get(7))
+            ));
 
             if(timestamp > agent.getLastSeen()) agent.setLastSeen(timestamp);
             agent.setNumberOfCalls(agent.getNumberOfCalls() + 1);
@@ -514,6 +515,7 @@ public final class ObservabilityService implements Closeable {
         requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT));
         requestMetricsEntity.setUnknown(exchange.getResource() == null);
         requestMetricsEntity.setHttpStatus((short)status.getCode());
+        requestMetricsEntity.setUserAgentBlocked(exchange.isUserAgentBlocked());
     }
 
     ///..

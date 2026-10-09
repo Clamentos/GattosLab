@@ -7,7 +7,7 @@ const nextDayTime = todayTime + 86400000;
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 document.getElementById("end-timestamp").value = new Date(nextDayTime).toISOString().slice(0, 16);
 
-fetchAndRenderCrawls(todayTime, nextDayTime, "", "");
+fetchAndRenderCrawls(todayTime, nextDayTime, "", "", "");
 
 function onSubmitEvent(event) {
 
@@ -16,6 +16,7 @@ function onSubmitEvent(event) {
     const formStartTimestamp = event.target.startTimestamp.value;
     const formEndTimestamp = event.target.endTimestamp.value;
     const formIsUnknown = event.target.isUnknown.value;
+    const formIsUserAgentBlocked = event.target.isUserAgentBlocked.value;
     const formUserAgentPattern = event.target.userAgentPattern.value;
 
     const range = normalizeTimeRange(formStartTimestamp, formEndTimestamp, today);
@@ -25,11 +26,12 @@ function onSubmitEvent(event) {
         range.start,
         range.end,
         isOk(formIsUnknown) ? formIsUnknown : "",
+        isOk(formIsUserAgentBlocked) ? formIsUserAgentBlocked : "",
         isOk(formUserAgentPattern) ? formUserAgentPattern : ""
     );
 }
 
-function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgentPattern) {
+function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAgentBlocked, userAgentPattern) {
 
     document.getElementById("submit-loader").style = "display: inline-block";
     document.getElementById("invocations-count").innerText = "Distinct paths: -";
@@ -42,9 +44,9 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgent
     userAgentsTableBody.replaceChildren();
 
     fetch("/api/observability/crawl-metrics", {
-        
+
         method: "GET",
-        headers: { "Filter": `${startTimestamp}|${endTimestamp}|${isUnknown}|${userAgentPattern}` }
+        headers: { "Filter": `${startTimestamp}|${endTimestamp}|${isUnknown}|${isUserAgentBlocked}|${userAgentPattern}` }
 
     }).then((response) => {
 
@@ -101,8 +103,6 @@ function appendRow(entry, table, hook) {
     const splits = entry.split('|');
 
     const tr = document.createElement("div");
-    tr.className = "table-data-row";
-
     const key = document.createElement("div");
     const count = document.createElement("div");
     const lastInvocation = document.createElement("div");
@@ -111,26 +111,25 @@ function appendRow(entry, table, hook) {
     tr.appendChild(count);
     tr.appendChild(lastInvocation);
 
+    tr.className = "table-data-row";
+    tr.style = `color: ${splits[1] === "true" ? "#f1fa8c" : "#ffffff"}`;
+
     key.className = "table-data-elem";
     key.innerText = splits[0];
 
-    const isInvocations = hook === "invocations-table-hook";
-
     count.className = "table-data-elem";
     count.style = "width: 5%; text-align: end";
-    count.innerText = isInvocations ? splits[3] : splits[2];
+    count.innerText = splits[3];
 
     lastInvocation.className = "table-data-elem";
     lastInvocation.style = "width: 11%; text-align: center";
-    lastInvocation.innerText = formatDate(new Date(Number.parseInt(isInvocations ? splits[2] : splits[1])));
+    lastInvocation.innerText = formatDate(new Date(Number.parseInt(splits[2])));
 
-    if(isInvocations) {
-
-        if(splits[1] === "true") tr.style = "color: #f1fa8c";
-        const httpStatuses = document.createElement("div");
+    if(hook === "invocations-table-hook") {
 
         key.style = "width: 70%";
 
+        const httpStatuses = document.createElement("div");
         httpStatuses.className = "table-data-elem";
         httpStatuses.style = "width: 14%";
         httpStatuses.innerText = splits[4];

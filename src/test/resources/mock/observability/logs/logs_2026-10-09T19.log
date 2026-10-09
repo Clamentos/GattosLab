@@ -1,0 +1,55 @@
+14|1791565357282|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36|
+15|1791565417168|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|Begin shutdown...|
+16|1791565417168|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|Begin shutdown...|
+17|1791565417221|INFO|gattos-lab-batch-scheduler-task|BatchScheduler.triggerJobsTask|Exiting, joining 0 workers|
+18|1791565417221|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|End shutdown|
+19|1791565417221|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'BatchScheduler'|
+20|1791565417221|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|Begin shutdown...|
+21|1791565417228|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-acceptor-task'|
+22|1791565417228|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-sweeper-task'|
+23|1791565417228|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|End shutdown|
+24|1791565417228|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ServerContainer'|
+25|1791565417228|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|Begin shutdown...|
+26|1791565417228|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|Begin shutdown...|
+27|1791565417228|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|End shutdown|
+28|1791565417228|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|End shutdown|
+29|1791565417228|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ObservabilityService'|
+30|1791565417228|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|Begin shutdown...|
+31|1791565417228|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|End shutdown|
+32|1791565417228|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'SquashingLogger'|
+33|1791565417229|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|End shutdown|
+0|1791565597616|INFO|main|Application.start|Starting Gatto's Lab with pid '82005'|
+1|1791565597618|WARNING|main|Application.resolveProfile|No profile provided, defaulting to 'dev'|
+2|1791565597622|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-squashed-logs-task', period: 60000ms|
+3|1791565597623|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-system-metrics-poll-task', period: 5000ms|
+4|1791565597705|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-metrics-drain-task', period: 5000ms|
+5|1791565597706|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-observability-retention-task', period: 60000ms|
+6|1791565597745|INFO|main|ResourceMappings.populateResources|Site size: 2.3 MiB|
+7|1791565597750|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-session-maintenance-task', period: 60000ms|
+8|1791565597751|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-rate-limit-replenish-task', period: 1000ms|
+9|1791565597752|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate start...|
+10|1791565597756|INFO|main|ServerContainer.loadKeyStore|Key store file grabbed true|
+11|1791565597821|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate end|
+12|1791565597821|INFO|main|HttpServer.<init>|Server SSL enabled: false|
+13|1791565597823|INFO|main|BatchScheduler.schedule|Scheduled task 'gattoslab-server-regeneration-task', period: 86400000ms|
+14|1791565611839|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36|
+15|1791565653426|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36|
+16|1791565687429|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|Begin shutdown...|
+17|1791565687430|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|Begin shutdown...|
+18|1791565687526|INFO|gattos-lab-batch-scheduler-task|BatchScheduler.triggerJobsTask|Exiting, joining 0 workers|
+19|1791565687526|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|End shutdown|
+20|1791565687526|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'BatchScheduler'|
+21|1791565687526|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|Begin shutdown...|
+22|1791565687533|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-acceptor-task'|
+23|1791565687534|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-sweeper-task'|
+24|1791565687534|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|End shutdown|
+25|1791565687534|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ServerContainer'|
+26|1791565687534|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|Begin shutdown...|
+27|1791565687534|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|Begin shutdown...|
+28|1791565687535|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|End shutdown|
+29|1791565687535|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|End shutdown|
+30|1791565687535|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ObservabilityService'|
+31|1791565687535|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|Begin shutdown...|
+32|1791565687535|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|End shutdown|
+33|1791565687535|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'SquashingLogger'|
+34|1791565687535|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|End shutdown|

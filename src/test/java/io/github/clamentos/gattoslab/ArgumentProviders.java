@@ -223,11 +223,11 @@ public class ArgumentProviders {
             Arguments.of(Api.GET_SESSIONS.getPath(), null, HttpStatus.OK),
             Arguments.of(Api.GET_LOGS.getPath(), "0|5000000000000|||||", HttpStatus.OK),
             Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "0|5000000000000|10000000000", HttpStatus.OK),
-            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000||", HttpStatus.OK),
+            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000|||", HttpStatus.OK),
             Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "0|5000000000000|10000000000", HttpStatus.OK),
             Arguments.of(Api.GET_LOGS.getPath(), "0|5000000000000||||||", HttpStatus.BAD_REQUEST),
             Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "0|5000000000000|10000000000|", HttpStatus.BAD_REQUEST),
-            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000|||", HttpStatus.BAD_REQUEST),
+            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000||", HttpStatus.BAD_REQUEST),
             Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "0|5000000000000|10000000000|", HttpStatus.BAD_REQUEST)
         );
     }

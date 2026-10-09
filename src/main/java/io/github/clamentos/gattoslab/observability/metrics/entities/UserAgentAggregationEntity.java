@@ -21,15 +21,17 @@ public final class UserAgentAggregationEntity implements Streamable {
 
     ///
     private final String userAgent;
+    private final boolean isBlocked;
 
     ///..
     private long lastSeen;
     private int numberOfCalls;
 
     ///
-    public UserAgentAggregationEntity(final String userAgent) {
+    public UserAgentAggregationEntity(final String userAgent, final boolean isBlocked) {
 
         this.userAgent = userAgent;
+        this.isBlocked = isBlocked;
     }
 
     ///
@@ -37,6 +39,8 @@ public final class UserAgentAggregationEntity implements Streamable {
     public void stream(final StreamWriter writer) throws IOException {
 
         writer.write(String.valueOf(this.userAgent));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Boolean.toString(this.isBlocked));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.lastSeen));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

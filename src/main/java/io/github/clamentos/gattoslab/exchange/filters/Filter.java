@@ -115,6 +115,8 @@ public final class Filter extends Responder {
             ) {
     
                 this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
+
+                exchange.setUserAgentBlocked(true);
                 super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
                 exchange.close();
 

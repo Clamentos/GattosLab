@@ -1,0 +1,153 @@
+0|1791576403025|INFO|main|Application.start|Starting Gatto's Lab with pid '18796'|
+1|1791576403027|WARNING|main|Application.resolveProfile|No profile provided, defaulting to 'dev'|
+2|1791576403029|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-squashed-logs-task', period: 60000ms|
+3|1791576403031|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-system-metrics-poll-task', period: 5000ms|
+4|1791576403121|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-metrics-drain-task', period: 5000ms|
+5|1791576403121|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-observability-retention-task', period: 60000ms|
+6|1791576403161|INFO|main|ResourceMappings.populateResources|Site size: 2.3 MiB|
+7|1791576403166|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-session-maintenance-task', period: 60000ms|
+8|1791576403168|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-rate-limit-replenish-task', period: 1000ms|
+9|1791576403169|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate start...|
+10|1791576403173|INFO|main|ServerContainer.loadKeyStore|Key store file grabbed true|
+11|1791576403247|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate end|
+12|1791576403247|INFO|main|HttpServer.<init>|Server SSL enabled: false|
+13|1791576403249|INFO|main|BatchScheduler.schedule|Scheduled task 'gattoslab-server-regeneration-task', period: 86400000ms|
+14|1791576761386|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|Begin shutdown...|
+15|1791576761386|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|Begin shutdown...|
+16|1791576761450|INFO|gattos-lab-batch-scheduler-task|BatchScheduler.triggerJobsTask|Exiting, joining 0 workers|
+17|1791576761450|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|End shutdown|
+18|1791576761450|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'BatchScheduler'|
+19|1791576761450|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|Begin shutdown...|
+20|1791576761458|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-acceptor-task'|
+21|1791576761459|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-sweeper-task'|
+22|1791576761459|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|End shutdown|
+23|1791576761459|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ServerContainer'|
+24|1791576761459|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|Begin shutdown...|
+25|1791576761459|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|Begin shutdown...|
+26|1791576761459|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|End shutdown|
+27|1791576761459|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|End shutdown|
+28|1791576761459|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ObservabilityService'|
+29|1791576761459|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|Begin shutdown...|
+30|1791576761459|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|End shutdown|
+31|1791576761459|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'SquashingLogger'|
+32|1791576761459|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|End shutdown|
+0|1791577235599|INFO|test-initializer|Application.start|Starting Gatto's Lab with pid '32686'|
+1|1791577235600|INFO|test-initializer|Application.resolveProfile|Using profile 'test'|
+2|1791577235601|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-squashed-logs-task', period: 60000ms|
+3|1791577235602|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-system-metrics-poll-task', period: 5000ms|
+4|1791577235655|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-metrics-drain-task', period: 5000ms|
+5|1791577235655|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-observability-retention-task', period: 60000ms|
+6|1791577235695|INFO|test-initializer|ResourceMappings.populateResources|Site size: 2.3 MiB|
+7|1791577235699|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-session-maintenance-task', period: 60000ms|
+8|1791577235700|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-rate-limit-replenish-task', period: 1000ms|
+9|1791577235701|INFO|test-initializer|ServerContainer.createSSLContext|Loading SSL certificate start...|
+10|1791577235705|INFO|test-initializer|ServerContainer.loadKeyStore|Key store file grabbed true|
+11|1791577235778|INFO|test-initializer|ServerContainer.createSSLContext|Loading SSL certificate end|
+12|1791577235778|INFO|test-initializer|HttpServer.<init>|Server SSL enabled: false|
+13|1791577235779|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattoslab-server-regeneration-task', period: 86400000ms|
+14|1791577241186|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+15|1791577241188|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+16|1791577241190|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+17|1791577241195|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+18|1791577241196|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+19|1791577241201|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+20|1791577241203|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+21|1791577241210|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+22|1791577241214|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+23|1791577241216|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+24|1791577241218|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+25|1791577241219|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+26|1791577241220|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+27|1791577241221|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+28|1791577241230|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+29|1791577241231|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+30|1791577241377|INFO|main|ShutdownHook.run|Begin shutdown...|
+31|1791577241377|INFO|main|BatchScheduler.close|Begin shutdown...|
+32|1791577241409|INFO|gattos-lab-batch-scheduler-task|BatchScheduler.triggerJobsTask|Exiting, joining 0 workers|
+33|1791577241409|INFO|main|BatchScheduler.close|End shutdown|
+34|1791577241409|INFO|main|ShutdownHook.tryClose|Closed 'BatchScheduler'|
+35|1791577241409|INFO|main|ServerContainer.close|Begin shutdown...|
+36|1791577241415|INFO|main|HttpServer.close|Joining 'gattos-lab-http-acceptor-task'|
+37|1791577241415|INFO|main|HttpServer.close|Joining 'gattos-lab-http-sweeper-task'|
+38|1791577241416|INFO|main|ServerContainer.close|End shutdown|
+39|1791577241416|INFO|main|ShutdownHook.tryClose|Closed 'ServerContainer'|
+40|1791577241416|INFO|main|ObservabilityService.close|Begin shutdown...|
+41|1791577241416|INFO|main|SystemMetricsService.close|Begin shutdown...|
+42|1791577241417|INFO|main|SystemMetricsService.close|End shutdown|
+43|1791577241417|INFO|main|ObservabilityService.close|End shutdown|
+44|1791577241417|INFO|main|ShutdownHook.tryClose|Closed 'ObservabilityService'|
+45|1791577241417|INFO|main|SquashingLogger.close|Begin shutdown...|
+46|1791577241417|WARNING|main|SquashingLogger.login|Login failed for 127.0.0.1 >> null >> 1 times|
+47|1791577241417|WARNING|main|SquashingLogger.doAuthorizationFilter|Authorization failed for 127.0.0.1 >> Java-http-client/25.0.4.1 >> 5 times|
+48|1791577241417|WARNING|main|SquashingLogger.logException|Bad header line 1 times|
+49|1791577241417|WARNING|main|SquashingLogger.logException|Request too big 3 times|
+50|1791577241417|WARNING|main|SquashingLogger.doAuthorizationFilter|Authorization failed for 127.0.0.1 >> null >> 5 times|
+51|1791577241417|WARNING|main|SquashingLogger.doIngressFilter|Blocked 127.0.0.1 >> very-bad-string >> 1 times|
+52|1791577241417|WARNING|main|SquashingLogger.login|Login failed for 127.0.0.1 >> Java-http-client/25.0.4.1 >> 2 times|
+53|1791577241417|WARNING|main|SquashingLogger.doIngressFilter|Blocked 127.0.0.1 >> bad-string >> 1 times|
+54|1791577241417|WARNING|main|SquashingLogger.doRateLimitFilter|Rate limited 127.0.0.1 >> Java-http-client/25.0.4.1 >> 1 times|
+55|1791577241417|WARNING|main|SquashingLogger.logException|Bad first line 14 times|
+56|1791577241418|INFO|main|SquashingLogger.close|End shutdown|
+57|1791577241418|INFO|main|ShutdownHook.tryClose|Closed 'SquashingLogger'|
+58|1791577241418|INFO|main|ShutdownHook.run|End shutdown|
+0|1791577294306|INFO|test-initializer|Application.start|Starting Gatto's Lab with pid '33372'|
+1|1791577294307|INFO|test-initializer|Application.resolveProfile|Using profile 'test'|
+2|1791577294308|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-squashed-logs-task', period: 60000ms|
+3|1791577294310|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-system-metrics-poll-task', period: 5000ms|
+4|1791577294361|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-metrics-drain-task', period: 5000ms|
+5|1791577294362|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-observability-retention-task', period: 60000ms|
+6|1791577294402|INFO|test-initializer|ResourceMappings.populateResources|Site size: 2.3 MiB|
+7|1791577294406|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-session-maintenance-task', period: 60000ms|
+8|1791577294407|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattos-lab-rate-limit-replenish-task', period: 1000ms|
+9|1791577294407|INFO|test-initializer|ServerContainer.createSSLContext|Loading SSL certificate start...|
+10|1791577294411|INFO|test-initializer|ServerContainer.loadKeyStore|Key store file grabbed true|
+11|1791577294477|INFO|test-initializer|ServerContainer.createSSLContext|Loading SSL certificate end|
+12|1791577294477|INFO|test-initializer|HttpServer.<init>|Server SSL enabled: false|
+13|1791577294478|INFO|test-initializer|BatchScheduler.schedule|Scheduled task 'gattoslab-server-regeneration-task', period: 86400000ms|
+14|1791577299883|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+15|1791577299885|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+16|1791577299886|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+17|1791577299888|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+18|1791577299890|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+19|1791577299895|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+20|1791577299897|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+21|1791577299905|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+22|1791577299907|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+23|1791577299913|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+24|1791577299915|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+25|1791577299916|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+26|1791577299917|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+27|1791577299918|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+28|1791577299919|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+29|1791577299920|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+30|1791577299921|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+31|1791577299923|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Java-http-client/25.0.4.1|
+32|1791577300110|INFO|main|ShutdownHook.run|Begin shutdown...|
+33|1791577300110|INFO|main|BatchScheduler.close|Begin shutdown...|
+34|1791577300115|INFO|gattos-lab-batch-scheduler-task|BatchScheduler.triggerJobsTask|Exiting, joining 0 workers|
+35|1791577300115|INFO|main|BatchScheduler.close|End shutdown|
+36|1791577300115|INFO|main|ShutdownHook.tryClose|Closed 'BatchScheduler'|
+37|1791577300115|INFO|main|ServerContainer.close|Begin shutdown...|
+38|1791577300120|INFO|main|HttpServer.close|Joining 'gattos-lab-http-acceptor-task'|
+39|1791577300121|INFO|main|HttpServer.close|Joining 'gattos-lab-http-sweeper-task'|
+40|1791577300121|INFO|main|ServerContainer.close|End shutdown|
+41|1791577300121|INFO|main|ShutdownHook.tryClose|Closed 'ServerContainer'|
+42|1791577300121|INFO|main|ObservabilityService.close|Begin shutdown...|
+43|1791577300121|INFO|main|SystemMetricsService.close|Begin shutdown...|
+44|1791577300122|INFO|main|SystemMetricsService.close|End shutdown|
+45|1791577300122|INFO|main|ObservabilityService.close|End shutdown|
+46|1791577300122|INFO|main|ShutdownHook.tryClose|Closed 'ObservabilityService'|
+47|1791577300122|INFO|main|SquashingLogger.close|Begin shutdown...|
+48|1791577300123|WARNING|main|SquashingLogger.login|Login failed for 127.0.0.1 >> null >> 1 times|
+49|1791577300123|WARNING|main|SquashingLogger.doAuthorizationFilter|Authorization failed for 127.0.0.1 >> Java-http-client/25.0.4.1 >> 5 times|
+50|1791577300123|WARNING|main|SquashingLogger.logException|Bad header line 1 times|
+51|1791577300123|WARNING|main|SquashingLogger.logException|Request too big 3 times|
+52|1791577300123|WARNING|main|SquashingLogger.doAuthorizationFilter|Authorization failed for 127.0.0.1 >> null >> 5 times|
+53|1791577300123|WARNING|main|SquashingLogger.doIngressFilter|Blocked 127.0.0.1 >> very-bad-string >> 1 times|
+54|1791577300123|WARNING|main|SquashingLogger.login|Login failed for 127.0.0.1 >> Java-http-client/25.0.4.1 >> 2 times|
+55|1791577300123|WARNING|main|SquashingLogger.doIngressFilter|Blocked 127.0.0.1 >> bad-string >> 1 times|
+56|1791577300123|WARNING|main|SquashingLogger.doRateLimitFilter|Rate limited 127.0.0.1 >> Java-http-client/25.0.4.1 >> 1 times|
+57|1791577300123|WARNING|main|SquashingLogger.logException|Bad first line 14 times|
+58|1791577300123|INFO|main|SquashingLogger.close|End shutdown|
+59|1791577300123|INFO|main|ShutdownHook.tryClose|Closed 'SquashingLogger'|
+60|1791577300123|INFO|main|ShutdownHook.run|End shutdown|

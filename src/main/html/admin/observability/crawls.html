@@ -100,6 +100,20 @@
 
                     <div class = "form-input-group">
 
+                        <select class = "form-input" name = "isUserAgentBlocked" aria-label = "is-user-agent-blocked-input">
+                            <option value = "">-</option>
+                            <option value = "false">Allowed only</option>
+                            <option value = "true">Blocked only</option>
+                        </select>
+
+                        <p class = "form-field-description">
+                            <strong>Is user agent blocked:</strong> specifies if blocked user-agents should be included or not in the search filter. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
                         <input class = "form-input" type = "text" name = "userAgentPattern" aria-label = "user-agent-pattern-input">
 
                         <p class = "form-field-description">

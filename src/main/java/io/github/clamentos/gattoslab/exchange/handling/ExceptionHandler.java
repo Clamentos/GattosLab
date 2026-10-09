@@ -41,42 +41,33 @@ public final class ExceptionHandler {
 
         boolean isPartial = false;
 
-        if(!exchange.isHandled()) {
+        final HttpStatus status = switch(exception) {
 
-            this.logger.error(this.composeMessage(exchange, "error when trying to send response"), exception);
-            isPartial = true;
+            case final IOException _ -> HttpStatus.INTERNAL_SERVER_ERROR;
+            case final IllegalArgumentException _ -> HttpStatus.BAD_REQUEST;
+            case final InterruptedException _ -> HttpStatus.SERVICE_UNAVAILABLE;
+
+            default -> {
+
+                logger.error("No switch case for exception", exception);
+                yield HttpStatus.INTERNAL_SERVER_ERROR;
+            }
+        };
+
+        if(status == HttpStatus.INTERNAL_SERVER_ERROR) {
+
+            this.logger.warning(this.composeMessage(exchange, "responded with 500 Internal Server Error"), exception);
         }
 
-        else {
+        try {
 
-            final HttpStatus status = switch(exception) {
+            exchange.respond(status, Map.of(), MimeType.TEXT, exception.toString().getBytes());
+        }
 
-                case final IOException _ -> HttpStatus.INTERNAL_SERVER_ERROR;
-                case final IllegalArgumentException _ -> HttpStatus.BAD_REQUEST;
-                case final InterruptedException _ -> HttpStatus.SERVICE_UNAVAILABLE;
+        catch(final IOException | RuntimeException exc) {
 
-                default -> {
-
-                    logger.error("No switch case for exception", exception);
-                    yield HttpStatus.INTERNAL_SERVER_ERROR;
-                }
-            };
-
-            if(status == HttpStatus.INTERNAL_SERVER_ERROR) {
-
-                this.logger.warning(this.composeMessage(exchange, "responded with 500 Internal Server Error"), exception);
-            }
-
-            try {
-
-                exchange.respond(status, Map.of(), MimeType.TEXT, exception.toString().getBytes());
-            }
-
-            catch(final IOException | RuntimeException exc) {
-
-                if(GenericUtils.isExceptionNotable(exception)) this.logger.error("Could not respond", exc);
-                isPartial = true;
-            }
+            if(GenericUtils.isExceptionNotable(exception)) this.logger.error("Could not respond", exc);
+            isPartial = true;
         }
 
         if(!exchange.isTracked()) {

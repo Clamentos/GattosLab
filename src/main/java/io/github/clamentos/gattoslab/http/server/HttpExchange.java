@@ -47,8 +47,12 @@ public final class HttpExchange implements Closeable {
 
     ///..
     @Setter private Resource resource;
+    @Setter private boolean isUserAgentBlocked;
+
+    ///..
     private HttpStatus responseStatus;
 
+    ///..
     private final boolean isKeepAlive;
 
     @Setter private boolean isTracked;
@@ -82,6 +86,8 @@ public final class HttpExchange implements Closeable {
         this.writer = writer;
 
         this.resource = null;
+        this.isUserAgentBlocked = false;
+
         this.responseStatus = null;
 
         this.isTracked = false;

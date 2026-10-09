@@ -28,6 +28,7 @@ public final class RequestMetricsEntity implements Resettable, Entity {
     private String userAgent;
     private boolean isUnknown;
     private short httpStatus;
+    private boolean isUserAgentBlocked;
 
     ///..
     @Override
@@ -54,6 +55,8 @@ public final class RequestMetricsEntity implements Resettable, Entity {
         writer.write(Boolean.toString(this.isUnknown));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Short.toString(this.httpStatus));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Boolean.toString(this.isUserAgentBlocked));
     }
 
     ///

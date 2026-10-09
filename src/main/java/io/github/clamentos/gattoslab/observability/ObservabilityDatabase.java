@@ -76,8 +76,15 @@ public final class ObservabilityDatabase {
     }
 
     ///..
-    public List<String> readRequests(final long startTime, final long endTime, final String isUnknown, final String userAgentPattern)
-    throws IOException, IllegalArgumentException {
+    public List<String> readRequests(
+
+        final long startTime,
+        final long endTime,
+        final String isUnknown,
+        final String isUserAgentBlocked,
+        final String userAgentPattern
+
+    ) throws IOException, IllegalArgumentException {
 
         return this.fetch(startTime, endTime, requestMetricsDirectory, (line, start, end) -> {
 
@@ -88,6 +95,7 @@ public final class ObservabilityDatabase {
 
                 (requestTimestamp < start || requestTimestamp > end) ||
                 (!isUnknown.isEmpty() && !isUnknown.equals(request.get(5))) ||
+                (!isUserAgentBlocked.isEmpty() && !isUserAgentBlocked.equals(request.get(5))) ||
                 (!userAgentPattern.isEmpty() && !request.get(4).contains(userAgentPattern))
             ;
 

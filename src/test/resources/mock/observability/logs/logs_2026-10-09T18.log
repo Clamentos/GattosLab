@@ -1,0 +1,14 @@
+0|1791563219608|INFO|main|Application.start|Starting Gatto's Lab with pid '64164'|
+1|1791563219610|WARNING|main|Application.resolveProfile|No profile provided, defaulting to 'dev'|
+2|1791563219614|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-squashed-logs-task', period: 60000ms|
+3|1791563219616|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-system-metrics-poll-task', period: 5000ms|
+4|1791563219704|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-metrics-drain-task', period: 5000ms|
+5|1791563219704|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-observability-retention-task', period: 60000ms|
+6|1791563219745|INFO|main|ResourceMappings.populateResources|Site size: 2.3 MiB|
+7|1791563219750|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-session-maintenance-task', period: 60000ms|
+8|1791563219752|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-rate-limit-replenish-task', period: 1000ms|
+9|1791563219753|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate start...|
+10|1791563219756|INFO|main|ServerContainer.loadKeyStore|Key store file grabbed true|
+11|1791563219828|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate end|
+12|1791563219828|INFO|main|HttpServer.<init>|Server SSL enabled: false|
+13|1791563219830|INFO|main|BatchScheduler.schedule|Scheduled task 'gattoslab-server-regeneration-task', period: 86400000ms|
