@@ -34,6 +34,7 @@ public class Application {
     ///..
     private static final AtomicReference<ResourceMappings> resourceMappingsForTests = new AtomicReference<>();
     private static final AtomicReference<ApplicationProperties> applicationPropertiesForTests = new AtomicReference<>();
+    private static final AtomicReference<ShutdownHook> shutdownHookForTests = new AtomicReference<>();
 
     ///
     public static void main(final String[] args) {
@@ -102,6 +103,7 @@ public class Application {
 
         resourceMappingsForTests.set(resourceMappings);
         applicationPropertiesForTests.set(applicationProperties);
+        shutdownHookForTests.set(shutdownHook);
     }
 
     ///..
@@ -114,6 +116,12 @@ public class Application {
     public static ApplicationProperties exposePropertiesForTests() {
 
         return applicationPropertiesForTests.get();
+    }
+
+    ///..
+    public static ShutdownHook exposeShutdownHookForTests() {
+
+        return  shutdownHookForTests.get();
     }
 
     ///.

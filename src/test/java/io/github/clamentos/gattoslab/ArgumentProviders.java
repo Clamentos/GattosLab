@@ -1,8 +1,8 @@
 package io.github.clamentos.gattoslab;
 
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 ///
 import io.github.clamentos.gattoslab.exchange.handling.components.Api;
-import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
@@ -34,7 +34,12 @@ public class ArgumentProviders {
     ///.
     private static void waitForInit() {
 
-        while(Application.exposeMappingsForTests() == null || Application.exposePropertiesForTests() == null) {
+        while(
+
+            Application.exposeMappingsForTests() == null ||
+            Application.exposePropertiesForTests() == null ||
+            Application.exposeShutdownHookForTests() == null
+        ) {
 
             GenericUtils.silentSleep(200);
         }
@@ -68,53 +73,14 @@ public class ArgumentProviders {
     }
 
     ///..
-    public static Stream<Arguments> weirdPathProvider() {
-
-        waitForInit();
-
-        return Stream.of(
-
-            Arguments.of("/\u00e9.html"),
-            Arguments.of("/\u0444\u0430\u0439\u043b.html"),
-            Arguments.of("/\u65e5\u672c\u8a9e.html"),
-            Arguments.of("/\ud83c\udf89.html"),
-            Arguments.of("/\u0645\u0631\u062d\u0628\u0627.html"),
-            Arguments.of("/index\u00e9.html"),
-            Arguments.of("/../../etc/passwd"),
-            Arguments.of("/..%2f..%2f..%2fetc%2fpasswd"),
-            Arguments.of("/..%252f..%252f..%252fetc%252fpasswd"),
-            Arguments.of("/index.html%00.txt"),
-            Arguments.of("/admin/../index.html"),
-            Arguments.of("/admin/..%2f..%2findex.html"),
-            Arguments.of("/Admin/index.html"),
-            Arguments.of("/admin/"),
-            Arguments.of("//admin/index.html"),
-            Arguments.of("/./admin/index.html"),
-            Arguments.of("/api/authentication/sessions/"),
-            Arguments.of("/a\u0301min/index.html"),
-            Arguments.of("/api/Authentication/Sessions"),
-            Arguments.of("/index\t.html"),
-            Arguments.of("/index\u2028.html"),
-            Arguments.of("/in\u200bdex.html"),
-            Arguments.of("http://localhost:8080/index.html"),
-            Arguments.of("localhost:8080"),
-            Arguments.of("/../../src/main/java/io/github/clamentos/gattoslab/Application.java"),
-            Arguments.of("/../../src/main/resources/application-prod.properties"),
-            Arguments.of("/admin%2Findex.html"),
-            Arguments.of("/admin\\..\\..\\etc\\passwd"),
-            Arguments.of("/%252e%252e%252f%252e%252e%252fetc%252fpasswd")
-        );
-    }
-
-    ///..
     public static Stream<Arguments> hugeLineProvider() {
 
         waitForInit();
 
         return Stream.of(
 
-            Arguments.of(1000, HttpStatus.NOT_FOUND),
-            Arguments.of(300000, HttpStatus.CONTENT_TOO_LARGE)
+            Arguments.of(ApplicationProperties.MAX_REQUEST_SIZE >> 1, HttpStatus.NOT_FOUND),
+            Arguments.of(ApplicationProperties.MAX_REQUEST_SIZE << 1, HttpStatus.CONTENT_TOO_LARGE)
         );
     }
 
@@ -125,17 +91,53 @@ public class ArgumentProviders {
 
         return Stream.of(
 
-            Arguments.of(1000, HttpStatus.OK),
-            Arguments.of(300000, HttpStatus.CONTENT_TOO_LARGE)
+            Arguments.of(ApplicationProperties.MAX_REQUEST_SIZE >> 7, HttpStatus.OK),
+            Arguments.of(ApplicationProperties.MAX_REQUEST_SIZE << 1, HttpStatus.CONTENT_TOO_LARGE)
         );
     }
 
     ///..
-    public static Stream<Arguments> weirdRequestProvider() {
+    public static Stream<Arguments> explicitRequestProvider() {
 
         waitForInit();
 
         return Stream.of(
+
+            Arguments.of("GET /\u00e9.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /\u0444\u0430\u0439\u043b.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /\u65e5\u672c\u8a9e.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /\ud83c\udf89.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /\u0645\u0631\u062d\u0628\u0627.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /index\u00e9.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /../../etc/passwd HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /..%2f..%2f..%2fetc%2fpasswd HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /..%252f..%252f..%252fetc%252fpasswd HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /index.html%00.txt HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin/../index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin/..%2f..%2findex.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /Admin/index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin/ HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET //admin/index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /./admin/index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /api/authentication/sessions/ HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /a\u0301min/index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /api/Authentication/Sessions HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /index\t.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /index\u2028.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /in\u200bdex.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET http://localhost:8080/index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET localhost:8080 HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /../../src/main/java/io/github/clamentos/gattoslab/Application.java HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /../../src/main/resources/application-prod.properties HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin%2Findex.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin\\..\\..\\etc\\passwd HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /%252e%252e%252f%252e%252e%252fetc%252fpasswd HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
+
+            Arguments.of("POST /index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.METHOD_NOT_ALLOWED),
+            Arguments.of("DELETE /index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.METHOD_NOT_ALLOWED),
+            Arguments.of("FOO /index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.METHOD_NOT_ALLOWED),
+            Arguments.of("OPTIONS /index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NO_CONTENT),
+            Arguments.of("OPTIONS /admin/index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NO_CONTENT),
 
             Arguments.of("/index.html\r\n\r\n", HttpStatus.BAD_REQUEST),
             Arguments.of("GET /index.html\r\n", HttpStatus.BAD_REQUEST),
@@ -172,7 +174,13 @@ public class ArgumentProviders {
             Arguments.of("GET /index .html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.BAD_REQUEST),
             Arguments.of("GET /index.html?param=\u00e9\u00e8\u00ea HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
             Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: bad-string\r\n\r\n", HttpStatus.FORBIDDEN),
-            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: very-bad-string\r\n\r\n", HttpStatus.FORBIDDEN)
+            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: very-bad-string\r\n\r\n", HttpStatus.FORBIDDEN),
+
+            Arguments.of("GET /admin/index.html?password=admin HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin/index.html#secret HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
+            Arguments.of("GET /admin/index.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.SEE_OTHER),
+            Arguments.of("GET /admin/observability/logs.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.SEE_OTHER),
+            Arguments.of("GET /prefix/admin/observability/logs.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND)
         );
     }
 
@@ -190,33 +198,6 @@ public class ArgumentProviders {
             Arguments.of("GET /index.html HTTP/1.1\r\nX-Test: value\r\nInjected: header\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.OK, "Injected: header"),
 
             Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: evil\r\nSet-Cookie: hacked=true\r\nHost: localhost\r\n\r\n", HttpStatus.OK, "hacked=true")
-        );
-    }
-
-    ///..
-    public static Stream<Arguments> privilegedPathsProvider() {
-
-        waitForInit();
-
-        return Stream.of(
-
-            Arguments.of("GET /admin/index.html?password=admin HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
-            Arguments.of("GET /admin/index.html#secret HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
-            Arguments.of("GET /admin/index.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.SEE_OTHER),
-            Arguments.of("GET /admin/observability/logs.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.SEE_OTHER),
-            Arguments.of("GET /prefix/admin/observability/logs.html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND)
-        );
-    }
-
-    ///..
-    public static Stream<Arguments> methodProvider() {
-
-        waitForInit();
-
-        return Stream.of(
-
-            Arguments.of(HttpMethod.POST),
-            Arguments.of(HttpMethod.DELETE)
         );
     }
 
