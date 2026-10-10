@@ -95,7 +95,7 @@ public final class ObservabilityDatabase {
 
                 (requestTimestamp < start || requestTimestamp > end) ||
                 (!isUnknown.isEmpty() && !isUnknown.equals(request.get(5))) ||
-                (!isUserAgentBlocked.isEmpty() && !isUserAgentBlocked.equals(request.get(5))) ||
+                (!isUserAgentBlocked.isEmpty() && !isUserAgentBlocked.equals(request.get(7))) ||
                 (!userAgentPattern.isEmpty() && !request.get(4).contains(userAgentPattern))
             ;
 
