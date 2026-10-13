@@ -19,6 +19,12 @@ p {
     text-align: justify;
 }
 
+u {
+
+    text-decoration-color: #ffb86c;
+    text-decoration-thickness: 1px;
+}
+
 figcaption {
 
     font-size: 16px;
@@ -143,7 +149,7 @@ code {
 
 @media screen and (max-width: 1000px) {
 
-    p, p > a, figcaption {
+    p, p > a, figcaption, code {
 
         font-size: 14px;
     }

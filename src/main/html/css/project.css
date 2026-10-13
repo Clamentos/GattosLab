@@ -1,12 +1,22 @@
-figure > img {
+figure {
 
     padding-top: 80px;
+}
+
+figure > img {
+
     width: 100%;
 }
 
 figcaption {
 
     margin-bottom: 80px;
+}
+
+ol, ul {
+
+    margin-left: 32px;
+    text-align: justify;
 }
 
 .project-container {
@@ -44,6 +54,47 @@ figcaption {
     font-size: 45px;
 }
 
+.project-subsubtitle {
+
+    margin: 40px 0px 15px 0px;
+    text-shadow: 0px 2px #bd93f9;
+    font-size: 30px;
+}
+
+.project-subsubsubtitle {
+
+    margin: 40px 0px 15px 0px;
+    text-shadow: 0px 1px #bd93f9;
+    font-size: 25px;
+}
+
+.code-snippet {
+
+    margin-top: 25px;
+    padding: 25px;
+    background-color: #0f1014;
+    border: 1px solid #f1fa8c;
+    border-radius: 15px;
+}
+
+.code-comment {
+
+    color: #6272a4;
+}
+
+.diagram {
+
+    border: 1px solid #6272a4;
+    border-radius: 20px;
+    padding: 20px;
+}
+
+.diagram-figure-small {
+
+    width: 75%;
+    margin: auto;
+}
+
 @media screen and (max-width: 2000px) {
 
     .project-container {
@@ -64,7 +115,7 @@ figcaption {
 
 @media screen and (max-width: 1000px) {
 
-    figure > img {
+    figure {
 
         padding-top: 25px;
     }
@@ -72,6 +123,11 @@ figcaption {
     figcaption {
 
         margin-bottom: 25px;
+    }
+
+    ol > *, ul > *, u, li > a, .code-snippet, .code-comment {
+
+        font-size: 14px;
     }
 
     .project-container {
@@ -84,7 +140,7 @@ figcaption {
 
         margin-bottom: 30px;
         text-shadow: 0px 5px #bd93f9;
-        font-size: 50px;
+        font-size: 45px;
     }
 
     .project-subtitle {
@@ -93,8 +149,25 @@ figcaption {
         font-size: 30px;
     }
 
+    .project-subsubtitle {
+
+        margin-top: 30px;
+        font-size: 20px;
+    }
+
+    .project-subsubsubtitle {
+
+        margin-top: 30px;
+        font-size: 15px;
+    }
+
     .project-logo {
 
         display: none;
+    }
+
+    .diagram-figure-small {
+
+        width: 100%;
     }
 }
