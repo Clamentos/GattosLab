@@ -139,7 +139,7 @@ jar --update --file "$RUN_DIR"/"$NEW_JAR_NAME" --main-class "$MAIN_CLASS"
 echo "--> Copying site into run directory"
 cp -R "$SITE_BUILD_DIR" "$RUN_DIR"
 chown -R "$APP_USER":"$APP_USER_GROUP" "$SITE_RUN_DIR"
-chmod -R 400 "$SITE_RUN_DIR"
+chmod -R 700 "$SITE_RUN_DIR"
 
 echo "--> Copying $SECRETS_FILE into run directory"
 cp "$SECRETS_FILE" "$RUN_DIR"
