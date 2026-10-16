@@ -10,6 +10,8 @@
 #            keystore.p12                                       -r-------- gattoslab gattoslab-group
 #            /observability                                     drwxr-xr-x gattoslab gattoslab-group
 #               ...                                             drwxr-xr-x gattoslab gattoslab-group , -rw-r--r-- gattoslab gattoslab-group
+#            /site                                              dr-------- gattoslab gattoslab-group
+#               ...                                             dr-------- gattoslab gattoslab-group, -r-------- gattoslab gattoslab-group
 #
 #        /build                                                 drwxr-xr-x root root
 #            secrets.env                                        -rw------- root root
@@ -46,7 +48,9 @@ GIT_URL="https://github.com/Clamentos/GattosLab.git"
 BASE_DIR="/GattosLab"
 BUILD_DIR="$BASE_DIR"/build
 REPO_DIR="$BUILD_DIR"/repository
+SITE_BUILD_DIR="$REPO_DIR/site"
 RUN_DIR="$BASE_DIR"/run
+SITE_RUN_DIR="$RUN_DIR/site"
 SECRETS_FILE="$BUILD_DIR"/"$SECRETS_FILE_NAME"
 APP_USER="gattoslab"
 APP_USER_GROUP="gattoslab-group"
@@ -122,11 +126,17 @@ echo "--> Deleting the old files"
 OLD_JAR_FILE="$(find "$RUN_DIR"/ -name "$JAR_PREFIX*.jar")"
 delete_if_present_and_log "$OLD_JAR_FILE" "---> Old JAR was not present"
 delete_if_present_and_log "$PID_FILE" "---> Old "$PID_FILE_NAME" was not present"
+delete_if_present_and_log "$SITE_RUN_DIR" "---> Old site was not present"
 
 echo "--> Copying "$NEW_JAR_NAME" into run directory"
 cp "$NEW_JAR_FILE" "$RUN_DIR"
 chown "$APP_USER":"$APP_USER_GROUP" "$RUN_DIR"/"$NEW_JAR_NAME"
 jar --update --file "$RUN_DIR"/"$NEW_JAR_NAME" --main-class "$MAIN_CLASS"
+
+echo "--> Copying site into run directory"
+cp "$SITE_BUILD_DIR" "$RUN_DIR"
+chown -R "$APP_USER":"$APP_USER_GROUP" "$SITE_RUN_DIR"
+chmod -R 400 "$SITE_RUN_DIR"
 
 echo "--> Copying $SECRETS_FILE into run directory"
 cp "$SECRETS_FILE" "$RUN_DIR"
