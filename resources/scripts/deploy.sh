@@ -40,6 +40,12 @@ function delete_if_present_and_log () {
     else echo "$2"; fi
 }
 
+function delete_if_present_directory_and_log () {
+
+    if [ -e "$1" ]; then rm -fr "$1" > /dev/null;
+    else echo "$2"; fi
+}
+
 MAIN_CLASS="io.github.clamentos.gattoslab.Application"
 SECRETS_FILE_NAME="secrets.env"
 PID_FILE_NAME="pid.txt"
@@ -129,7 +135,7 @@ echo "--> Deleting the old files"
 OLD_JAR_FILE="$(find "$RUN_DIR"/ -name "$JAR_PREFIX*.jar")"
 delete_if_present_and_log "$OLD_JAR_FILE" "---> Old JAR was not present"
 delete_if_present_and_log "$PID_FILE" "---> Old "$PID_FILE_NAME" was not present"
-delete_if_present_and_log "$SITE_RUN_DIR" "---> Old site was not present"
+delete_if_present_directory_and_log "$SITE_RUN_DIR" "---> Old site was not present"
 
 echo "--> Copying "$NEW_JAR_NAME" into run directory"
 cp "$NEW_JAR_FILE" "$RUN_DIR"
