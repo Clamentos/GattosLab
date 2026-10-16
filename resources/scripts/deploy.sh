@@ -137,7 +137,7 @@ chown "$APP_USER":"$APP_USER_GROUP" "$RUN_DIR"/"$NEW_JAR_NAME"
 jar --update --file "$RUN_DIR"/"$NEW_JAR_NAME" --main-class "$MAIN_CLASS"
 
 echo "--> Copying site into run directory"
-cp "$SITE_BUILD_DIR" "$RUN_DIR"
+cp -R "$SITE_BUILD_DIR" "$RUN_DIR"
 chown -R "$APP_USER":"$APP_USER_GROUP" "$SITE_RUN_DIR"
 chmod -R 400 "$SITE_RUN_DIR"
 
