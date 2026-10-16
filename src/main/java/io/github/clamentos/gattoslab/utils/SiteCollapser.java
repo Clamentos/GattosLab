@@ -210,7 +210,7 @@ public class SiteCollapser {
 
         catch(final NoSuchFileException _) {
 
-            System.out.println("Directory was already not present: " + root);
+            System.out.println("SiteCollapser: Directory was already not present: " + root);
         }
     }
 
