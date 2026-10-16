@@ -7,6 +7,7 @@ import io.github.clamentos.gattoslab.datastructures.MutableString;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Base64.Encoder;
@@ -205,6 +206,11 @@ public class SiteCollapser {
 
                 Files.delete(path);
             }
+        }
+
+        catch(final NoSuchFileException _) {
+
+            System.out.println("Directory was already not present: " + root);
         }
     }
 

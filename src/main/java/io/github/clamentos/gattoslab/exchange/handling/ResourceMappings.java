@@ -9,7 +9,6 @@ import io.github.clamentos.gattoslab.exchange.handling.components.StaticResource
 import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
-import io.github.clamentos.gattoslab.utils.ResourceWalker;
 
 ///..
 import java.io.ByteArrayOutputStream;
