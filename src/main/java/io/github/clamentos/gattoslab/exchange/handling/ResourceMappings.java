@@ -15,8 +15,11 @@ import io.github.clamentos.gattoslab.utils.ResourceWalker;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 
 ///..
@@ -77,17 +80,16 @@ public final class ResourceMappings {
 
         final Logger logger = new Logger();
 
-        final String[] sitePaths = ResourceWalker.listSiteResourcePaths(ApplicationProperties.STATIC_SITE_RESOURCES_FOLDER);
-        final int pathSubstringIndex = ApplicationProperties.STATIC_SITE_RESOURCES_FOLDER.length();
+        final Path[] sitePaths = this.walk();
         final Map<String, StaticResource> mappings = HashMap.newHashMap(sitePaths.length + 2);
 
         long siteSize = 0;
 
-        for(final String prefixedPath : sitePaths) {
+        for(final Path prefixedPath : sitePaths) {
 
-            final String path = prefixedPath.substring(pathSubstringIndex);
+            final String path = "/" + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
             final boolean isPublic = !path.contains(privilegedStaticResourcePathPrefix);
-            final String diskPath = path.contains(diskBasedStaticResourcePathSegment) ? prefixedPath : null;
+            final String diskPath = path.contains(diskBasedStaticResourcePathSegment) ? path : null;
             final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
 
             MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
@@ -120,20 +122,29 @@ public final class ResourceMappings {
     }
 
     ///..
-    private byte[] compress(final String resourceName) throws IOException {
+    private Path[] walk() throws IOException {
 
-        if(resourceName == null || resourceName.isEmpty()) throw new IOException("'resourceName' cannot be null");
+        try(final Stream<Path> stream = Files.walk(ApplicationProperties.STATIC_SITE_RESOURCES_PATH)) {
 
-        final InputStream resourceStream = ResourceMappings.class.getClassLoader().getResourceAsStream(resourceName);
-        if(resourceStream == null) throw new IOException("Resource '" + resourceName + "' not found");
+            return stream.filter(Files::isRegularFile).toArray(Path[]::new);
+        }
+    }
 
-        final ByteArrayOutputStream resourceBytes = new ByteArrayOutputStream();
-        final GZIPOutputStream compressor = new GZIPOutputStream(resourceBytes);
+    ///..
+    private byte[] compress(final Path resourcePath) throws IOException {
 
-        compressor.write(resourceStream.readAllBytes());
-        compressor.close();
+        try(final InputStream resourceStream = Files.newInputStream(resourcePath)) {
 
-        return resourceBytes.toByteArray();
+            if(resourceStream == null) throw new IOException("Resource '" + resourcePath + "' not found");
+
+            final ByteArrayOutputStream resourceBytes = new ByteArrayOutputStream();
+            final GZIPOutputStream compressor = new GZIPOutputStream(resourceBytes);
+
+            compressor.write(resourceStream.readAllBytes());
+            compressor.close();
+
+            return resourceBytes.toByteArray();
+        }
     }
 
     ///

@@ -10,7 +10,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Base64.Encoder;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
 
 ///..
 import org.jsoup.Jsoup;
@@ -20,36 +22,87 @@ import org.jsoup.nodes.Element;
 ///
 public class SiteCollapser {
 
-    // html-minifier-next --input-dir ./src/main/resources/merged --output-dir ./src/main/resources/site --config-file=./resources/minifier-config.json
+    ///
+    private static final Path SOURCE = Path.of("./src/main/html");
+    private static final Path INTERMEDIATE = Path.of("./merged_site");
+    private static final Path DESTINATION = Path.of("./site");
 
     ///
-    private static final String SOURCE_ROOT = "html";
-    private static final String DESTINATION_ROOT = "merged";
+    public static void main(final String[] args) throws IOException, InterruptedException {
 
-    ///
-    public static void main() throws IOException {
+        System.out.println("SiteCollapser BEGIN");
+        deleteDirectory(DESTINATION);
 
-        for(final String path : ResourceWalker.listSiteResourcePaths(SOURCE_ROOT)) {
+        try(final Stream<Path> stream = Files.walk(SOURCE)) {
 
-            processFile(path);
+            final Path[] paths = stream.filter(Files::isRegularFile).toArray(Path[]::new);
+
+            for(final Path path : paths) {
+
+                processFile(path);
+            }
         }
+
+        final ProcessBuilder processBuilder = new ProcessBuilder(
+
+            "html-minifier-next",
+            "--input-dir", INTERMEDIATE.toString(),
+            "--output-dir", DESTINATION.toString(),
+            "--config-file=./resources/minifier-config.json"
+        );
+
+        processBuilder.redirectErrorStream(true);
+
+        final Process process = processBuilder.start();
+        final String output = new String(process.getInputStream().readAllBytes());
+        final int exitCode = process.waitFor();
+
+        System.out.println("SiteCollapser :: html-minifier-next :: " + output);
+
+        if(exitCode == 0) {
+
+            try(final Stream<Path> stream = Files.walk(INTERMEDIATE)) {
+
+                final Path[] paths = stream.filter(Files::isRegularFile).toArray(Path[]::new);
+
+                for(final Path path : paths) {
+
+                    finalPass(path);
+                }
+            }
+
+            deleteDirectory(INTERMEDIATE);
+        }
+
+        System.out.println("SiteCollapser END");
+        System.exit(exitCode == 0 ? 0 : 1);
     }
 
     ///.
-    private static void processFile(final String path) throws IOException {
+    private static void processFile(final Path path) throws IOException {
 
-        final byte[] data = readAllBytes(path);
+        final byte[] data = Files.readAllBytes(path);
 
-        if(path.endsWith(".html")) placeFile(path, modifyHtml(path, data));
-        else if(!path.endsWith(".css") && !path.endsWith(".js") && !path.endsWith(".svg")) placeFile(path, data);
+        if(hasExtension(path, ".html")) placeFile(path, modifyHtml(path, data));
+        else if(!hasExtension(path, ".css") && !hasExtension(path, ".js") && !hasExtension(path, ".svg")) placeFile(path, data);
     }
 
     ///..
-    private static byte[] modifyHtml(final String path, final byte[] data) throws IOException {
+    private static void finalPass(final Path path) throws IOException {
 
-        final Path htmlPath = Path.of(path);
+        if(!hasExtension(path, ".html")) {
+
+            final Path destinationPath = Path.of(DESTINATION + "/" + path.subpath(2, path.getNameCount()).toString());
+
+            Files.createDirectories(destinationPath.getParent());
+            Files.copy(path, destinationPath);
+        }
+    }
+
+    ///..
+    private static byte[] modifyHtml(final Path htmlPath, final byte[] data) throws IOException {
+
         final Document html = Jsoup.parse(new String(data));
-
         html.outputSettings().prettyPrint(false);
 
         concatenateCss(html, htmlPath);
@@ -60,9 +113,9 @@ public class SiteCollapser {
     }
 
     ///..
-    private static void placeFile(final String sourcePath, final byte[] content) throws IOException {
+    private static void placeFile(final Path sourcePath, final byte[] content) throws IOException {
 
-        final Path destinationPath = Path.of(DESTINATION_ROOT + sourcePath.substring(SOURCE_ROOT.length()));
+        final Path destinationPath = Path.of(INTERMEDIATE.toString() + "/" + sourcePath.subpath(4, sourcePath.getNameCount()).toString());
 
         Files.createDirectories(destinationPath.getParent());
         Files.createFile(destinationPath);
@@ -74,7 +127,7 @@ public class SiteCollapser {
     }
 
     ///..
-    private static String getPath(final Path hook, final String path) {
+    private static Path getPath(final Path hook, final String path) {
 
         String temp = path;
         Path result = hook;
@@ -85,7 +138,7 @@ public class SiteCollapser {
             result = result.getParent();
         }
 
-        return result.resolve(temp).toString();
+        return Path.of(result.resolve(temp).toString());
     }
 
     ///..
@@ -97,7 +150,7 @@ public class SiteCollapser {
 
             final String cssRef = stylesheetElem.attr("href");
 
-            sb.append(new String(readAllBytes(getPath(htmlPath.getParent(), cssRef))));
+            sb.append(new String(Files.readAllBytes(getPath(htmlPath.getParent(), cssRef))));
             stylesheetElem.remove();
         }
 
@@ -116,7 +169,7 @@ public class SiteCollapser {
 
         for(final Element img : imgs) {
 
-            final byte[] svgB64 = readAllBytes(getPath(htmlPath.getParent(), img.attr("src")));
+            final byte[] svgB64 = Files.readAllBytes(getPath(htmlPath.getParent(), img.attr("src")));
             img.attr("src", "data:image/svg+xml;utf8;base64, " + new String(encoder.encode(svgB64)));
         }
     }
@@ -129,7 +182,7 @@ public class SiteCollapser {
         for(final Element script : scripts) {
 
             final String jsRef = script.attr("src");
-            final String jsSource = new String(readAllBytes(getPath(htmlPath.getParent(), jsRef)));
+            final String jsSource = new String(Files.readAllBytes(getPath(htmlPath.getParent(), jsRef)));
 
             script.removeAttr("src");
             script.text(jsSource);
@@ -137,9 +190,22 @@ public class SiteCollapser {
     }
 
     ///..
-    private static byte[] readAllBytes(final String path) throws IOException {
+    private static boolean hasExtension(final Path path, final String extension) {
 
-        return ClassLoader.getSystemResourceAsStream(path).readAllBytes();
+        final String pathString = path.toString();
+        return pathString.endsWith(extension);
+    }
+
+    ///..
+    private static void deleteDirectory(final Path root) throws IOException {
+
+        try(final Stream<Path> stream = Files.walk(root)) {
+
+            for(final Path path : stream.sorted(Comparator.reverseOrder()).toList()) {
+
+                Files.delete(path);
+            }
+        }
     }
 
     ///

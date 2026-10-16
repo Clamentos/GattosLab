@@ -72,7 +72,7 @@ public final class ApplicationProperties {
     public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
     public static final String HOMEPAGE_PATH = "/index.html";
     public static final String REDIRECT_PATH = "/login.html";
-    public static final String STATIC_SITE_RESOURCES_FOLDER = "site";
+    public static final Path STATIC_SITE_RESOURCES_PATH = Path.of("./site");
     public static final Path LOG_FILE_PATH = Path.of("observability/logs/logs.log");
     public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
     public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");

@@ -5,6 +5,7 @@ target/
 *.p12
 pid.txt
 /observability
+/site
 
 ### VS Code ###
 .vscode/
