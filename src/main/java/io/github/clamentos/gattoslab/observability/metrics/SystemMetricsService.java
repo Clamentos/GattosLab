@@ -1,6 +1,7 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
+import io.github.clamentos.gattoslab.http.server.HttpServerConnections;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 
@@ -35,6 +36,7 @@ public final class SystemMetricsService implements Closeable {
     private final ClassLoadingMXBean classLoadingMXBean;
     private final RecordingStream recordingStream;
     private final FileStore fileStore;
+    private final HttpServerConnections httpServerConnections;
 
     ///..
     private final AtomicLong systemMetricsIdCounter;
@@ -61,7 +63,7 @@ public final class SystemMetricsService implements Closeable {
     private final AtomicLong dumpCounter;
 
     ///
-    public SystemMetricsService(final long samplingPeriod) throws IOException {
+    public SystemMetricsService(final HttpServerConnections httpServerConnections, final long samplingPeriod) throws IOException {
 
         this.logger = new Logger();
 
@@ -70,6 +72,7 @@ public final class SystemMetricsService implements Closeable {
         this.classLoadingMXBean = ManagementFactory.getClassLoadingMXBean();
         this.recordingStream = new RecordingStream();
         this.fileStore = Files.getFileStore(Paths.get("/"));
+        this.httpServerConnections = httpServerConnections;
 
         this.systemMetricsIdCounter = new AtomicLong();
 
@@ -157,6 +160,7 @@ public final class SystemMetricsService implements Closeable {
                 this.classLoadingMXBean.getLoadedClassCount(),
                 this.fileReads.getAndSet(0),
                 this.fileWrites.getAndSet(0),
+                this.httpServerConnections.getConnectionCount(),
                 this.socketReads.getAndSet(0),
                 this.socketWrites.getAndSet(0),
                 this.gcCounts.get(),

@@ -44,11 +44,11 @@ public final class CrawlAggregationEntity implements Streamable {
 
         writer.write(String.valueOf(this.uri));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Boolean.toString(this.isUnknown));
+        writer.write(Integer.toString(this.numberOfCalls));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.lastCalled));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Integer.toString(this.numberOfCalls));
+        writer.write(Boolean.toString(this.isUnknown));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
 
         int remaining = statuses.size() - 1;

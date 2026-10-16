@@ -29,9 +29,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 ///..
@@ -72,9 +70,7 @@ public final class HttpServer implements Closeable {
     private final Thread sweeper;
 
     ///..
-    private final Map<Thread, HttpConnection> connections;
-    private final Map<HashCodedByteArray, AtomicInteger> socketsPerIp;
-    private final AtomicInteger connectionCounter;
+    private final HttpServerConnections httpServerConnections;
     private final AtomicLong requestIdCounter;
     private final AtomicBoolean isClosed;
 
@@ -93,6 +89,7 @@ public final class HttpServer implements Closeable {
         final int port,
         final boolean dokeepAliveByDefault,
         final SSLContext sslContext,
+        final HttpServerConnections httpServerConnections,
         final Filter filter,
         final Handler handler
 
@@ -107,9 +104,7 @@ public final class HttpServer implements Closeable {
         final ServerSocketFactory serverSocketFactory = isSsl ? sslContext.getServerSocketFactory() : ServerSocketFactory.getDefault();
         this.serverSocket = serverSocketFactory.createServerSocket(port, ApplicationProperties.SERVER_SOCKET_ACCEPT_QUEUE_SIZE, bindAddress);
 
-        this.connections = new ConcurrentHashMap<>();
-        this.socketsPerIp = new ConcurrentHashMap<>();
-        this.connectionCounter = new AtomicInteger();
+        this.httpServerConnections = httpServerConnections;
         this.requestIdCounter = new AtomicLong();
         this.isClosed = new AtomicBoolean();
 
@@ -141,13 +136,13 @@ public final class HttpServer implements Closeable {
 
             long timeBudget = timeout.toMillis();
 
-            while(!this.connections.isEmpty() && timeBudget > 0) {
+            while(!this.httpServerConnections.isConnectionsEmpty() && timeBudget > 0) {
 
                 Thread.sleep(100);
                 timeBudget -= 100;
             }
 
-            for(final HttpConnection connection : this.connections.values()) {
+            for(final HttpConnection connection : this.httpServerConnections.getConnections()) {
 
                 connection.getSwept().set(true);
                 this.closeOrLog(connection.getSocket());
@@ -189,7 +184,7 @@ public final class HttpServer implements Closeable {
 
             final long now = System.currentTimeMillis();
 
-            for(final Entry<Thread, HttpConnection> entry : this.connections.entrySet()) {
+            for(final Entry<Thread, HttpConnection> entry : this.httpServerConnections.getConnectionEntries()) {
 
                 final HttpConnection connection = entry.getValue();
 
@@ -213,7 +208,7 @@ public final class HttpServer implements Closeable {
         final Thread self = Thread.currentThread();
         final HttpConnection connection = new HttpConnection(client);
 
-        this.connections.put(self, connection);
+        this.httpServerConnections.putConnection(self, connection);
 
         final int lingerAmount = (int)ApplicationProperties.SOCKET_LINGER.toSeconds();
         final int keepAliveAmount = (int)ApplicationProperties.SERVER_MAX_KEEP_ALIVE_DURATION.toMillis();
@@ -255,28 +250,16 @@ public final class HttpServer implements Closeable {
         }
 
         this.closeOrLog(client);
-        this.connections.remove(self);
-        this.connectionCounter.decrementAndGet();
-
-        final AtomicInteger socketsPerIpCounter = this.socketsPerIp.get(rawRemoteIpAddress);
-
-        if(socketsPerIpCounter != null && socketsPerIpCounter.decrementAndGet() == 0) {
-
-            this.socketsPerIp.remove(rawRemoteIpAddress);
-        }
+        this.httpServerConnections.removeConnection(self, rawRemoteIpAddress);
     }
 
     ///..
     private HashCodedByteArray isConnectionAllowed(final Socket client) {
 
-        final int currentConnectionCount = this.connectionCounter.getAndUpdate((currentValue -> Math.min(
-
-            currentValue + 1,
-            ApplicationProperties.MAX_SERVER_SOCKETS
-        )));
+        final int currentConnectionCount = this.httpServerConnections.updateConnectionCount();
 
         final HashCodedByteArray remoteIp = new HashCodedByteArray(((InetSocketAddress)client.getRemoteSocketAddress()).getAddress().getAddress());
-        final int currentIpConnectionCount = this.socketsPerIp.computeIfAbsent(remoteIp, _ -> new AtomicInteger()).incrementAndGet();
+        final int currentIpConnectionCount = this.httpServerConnections.updateIpConnectionCount(remoteIp);
 
         if(
             currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS ||
@@ -286,13 +269,7 @@ public final class HttpServer implements Closeable {
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash(TOO_MANY_SOCKETS_MESSAGE));
             this.respondError(client, TOO_MANY_SOCKETS_MESSAGE_BYTES);
             this.closeOrLog(client);
-
-            final AtomicInteger socketsPerIpCounter = this.socketsPerIp.get(remoteIp);
-
-            if(socketsPerIpCounter != null && socketsPerIpCounter.decrementAndGet() == 0) {
-
-                this.socketsPerIp.remove(remoteIp);
-            }
+            this.httpServerConnections.removeSocketsPerIp(remoteIp);
 
             return null;
         }

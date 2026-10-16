@@ -114,6 +114,26 @@
 
                     <div class = "form-input-group">
 
+                        <input class = "form-input" type = "text" name = "pathPattern" aria-label = "path-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Path pattern:</strong> specifies the path pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "remoteIpAddressPattern" aria-label = "remote-ip-address-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Remote IP address pattern:</strong> specifies the remote IP address pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
                         <input class = "form-input" type = "text" name = "userAgentPattern" aria-label = "user-agent-pattern-input">
 
                         <p class = "form-field-description">
@@ -169,6 +189,29 @@
                         </div>
 
                         <div class = "table-data" id = "user-agents-table-hook"></div>
+
+                    </div>
+
+                </div>
+
+                <div class = "table-container">
+
+                    <button class = "icon-button" onclick = "toggleVisibility('remote-ips-table')">
+                        <img id = "remote-ips-table-icon-down" src = "../../images/caret-down.svg" alt = ""/>
+                        <img class = "hidden-element" id = "remote-ips-table-icon-up" src = "../../images/caret-up.svg" alt = ""/>
+                    </button>
+
+                    <strong id = "remote-ips-count"></strong>
+
+                    <div class = "narrow-table" id = "remote-ips-table">
+
+                        <div class = "table-header-row">
+                            <div style = "width: 84%; border-left: none">Remote IP address</div>
+                            <div style = "width: 5%">Count</div>
+                            <div style = "width: 11%">Last invocation</div>
+                        </div>
+
+                        <div class = "table-data" id = "remote-ips-table-hook"></div>
 
                     </div>
 

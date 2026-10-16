@@ -7,7 +7,7 @@ const nextDayTime = todayTime + 86400000;
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 document.getElementById("end-timestamp").value = new Date(nextDayTime).toISOString().slice(0, 16);
 
-fetchAndRenderCrawls(todayTime, nextDayTime, "", "", "");
+fetchAndRenderCrawls(todayTime, nextDayTime, "", "", "", "", "");
 
 function onSubmitEvent(event) {
 
@@ -18,6 +18,8 @@ function onSubmitEvent(event) {
     const formIsUnknown = event.target.isUnknown.value;
     const formIsUserAgentBlocked = event.target.isUserAgentBlocked.value;
     const formUserAgentPattern = event.target.userAgentPattern.value;
+    const formPathPattern = event.target.pathPattern.value;
+    const formRemoteIpAddressPattern = event.target.remoteIpAddressPattern.value;
 
     const range = normalizeTimeRange(formStartTimestamp, formEndTimestamp, today);
 
@@ -27,26 +29,36 @@ function onSubmitEvent(event) {
         range.end,
         isOk(formIsUnknown) ? formIsUnknown : "",
         isOk(formIsUserAgentBlocked) ? formIsUserAgentBlocked : "",
-        isOk(formUserAgentPattern) ? formUserAgentPattern : ""
+        isOk(formUserAgentPattern) ? formUserAgentPattern : "",
+        isOk(formPathPattern) ? formPathPattern : "",
+        isOk(formRemoteIpAddressPattern) ? formRemoteIpAddressPattern : ""
     );
 }
 
-function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAgentBlocked, userAgentPattern) {
+function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAgentBlocked, userAgentPattern, pathPattern, remoteIpAddressPattern) {
 
     document.getElementById("submit-loader").style = "display: inline-block";
     document.getElementById("invocations-count").innerText = "Distinct paths: -";
     document.getElementById("user-agents-count").innerText = "Distinct user agents: -";
+    document.getElementById("remote-ips-count").innerText = "Distinct remote IP addresses: -";
 
     const invocationsTableBody = document.getElementById("invocations-table-hook");
     const userAgentsTableBody = document.getElementById("user-agents-table-hook");
+    const remoteIpAddressesTableBody = document.getElementById("remote-ips-table-hook");
 
     invocationsTableBody.replaceChildren();
     userAgentsTableBody.replaceChildren();
+    remoteIpAddressesTableBody.replaceChildren();
+
+    const filter =
+
+        `${startTimestamp}|${endTimestamp}|${isUnknown}|${isUserAgentBlocked}|${userAgentPattern}|${pathPattern}|${remoteIpAddressPattern}`
+    ;
 
     fetch("/api/observability/crawl-metrics", {
 
         method: "GET",
-        headers: { "Filter": `${startTimestamp}|${endTimestamp}|${isUnknown}|${isUserAgentBlocked}|${userAgentPattern}` }
+        headers: { "Filter": filter }
 
     }).then((response) => {
 
@@ -57,25 +69,31 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAge
                 const lines = text.split('\n');
                 const invocations = [];
                 const userAgents = [];
+                const remoteIpAddresses = [];
 
-                let flag = true;
+                let section = 0;
 
                 for(const line of lines) {
 
                     if(isOk(line)) {
 
-                        if(flag) invocations.push(line);
-                        else userAgents.push(line);
+                        switch(section) {
+
+                            case 0: invocations.push(line); break;
+                            case 1: userAgents.push(line); break;
+                            case 2: remoteIpAddresses.push(line); break;
+                        }
                     }
 
                     else {
 
-                        flag = false;
+                        section++;
                     }
                 }
 
                 document.getElementById("invocations-count").innerText = `Distinct paths: ${invocations.length}`;
                 document.getElementById("user-agents-count").innerText = `Distinct user agents: ${userAgents.length}`;
+                document.getElementById("remote-ips-count").innerText = `Distinct remote IP addresses: ${remoteIpAddresses.length}`;
 
                 for(const invocation of invocations) {
 
@@ -85,6 +103,11 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAge
                 for(const userAgent of userAgents) {
 
                     appendRow(userAgent, userAgentsTableBody, "user-agents-table-hook");
+                }
+
+                for(const remoteIpAddress of remoteIpAddresses) {
+
+                    appendRow(remoteIpAddress, remoteIpAddressesTableBody, "remote-ips-table-hook");
                 }
             });
         }
@@ -100,6 +123,12 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAge
 
 function appendRow(entry, table, hook) {
 
+    /*
+        uri            |numberOfCalls|lastCalled|isUnknown|statuses
+        userAgent      |numberOfCalls|lastSeen  |isBlocked
+        remoteIpAddress|numberOfCalls|lastSeen
+    */
+
     const splits = entry.split('|');
 
     const tr = document.createElement("div");
@@ -112,14 +141,16 @@ function appendRow(entry, table, hook) {
     tr.appendChild(lastInvocation);
 
     tr.className = "table-data-row";
-    tr.style = `color: ${splits[1] === "true" ? "#f1fa8c" : "#ffffff"}`;
+
+    if(hook !== "remote-ips-table-hook") tr.style = `color: ${splits[3] === "true" ? "#f1fa8c" : "#ffffff"}`;
+    else tr.style = "color: #ffffff";
 
     key.className = "table-data-elem";
     key.innerText = splits[0];
 
     count.className = "table-data-elem";
     count.style = "width: 5%; text-align: end";
-    count.innerText = splits[3];
+    count.innerText = splits[1];
 
     lastInvocation.className = "table-data-elem";
     lastInvocation.style = "width: 11%; text-align: center";

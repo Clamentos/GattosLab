@@ -220,22 +220,8 @@ public final class GenericUtils {
         ;
     }
 
-    ///.
-    private static void silentSleepInternal(final long millis, final int nanos) {
-
-        try {
-
-            Thread.sleep(millis, nanos);
-        }
-
-        catch(final InterruptedException _) {
-
-            Thread.currentThread().interrupt();
-        }
-    }
-
     ///..
-    private static CharSequence composeAddressString(final byte[] address) {
+    public static CharSequence composeAddressString(final byte[] address) {
 
         if(address == null) return null;
         final MutableString mutableString = new MutableString(40);
@@ -248,6 +234,20 @@ public final class GenericUtils {
 
         mutableString.deleteLastChars(1);
         return mutableString;
+    }
+
+    ///.
+    private static void silentSleepInternal(final long millis, final int nanos) {
+
+        try {
+
+            Thread.sleep(millis, nanos);
+        }
+
+        catch(final InterruptedException _) {
+
+            Thread.currentThread().interrupt();
+        }
     }
 
     ///

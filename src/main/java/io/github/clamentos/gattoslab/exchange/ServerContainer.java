@@ -5,6 +5,7 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.filters.Filter;
 import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.http.server.HttpServer;
+import io.github.clamentos.gattoslab.http.server.HttpServerConnections;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
@@ -36,6 +37,7 @@ public final class ServerContainer implements Closeable {
 
     ///..
     private final ApplicationProperties applicationProperties;
+    private final HttpServerConnections httpServerConnections;
     private final Filter filter;
     private final Handler handler;
 
@@ -49,6 +51,7 @@ public final class ServerContainer implements Closeable {
         final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
         final BatchScheduler batchScheduler,
+        final HttpServerConnections httpServerConnections,
         final Filter filter,
         final Handler handler
 
@@ -58,13 +61,14 @@ public final class ServerContainer implements Closeable {
         this.squashingLogger = squashingLogger;
 
         this.applicationProperties = applicationProperties;
+        this.httpServerConnections = httpServerConnections;
         this.filter = filter;
         this.handler = handler;
 
         this.httpServerReference = new AtomicReference<>();
         this.keystoreTimestamp = new AtomicLong(Long.MIN_VALUE);
 
-        this.instantiateServer(applicationProperties, squashingLogger, filter, handler);
+        this.instantiateServer(applicationProperties, squashingLogger, httpServerConnections, filter, handler);
 
         batchScheduler.schedule(
 
@@ -97,7 +101,7 @@ public final class ServerContainer implements Closeable {
                 this.logger.info("Begin server regeneration...");
 
                 this.close();
-                this.instantiateServer(this.applicationProperties, this.squashingLogger, this.filter, this.handler);
+                this.instantiateServer(this.applicationProperties, this.squashingLogger, this.httpServerConnections, this.filter, this.handler);
                 this.keystoreTimestamp.set(millis);
 
                 this.logger.info("End server regeneration");
@@ -115,6 +119,7 @@ public final class ServerContainer implements Closeable {
 
         final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
+        final HttpServerConnections httpServerConnections,
         final Filter filter,
         final Handler handler
 
@@ -127,6 +132,7 @@ public final class ServerContainer implements Closeable {
             applicationProperties.getServerPort(),
             applicationProperties.isKeepAliveByDefault(),
             this.createSSLContext(applicationProperties.getSslCertificatePath(), applicationProperties.getSslKeyStorePassword()),
+            httpServerConnections,
             filter,
             handler
         ));

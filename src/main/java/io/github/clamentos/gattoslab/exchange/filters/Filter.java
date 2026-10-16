@@ -92,16 +92,16 @@ public final class Filter extends Responder {
     ///
     public boolean filter(final HttpExchange exchange) {
 
-        if(!this.doIngressFilter(exchange)) return false;
+        super.observabilityService.requestStarted();
+
         if(!this.doRateLimitFilter(exchange)) return false;
+        if(!this.doIngressFilter(exchange)) return false;
 
         return this.doAuthorizationFilter(exchange);
     }
 
     ///.
     private boolean doIngressFilter(final HttpExchange exchange) {
-
-        super.observabilityService.requestStarted();
 
         final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
         exchange.setResource(this.resourceMappings.get(exchange.getUri()));

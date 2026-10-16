@@ -82,7 +82,9 @@ public final class ObservabilityDatabase {
         final long endTime,
         final String isUnknown,
         final String isUserAgentBlocked,
-        final String userAgentPattern
+        final String userAgentPattern,
+        final String pathPattern,
+        final String remoteAddressPattern
 
     ) throws IOException, IllegalArgumentException {
 
@@ -96,7 +98,9 @@ public final class ObservabilityDatabase {
                 (requestTimestamp < start || requestTimestamp > end) ||
                 (!isUnknown.isEmpty() && !isUnknown.equals(request.get(5))) ||
                 (!isUserAgentBlocked.isEmpty() && !isUserAgentBlocked.equals(request.get(7))) ||
-                (!userAgentPattern.isEmpty() && !request.get(4).contains(userAgentPattern))
+                (!userAgentPattern.isEmpty() && !request.get(4).contains(userAgentPattern)) ||
+                (!pathPattern.isEmpty() && !request.get(3).contains(pathPattern)) ||
+                (!remoteAddressPattern.isEmpty() && !request.get(8).contains(remoteAddressPattern))
             ;
 
             return !isExcluded;

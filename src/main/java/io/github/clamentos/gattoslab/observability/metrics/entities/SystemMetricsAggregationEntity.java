@@ -18,6 +18,7 @@ public final class SystemMetricsAggregationEntity {
         "classesLoaded",
         "fileReads",
         "fileWrites",
+        "sockets",
         "socketReads",
         "socketWrites",
         "gcCounts",
@@ -37,6 +38,7 @@ public final class SystemMetricsAggregationEntity {
     private long classesLoaded;
     private long fileReads;
     private long fileWrites;
+    private long sockets;
     private long socketReads;
     private long socketWrites;
     private long gcCounts;

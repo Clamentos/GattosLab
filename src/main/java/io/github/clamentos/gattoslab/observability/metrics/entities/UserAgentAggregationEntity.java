@@ -40,11 +40,11 @@ public final class UserAgentAggregationEntity implements Streamable {
 
         writer.write(String.valueOf(this.userAgent));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Boolean.toString(this.isBlocked));
+        writer.write(Integer.toString(this.numberOfCalls));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.lastSeen));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Integer.toString(this.numberOfCalls));
+        writer.write(Boolean.toString(this.isBlocked));
     }
 
     ///

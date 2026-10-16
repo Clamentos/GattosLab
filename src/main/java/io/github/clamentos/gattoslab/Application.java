@@ -7,6 +7,7 @@ import io.github.clamentos.gattoslab.exchange.filters.Filter;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
 import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
+import io.github.clamentos.gattoslab.http.server.HttpServerConnections;
 import io.github.clamentos.gattoslab.lifecycle.ClassPriorities;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
@@ -65,6 +66,7 @@ public class Application {
         Runtime.getRuntime().addShutdownHook(GenericUtils.createVirtualThread("gattos-lab-shutdown-hook-task", shutdownHook));
 
         final ApplicationProperties applicationProperties = resolveProfile(args.length > 0 ? args[0] : null);
+        final HttpServerConnections httpServerConnections = new HttpServerConnections();
 
         final BatchScheduler batchScheduler = new BatchScheduler();
         shutdownHook.add(batchScheduler, classPriorities.getPriority(BatchScheduler.class));
@@ -72,7 +74,7 @@ public class Application {
         final SquashingLogger squashingLogger = new SquashingLogger(batchScheduler);
         shutdownHook.add(squashingLogger, classPriorities.getPriority(SquashingLogger.class));
 
-        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, batchScheduler);
+        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, httpServerConnections, batchScheduler);
         shutdownHook.add(observabilityService, classPriorities.getPriority(ObservabilityService.class));
 
         final ResourceMappings resourceMappings = new ResourceMappings(applicationProperties);
@@ -95,6 +97,7 @@ public class Application {
             applicationProperties,
             squashingLogger,
             batchScheduler,
+            httpServerConnections,
             filter,
             handler
         );
