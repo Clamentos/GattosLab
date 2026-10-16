@@ -66,7 +66,10 @@ rm -fr "$REPO_DIR"
 git clone "$GIT_URL" "$REPO_DIR"
 
 echo -e "\n--> Building the project with mvn\n"
-mvn -f "$REPO_DIR"/pom.xml clean package -DskipTests
+CURRENT_DIR="$(pwd)"
+cd "$REPO_DIR"
+mvn clean package -DskipTests
+cd "$CURRENT_DIR"
 
 echo -e "$BOLD_PRINT\n=> PROJECT DEPLOY$RESET_COLORS"
 echo "--> Grabbing the generated JAR"
