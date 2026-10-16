@@ -76,7 +76,7 @@ public class SiteCollapser {
         }
 
         System.out.println("SiteCollapser END");
-        System.exit(exitCode == 0 ? 0 : 1);
+        if(exitCode != 0) System.exit(1);
     }
 
     ///.
