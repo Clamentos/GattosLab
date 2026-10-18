@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import io.github.clamentos.gattoslab.http.server.HttpServerConnections;
+import io.github.clamentos.gattoslab.http.server.ConnectionTracker;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 
@@ -36,7 +36,7 @@ public final class SystemMetricsService implements Closeable {
     private final ClassLoadingMXBean classLoadingMXBean;
     private final RecordingStream recordingStream;
     private final FileStore fileStore;
-    private final HttpServerConnections httpServerConnections;
+    private final ConnectionTracker connectionTracker;
 
     ///..
     private final AtomicLong systemMetricsIdCounter;
@@ -63,7 +63,7 @@ public final class SystemMetricsService implements Closeable {
     private final AtomicLong dumpCounter;
 
     ///
-    public SystemMetricsService(final HttpServerConnections httpServerConnections, final long samplingPeriod) throws IOException {
+    public SystemMetricsService(final ConnectionTracker connectionTracker, final long samplingPeriod) throws IOException {
 
         this.logger = new Logger();
 
@@ -72,7 +72,7 @@ public final class SystemMetricsService implements Closeable {
         this.classLoadingMXBean = ManagementFactory.getClassLoadingMXBean();
         this.recordingStream = new RecordingStream();
         this.fileStore = Files.getFileStore(Paths.get("/"));
-        this.httpServerConnections = httpServerConnections;
+        this.connectionTracker = connectionTracker;
 
         this.systemMetricsIdCounter = new AtomicLong();
 
@@ -140,11 +140,11 @@ public final class SystemMetricsService implements Closeable {
         if(this.dumpCounter.get() < sampleCounterValue) {
 
             this.dumpCounter.set(sampleCounterValue);
-            long storageUsedTmp = -1;
+            long storageUsed = -1;
 
             try {
 
-                storageUsedTmp = fileStore.getTotalSpace() - fileStore.getUnallocatedSpace();
+                storageUsed = fileStore.getTotalSpace() - fileStore.getUnallocatedSpace();
             }
 
             catch(final IOException exc) {
@@ -160,7 +160,7 @@ public final class SystemMetricsService implements Closeable {
                 this.classLoadingMXBean.getLoadedClassCount(),
                 this.fileReads.getAndSet(0),
                 this.fileWrites.getAndSet(0),
-                this.httpServerConnections.getConnectionCount(),
+                this.connectionTracker.getConnectionCount(),
                 this.socketReads.getAndSet(0),
                 this.socketWrites.getAndSet(0),
                 this.gcCounts.get(),
@@ -171,7 +171,7 @@ public final class SystemMetricsService implements Closeable {
                 this.systemMemoryUsed.getAndSet(0),
                 this.memoryMXBean.getNonHeapMemoryUsage().getUsed(),
                 this.memoryMXBean.getHeapMemoryUsage().getUsed(),
-                storageUsedTmp,
+                storageUsed,
                 this.requestMetricsEquilibrium.get()
             );
         }

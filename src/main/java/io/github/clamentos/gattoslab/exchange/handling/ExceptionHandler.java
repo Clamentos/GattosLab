@@ -31,11 +31,11 @@ public final class ExceptionHandler {
     ///
     public void handleUncaught(final HttpExchange exchange, final Throwable exception) {
 
+        exchange.close();
+
         if(exchange.isHandled()) {
 
             this.logger.warning(this.composeMessage(exchange, "but request was handled successfully"), exception);
-            exchange.close();
-
             return;
         }
 
@@ -75,8 +75,6 @@ public final class ExceptionHandler {
             if(isPartial) this.observabilityService.requestPartiallyEnded(exchange);
             else this.observabilityService.requestEnded(exchange);
         }
-
-        exchange.close();
     }
 
     ///.

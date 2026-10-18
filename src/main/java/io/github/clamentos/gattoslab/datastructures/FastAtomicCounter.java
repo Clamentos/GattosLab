@@ -23,7 +23,8 @@ public final class FastAtomicCounter {
     ///
     public void increment() {
 
-        this.paddedCounters.incrementAndGet((int)((Thread.currentThread().threadId() * this.dwordsPerCacheLine) % this.paddedCounters.length()));
+        final int index = (int)((Thread.currentThread().threadId() * this.dwordsPerCacheLine) % this.paddedCounters.length());
+        this.paddedCounters.incrementAndGet(index);
     }
 
     ///..

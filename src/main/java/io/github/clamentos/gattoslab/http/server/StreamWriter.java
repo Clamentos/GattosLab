@@ -184,8 +184,8 @@ public final class StreamWriter extends OutputStream {
 
         else {
 
-            this.buffer[this.position++] = (byte)((data & 0xFF00) >> 8);
             this.buffer[this.position++] = (byte)(data & 0x00FF);
+            this.buffer[this.position++] = (byte)((data & 0xFF00) >> 8);
 
             return 2;
         }

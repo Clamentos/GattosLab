@@ -20,25 +20,26 @@ public enum HttpHeader {
     ACCESS_CONTROL_ALLOW_METHODS("Access-Control-Allow-Methods: ".getBytes()),
     ACCESS_CONTROL_ALLOW_ORIGIN("Access-Control-Allow-Origin: ".getBytes()),
     ACCESS_CONTROL_MAX_AGE("Access-Control-Max-Age: ".getBytes()),
-    AUTHORIZATION(null),
     CACHE_CONTROL("Cache-Control: ".getBytes()),
     CLEAR_SITE_DATA("Clear-Site-Data: ".getBytes()),
     CONTENT_ENCODING("Content-Encoding: ".getBytes()),
     CONTENT_LENGTH("Content-Length: ".getBytes()),
     CONTENT_SECURITY_POLICY("Content-Security-Policy: ".getBytes()),
     CONTENT_TYPE("Content-Type: ".getBytes()),
-    COOKIE(null),
     CONNECTION("Connection: ".getBytes()),
     DATE("Date: ".getBytes()),
-    FILTER(null),
     KEEP_ALIVE("Keep-Alive: ".getBytes()),
     LOCATION("Location: ".getBytes()),
     RETRY_AFTER("Retry-After: ".getBytes()),
     SET_COOKIE("Set-Cookie: ".getBytes()),
     STRICT_TRANSPORT_SECURITY("Strict-Transport-Security: ".getBytes()),
     TRANSFER_ENCODING("Transfer-Encoding: ".getBytes()),
-    USER_AGENT(null),
-    X_FRAME_OPTIONS("X-Frame-Options: ".getBytes());
+    X_FRAME_OPTIONS("X-Frame-Options: ".getBytes()),
+
+    AUTHORIZATION(null),
+    COOKIE(null),
+    FILTER(null),
+    USER_AGENT(null);
 
     ///
     private final byte[] valueForResponse;

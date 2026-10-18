@@ -82,13 +82,13 @@ public final class ResourceMappings {
         final Path[] sitePaths = this.walk();
         final Map<String, StaticResource> mappings = HashMap.newHashMap(sitePaths.length + 2);
 
-        long siteSize = 0;
+        long compressedSiteSize = 0;
 
         for(final Path prefixedPath : sitePaths) {
 
             final String path = "/" + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
             final boolean isPublic = !path.contains(privilegedStaticResourcePathPrefix);
-            final String diskPath = path.contains(diskBasedStaticResourcePathSegment) ? path : null;
+            final Path diskPath = path.contains(diskBasedStaticResourcePathSegment) ? Path.of(path) : null;
             final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
 
             MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
@@ -108,7 +108,7 @@ public final class ResourceMappings {
                 compressedContent
             ));
 
-            if(compressedContent != null) siteSize += compressedContent.length;
+            if(compressedContent != null) compressedSiteSize += compressedContent.length;
         }
 
         final StaticResource homepage = mappings.get(ApplicationProperties.HOMEPAGE_PATH);
@@ -116,7 +116,7 @@ public final class ResourceMappings {
         mappings.put("", homepage);
         mappings.put("/", homepage);
 
-        logger.info("Site size: " + GenericUtils.formatSize(siteSize));
+        logger.info("Site size: " + GenericUtils.formatSize(compressedSiteSize));
         return mappings;
     }
 

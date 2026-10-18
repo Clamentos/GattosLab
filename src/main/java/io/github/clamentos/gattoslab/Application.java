@@ -7,8 +7,7 @@ import io.github.clamentos.gattoslab.exchange.filters.Filter;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
 import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
-import io.github.clamentos.gattoslab.http.server.HttpServerConnections;
-import io.github.clamentos.gattoslab.lifecycle.ClassPriorities;
+import io.github.clamentos.gattoslab.http.server.ConnectionTracker;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -60,22 +59,21 @@ public class Application {
         Files.write(ApplicationProperties.PID_FILE_PATH, pid.getBytes(), StandardOpenOption.CREATE);
 
         final ShutdownHook shutdownHook = new ShutdownHook();
-        final ClassPriorities classPriorities = new ClassPriorities();
 
-        shutdownHook.add(LoggerRoot.getInstance(), classPriorities.getPriority(LoggerRoot.class));
+        shutdownHook.add(LoggerRoot.getInstance());
         Runtime.getRuntime().addShutdownHook(GenericUtils.createVirtualThread("gattos-lab-shutdown-hook-task", shutdownHook));
 
         final ApplicationProperties applicationProperties = resolveProfile(args.length > 0 ? args[0] : null);
-        final HttpServerConnections httpServerConnections = new HttpServerConnections();
+        final ConnectionTracker connectionTracker = new ConnectionTracker();
 
         final BatchScheduler batchScheduler = new BatchScheduler();
-        shutdownHook.add(batchScheduler, classPriorities.getPriority(BatchScheduler.class));
+        shutdownHook.add(batchScheduler);
 
         final SquashingLogger squashingLogger = new SquashingLogger(batchScheduler);
-        shutdownHook.add(squashingLogger, classPriorities.getPriority(SquashingLogger.class));
+        shutdownHook.add(squashingLogger);
 
-        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, httpServerConnections, batchScheduler);
-        shutdownHook.add(observabilityService, classPriorities.getPriority(ObservabilityService.class));
+        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, connectionTracker, batchScheduler);
+        shutdownHook.add(observabilityService);
 
         final ResourceMappings resourceMappings = new ResourceMappings(applicationProperties);
         final SessionService sessionService = new SessionService(squashingLogger, applicationProperties, batchScheduler);
@@ -97,12 +95,12 @@ public class Application {
             applicationProperties,
             squashingLogger,
             batchScheduler,
-            httpServerConnections,
+            connectionTracker,
             filter,
             handler
         );
 
-        shutdownHook.add(requestExchanger, classPriorities.getPriority(ServerContainer.class));
+        shutdownHook.add(requestExchanger);
 
         resourceMappingsForTests.set(resourceMappings);
         applicationPropertiesForTests.set(applicationProperties);

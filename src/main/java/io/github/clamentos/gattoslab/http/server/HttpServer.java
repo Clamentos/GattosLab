@@ -70,7 +70,7 @@ public final class HttpServer implements Closeable {
     private final Thread sweeper;
 
     ///..
-    private final HttpServerConnections httpServerConnections;
+    private final ConnectionTracker connectionTracker;
     private final AtomicLong requestIdCounter;
     private final AtomicBoolean isClosed;
 
@@ -79,17 +79,16 @@ public final class HttpServer implements Closeable {
     private final Handler handler;
 
     ///..
-    private final boolean dokeepAliveByDefault;
+    private final boolean isKeepAliveByDefault;
 
     ///
     public HttpServer(
 
+        final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
         final InetAddress bindAddress,
-        final int port,
-        final boolean dokeepAliveByDefault,
         final SSLContext sslContext,
-        final HttpServerConnections httpServerConnections,
+        final ConnectionTracker connectionTracker,
         final Filter filter,
         final Handler handler
 
@@ -98,20 +97,21 @@ public final class HttpServer implements Closeable {
         this.logger = new Logger();
         this.squashingLogger = squashingLogger;
 
+        final int port = applicationProperties.getServerPort();
         final boolean isSsl = port == 443 || port == 8443;
         this.logger.info("Server SSL enabled: " + isSsl);
 
         final ServerSocketFactory serverSocketFactory = isSsl ? sslContext.getServerSocketFactory() : ServerSocketFactory.getDefault();
         this.serverSocket = serverSocketFactory.createServerSocket(port, ApplicationProperties.SERVER_SOCKET_ACCEPT_QUEUE_SIZE, bindAddress);
 
-        this.httpServerConnections = httpServerConnections;
+        this.connectionTracker = connectionTracker;
         this.requestIdCounter = new AtomicLong();
         this.isClosed = new AtomicBoolean();
 
         this.filter = filter;
         this.handler = handler;
 
-        this.dokeepAliveByDefault = dokeepAliveByDefault;
+        this.isKeepAliveByDefault = applicationProperties.isKeepAliveByDefault();
 
         this.acceptor = GenericUtils.spawnVirtualThread("gattos-lab-http-acceptor-task", this::accept);
         this.sweeper = GenericUtils.spawnVirtualThread("gattos-lab-http-sweeper-task", this::sweep);
@@ -120,6 +120,8 @@ public final class HttpServer implements Closeable {
     ///
     @Override
     public void close() {
+
+        this.logger.info("Begin shutdown...");
 
         final Duration timeout = ApplicationProperties.SERVER_CLOSE_TIMEOUT.dividedBy(3);
         this.isClosed.set(true);
@@ -134,17 +136,18 @@ public final class HttpServer implements Closeable {
             this.sweeper.interrupt();
             if(!this.sweeper.join(timeout)) this.logger.warning("Timed-out while joining the sweeper thread");
 
+            final long waitForMs = 100;
             long timeBudget = timeout.toMillis();
 
-            while(!this.httpServerConnections.isConnectionsEmpty() && timeBudget > 0) {
+            while(!this.connectionTracker.isConnectionsEmpty() && timeBudget > 0) {
 
-                Thread.sleep(100);
-                timeBudget -= 100;
+                Thread.sleep(waitForMs);
+                timeBudget -= waitForMs;
             }
 
-            for(final HttpConnection connection : this.httpServerConnections.getConnections()) {
+            for(final HttpConnection connection : this.connectionTracker.getConnections()) {
 
-                connection.getSwept().set(true);
+                connection.sweep();
                 this.closeOrLog(connection.getSocket());
             }
         }
@@ -154,6 +157,8 @@ public final class HttpServer implements Closeable {
             Thread.currentThread().interrupt();
             this.logger.error("Interrupted while closing, force quitting");
         }
+
+        this.logger.info("End shutdown");
     }
 
     ///.
@@ -184,13 +189,13 @@ public final class HttpServer implements Closeable {
 
             final long now = System.currentTimeMillis();
 
-            for(final Entry<Thread, HttpConnection> entry : this.httpServerConnections.getConnectionEntries()) {
+            for(final Entry<Thread, HttpConnection> entry : this.connectionTracker.getConnectionEntries()) {
 
                 final HttpConnection connection = entry.getValue();
 
                 if(connection.getCreatedAt() + keepAliveDuration < now) {
 
-                    connection.getSwept().set(true);
+                    connection.sweep();
                     this.closeOrLog(connection.getSocket());
                 }
             }
@@ -205,10 +210,8 @@ public final class HttpServer implements Closeable {
         final HashCodedByteArray rawRemoteIpAddress = this.isConnectionAllowed(client);
         if(rawRemoteIpAddress == null) return;
 
-        final Thread self = Thread.currentThread();
         final HttpConnection connection = new HttpConnection(client);
-
-        this.httpServerConnections.putConnection(self, connection);
+        this.connectionTracker.putConnection(Thread.currentThread(), connection);
 
         final int lingerAmount = (int)ApplicationProperties.SOCKET_LINGER.toSeconds();
         final int keepAliveAmount = (int)ApplicationProperties.SERVER_MAX_KEEP_ALIVE_DURATION.toMillis();
@@ -226,14 +229,13 @@ public final class HttpServer implements Closeable {
 
             CharSequence firstLine;
 
-            while(!client.isClosed() && !client.isInputShutdown() && !client.isOutputShutdown() && (firstLine = reader.readLine()) != null) {
+            while(connection.isValid() && (firstLine = reader.readLine()) != null) {
 
                 reader.resetAllowed();
-
                 final HttpExchange exchange = this.parseRequest(client, rawRemoteIpAddress, reader, writer, firstLine);
 
                 if(this.filter.filter(exchange)) this.handler.handle(exchange);
-                if(!exchange.isKeepAlive() || exchange.isDoForceClose() || !this.dokeepAliveByDefault) break;
+                if(!exchange.isKeepAlive() || exchange.isDoForceClose() || !this.isKeepAliveByDefault) break;
 
                 if(!doEnlargeReadTimeout) {
 
@@ -245,21 +247,21 @@ public final class HttpServer implements Closeable {
 
         catch(final IOException | RuntimeException exc) {
 
-            if(exc instanceof RequestTooBigException && !connection.getSwept().get()) this.respondError(client, RESPONSE_FOR_TOO_BIG);
+            if(exc instanceof RequestTooBigException && !connection.isSwept()) this.respondError(client, RESPONSE_FOR_TOO_BIG);
             this.logException(exc);
         }
 
         this.closeOrLog(client);
-        this.httpServerConnections.removeConnection(self, rawRemoteIpAddress);
+        this.connectionTracker.removeConnection(Thread.currentThread(), rawRemoteIpAddress);
     }
 
     ///..
     private HashCodedByteArray isConnectionAllowed(final Socket client) {
 
-        final int currentConnectionCount = this.httpServerConnections.updateConnectionCount();
-
-        final HashCodedByteArray remoteIp = new HashCodedByteArray(((InetSocketAddress)client.getRemoteSocketAddress()).getAddress().getAddress());
-        final int currentIpConnectionCount = this.httpServerConnections.updateIpConnectionCount(remoteIp);
+        final int currentConnectionCount = this.connectionTracker.updateConnectionCount();
+        final byte[] rawRemoteIp = ((InetSocketAddress)client.getRemoteSocketAddress()).getAddress().getAddress();
+        final HashCodedByteArray remoteIp = new HashCodedByteArray(rawRemoteIp);
+        final int currentIpConnectionCount = this.connectionTracker.updateSocketsPerIpCount(remoteIp);
 
         if(
             currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS ||
@@ -267,9 +269,10 @@ public final class HttpServer implements Closeable {
         ) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash(TOO_MANY_SOCKETS_MESSAGE));
+
             this.respondError(client, TOO_MANY_SOCKETS_MESSAGE_BYTES);
             this.closeOrLog(client);
-            this.httpServerConnections.removeSocketsPerIp(remoteIp);
+            this.connectionTracker.removeSocketsPerIp(remoteIp);
 
             return null;
         }
@@ -374,7 +377,7 @@ public final class HttpServer implements Closeable {
 
             switch(exc) {
 
-                case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.getMessage()));
+                case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.toString()));
                 case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
 
                 default -> {

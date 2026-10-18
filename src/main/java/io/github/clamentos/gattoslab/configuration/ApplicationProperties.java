@@ -38,8 +38,6 @@ public final class ApplicationProperties {
     public static final char RANGE_SEPARATOR = '-';
     public static final char NEWLINE_REPLACEMENT = '\u0002';
     public static final char LOG_SQUASH_COUNTS_CHAR = '#';
-    public static final char ENVIRONMENT_VARIABLE_PREFIX = '$';
-    public static final String FIELD_SEPARATOR_URL_ENCODED = "7C";
     public static final String FINGERPRINT_SEPARATOR = " >> ";
     public static final String EXCHANGE_STRING_SEPARATOR = " >> ";
 
@@ -77,9 +75,9 @@ public final class ApplicationProperties {
     public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
     public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
     public static final Path PID_FILE_PATH = Path.of("./pid.txt");
-    public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 1024;
-    public static final int MAX_SERVER_SOCKETS = 1024;
-    public static final int MAX_SOCKETS_PER_IP = 32;
+    public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 2048;
+    public static final int MAX_SERVER_SOCKETS = 4096;
+    public static final int MAX_SOCKETS_PER_IP = 64;
     public static final int LOG_SIPHON_CAPACITY = 1024;
     public static final int METRICS_SIPHON_CAPACITY = 4096;
     public static final int MAX_SESSIONS = 4;
@@ -88,7 +86,7 @@ public final class ApplicationProperties {
     public static final int SERVER_INPUT_BUFFERS_SIZE = 4096;
     public static final int SERVER_OUTPUT_BUFFERS_SIZE = 65536;
     public static final int DEFAULT_STREAM_WRITER_BUFFER_SIZE = 8192;
-    public static final int MAX_REQUEST_SIZE = 262_144;
+    public static final int MAX_REQUEST_SIZE = 65536;
     public static final boolean SOCKET_TCP_NO_DELAY = true;
 
     ///..
@@ -215,7 +213,7 @@ public final class ApplicationProperties {
             if(clazz == Boolean.class) return clazz.cast(false);
         }
 
-        if(propertyValue.charAt(0) == ENVIRONMENT_VARIABLE_PREFIX) {
+        if(propertyValue.charAt(0) == '$') {
 
             final String envName = propertyValue.substring(1);
             propertyValue = System.getenv(envName);

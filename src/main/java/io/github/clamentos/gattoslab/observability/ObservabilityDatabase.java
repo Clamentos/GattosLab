@@ -121,7 +121,7 @@ public final class ObservabilityDatabase {
 
     ///.
     private List<String> fetch(
-        
+
         final long startTime,
         final long endTime,
         final ObservabilityDirectory<?> observabilityDirectory,

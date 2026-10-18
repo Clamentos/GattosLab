@@ -3,10 +3,10 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 ///
 import io.github.clamentos.gattoslab.exchange.handling.components.Streamable;
 import io.github.clamentos.gattoslab.http.server.StreamWriter;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
-import java.util.Arrays;
 
 ///..
 import lombok.Getter;
@@ -35,7 +35,7 @@ public final class LineChartEntry implements Streamable {
         writer.write("{\"label\":\"");
         writer.write(this.label);
         writer.write("\",\"data\":");
-        writer.write(Arrays.toString(this.data));
+        GenericUtils.longArrayToString(this.data, writer);
         writer.write("}");
     }
 

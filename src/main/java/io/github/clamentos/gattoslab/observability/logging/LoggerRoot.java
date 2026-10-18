@@ -80,7 +80,7 @@ public final class LoggerRoot implements Closeable {
         try {
 
             this.drainWorker.interrupt();
-            if(!this.drainWorker.join(ApplicationProperties.LOG_CLOSE_TIMEOUT)) System.out.println("Timed-out while joining the 'drainWorker'");
+            if(!this.drainWorker.join(ApplicationProperties.LOG_CLOSE_TIMEOUT)) System.err.println("Timed-out while joining the 'drainWorker'");
         }
 
         catch(final InterruptedException _) {
@@ -161,8 +161,9 @@ public final class LoggerRoot implements Closeable {
         while(true) {
 
             this.currentSiphonReference.get().drain();
-            if(Thread.currentThread().isInterrupted()) break;
             GenericUtils.silentSleep(sleepAmount);
+
+            if(Thread.currentThread().isInterrupted()) break;
         }
 
         this.currentSiphonReference.get().drain();

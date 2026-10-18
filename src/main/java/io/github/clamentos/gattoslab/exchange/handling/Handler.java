@@ -19,6 +19,8 @@ import io.github.clamentos.gattoslab.security.SessionService;
 ///..
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
@@ -85,7 +87,7 @@ public final class Handler extends Responder {
         final StaticResource resource = (StaticResource)exchange.getResource();
         if(this.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
-        final String diskPath = resource.getDiskPath();
+        final Path diskPath = resource.getDiskPath();
 
         final Map<HttpHeader, String> headers = resource.isCacheable() ?
 
@@ -95,30 +97,36 @@ public final class Handler extends Responder {
 
         if(diskPath != null) {
 
-            final InputStream rawDiskData = Handler.class.getClassLoader().getResourceAsStream(diskPath);
+            try(final InputStream rawDiskData = Files.newInputStream(diskPath)) {
 
-            if(rawDiskData == null) {
+                if(rawDiskData == null) {
 
-                super.respond(exchange, HttpStatus.NOT_FOUND);
-                return;
+                    super.respond(exchange, HttpStatus.NOT_FOUND);
+                    return;
+                }
+
+                super.respond(
+
+                    exchange,
+                    HttpStatus.OK,
+                    headers,
+                    resource.getMimeType(),
+
+                    writer -> {
+
+                        try(final GZIPOutputStream compressor = new GZIPOutputStream(writer); rawDiskData) {
+
+                            rawDiskData.transferTo(compressor);
+                            compressor.finish();
+                        }
+                    }
+                );
             }
 
-            super.respond(
+            catch(final IOException exc) {
 
-                exchange,
-                HttpStatus.OK,
-                headers,
-                resource.getMimeType(),
-
-                writer -> {
-
-                    try(final GZIPOutputStream compressor = new GZIPOutputStream(writer); rawDiskData) {
-
-                        rawDiskData.transferTo(compressor);
-                        compressor.finish();
-                    }
-                }
-            );
+                super.respond(exchange, HttpStatus.UNPROCESSABLE, MimeType.TEXT, exc.toString().getBytes());
+            }
         }
 
         else {
@@ -148,8 +156,8 @@ public final class Handler extends Responder {
 
                 else {
 
-                    super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
                     exchange.close();
+                    super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
                 }
 
             return;
@@ -159,8 +167,9 @@ public final class Handler extends Responder {
                 if(this.rejectMethodNotAllowed(exchange, HttpMethod.DELETE)) return;
 
                 this.sessionService.logout(exchange);
-                super.respond(exchange, HttpStatus.OK, ApplicationProperties.CLEAR_SITE_DATA_HEADERS);
+
                 exchange.close();
+                super.respond(exchange, HttpStatus.OK, ApplicationProperties.CLEAR_SITE_DATA_HEADERS);
 
             return;
 
@@ -211,15 +220,15 @@ public final class Handler extends Responder {
 
         catch(final IOException | IllegalArgumentException exc) {
 
+            exchange.close();
+
             super.respond(
 
                 exchange,
                 exc instanceof IOException ? HttpStatus.UNPROCESSABLE : HttpStatus.BAD_REQUEST,
                 MimeType.TEXT,
-                exc.getMessage().getBytes()
+                exc.toString().getBytes()
             );
-
-            exchange.close();
         }
     }
 
@@ -228,8 +237,8 @@ public final class Handler extends Responder {
 
         if(exchange.getMethod() != method) {
 
-            super.respond(exchange, HttpStatus.METHOD_NOT_ALLOWED, MimeType.TEXT, method.getAllowedBody());
             exchange.close();
+            super.respond(exchange, HttpStatus.METHOD_NOT_ALLOWED, MimeType.TEXT, method.getAllowedBody());
 
             return true;
         }

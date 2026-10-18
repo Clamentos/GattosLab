@@ -33,7 +33,7 @@ public final class SystemMetricsAggregationEntity {
         "requestMetricsEquilibrium"
     };
 
-    ///.
+    ///
     private long platformThreads;
     private long classesLoaded;
     private long fileReads;
@@ -55,7 +55,7 @@ public final class SystemMetricsAggregationEntity {
     ///..
     private long count;
 
-    ///.
+    ///
     public static String[] getProbeNames() {
 
         return probes;

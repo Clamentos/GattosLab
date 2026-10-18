@@ -55,7 +55,9 @@ public final class HttpExchange implements Closeable {
     ///..
     private final boolean isKeepAlive;
 
-    @Setter private boolean isTracked;
+    @Setter
+    private boolean isTracked;
+
     private boolean isHandled;
     private boolean doForceClose;
 
@@ -110,23 +112,12 @@ public final class HttpExchange implements Closeable {
     }
 
     ///
-    public void respond(
-
-        final HttpStatus status,
-        final Map<HttpHeader, String> headers,
-        final MimeType mimeType,
-        final Object body
-
-    ) throws IOException {
+    public void respond(final HttpStatus status, final Map<HttpHeader, String> headers, final MimeType mimeType, final Object body)
+    throws IOException {
 
         this.responseHeaders.putAll(ApplicationProperties.EXTRA_HEADERS);
         this.responseHeaders.putAll(headers);
-
-        this.responseHeaders.put(
-
-            HttpHeader.DATE,
-            DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime), GenericUtils.DEFAULT_ZONE_ID))
-        );
+        this.responseHeaders.put(HttpHeader.DATE, this.getDate());
 
         if(this.doForceClose) this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
         if(mimeType != null) this.responseHeaders.putAll(mimeType.getValueForResponse());
@@ -190,6 +181,16 @@ public final class HttpExchange implements Closeable {
     public void close() {
 
         this.doForceClose = true;
+    }
+
+    ///.
+    private String getDate() {
+
+        return DateTimeFormatter.RFC_1123_DATE_TIME.format(
+
+            OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime),
+            GenericUtils.DEFAULT_ZONE_ID
+        ));
     }
 
     ///

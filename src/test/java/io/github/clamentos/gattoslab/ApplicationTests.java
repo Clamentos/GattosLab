@@ -22,6 +22,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -121,7 +122,7 @@ class ApplicationTests {
 
                 Assertions.assertTrue(Arrays.equals(
 
-                    ApplicationTests.class.getClassLoader().getResourceAsStream(resource.getDiskPath()).readAllBytes(),
+                    Files.newInputStream(resource.getDiskPath()).readAllBytes(),
                     decompressor.readAllBytes()
                 ));
             }

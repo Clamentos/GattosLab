@@ -1,12 +1,17 @@
 package io.github.clamentos.gattoslab.lifecycle;
 
 ///
+import io.github.clamentos.gattoslab.exchange.ServerContainer;
+import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
+import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
+import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 
 ///..
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -16,25 +21,36 @@ public class ShutdownHook implements Runnable {
 
     ///
     private final Logger logger;
+
+    ///..
     private final Map<Integer, List<Object>> closeables;
+    private final Map<Class<?>, Integer> priorities;
 
     ///
     public ShutdownHook() {
 
         this.logger = new Logger();
+
         this.closeables = new TreeMap<>();
+        this.priorities = HashMap.newHashMap(5);
+
+        this.priorities.put(BatchScheduler.class, 0);
+        this.priorities.put(ServerContainer.class, 1);
+        this.priorities.put(ObservabilityService.class, 2);
+        this.priorities.put(SquashingLogger.class, 3);
+        this.priorities.put(LoggerRoot.class, 4);
     }
 
     ///
-    public void add(final Closeable closeable, final int priority) {
+    public void add(final Closeable closeable) {
 
-        this.closeables.computeIfAbsent(priority, _ -> new ArrayList<>()).add(closeable);
+        this.closeables.computeIfAbsent(this.priorities.get(closeable.getClass()), _ -> new ArrayList<>()).add(closeable);
     }
 
     ///..
-    public void add(final AutoCloseable autoCloseable, final int priority) {
+    public void add(final AutoCloseable autoCloseable) {
 
-        this.closeables.computeIfAbsent(priority, _ -> new ArrayList<>()).add(autoCloseable);
+        this.closeables.computeIfAbsent(this.priorities.get(autoCloseable.getClass()), _ -> new ArrayList<>()).add(autoCloseable);
     }
 
     ///..

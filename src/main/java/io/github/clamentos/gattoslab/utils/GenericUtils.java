@@ -5,6 +5,7 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
+import io.github.clamentos.gattoslab.http.server.StreamWriter;
 
 ///..
 import java.io.IOException;
@@ -126,18 +127,6 @@ public final class GenericUtils {
     }
 
     ///..
-    public static long ipV4ToLong(final byte[] address) {
-
-        long value = 0;
-
-        value = value | (address[0] & 0xFF);
-        value = (value << 8) | (address[1] & 0xFF);
-        value = (value << 8) | (address[2] & 0xFF);
-
-        return (value << 8) | (address[3] & 0xFF);
-    }
-
-    ///..
     public static String formatSize(final long bytes) {
 
         if(bytes < 1024) return bytes + " B";
@@ -172,8 +161,7 @@ public final class GenericUtils {
 
         return
 
-            prefix +
-            " " +
+            prefix + " " +
             GenericUtils.composeFingerprint(exchange) +
             ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
             ApplicationProperties.LOG_SQUASH_COUNTS_CHAR +
@@ -196,7 +184,7 @@ public final class GenericUtils {
     ///..
     public static String headerToString(final Map<HttpHeader, String> headers) {
 
-        final MutableString mutableString = new MutableString(100);
+        final MutableString mutableString = new MutableString(128);
 
         for(final Entry<HttpHeader, String> header : headers.entrySet()) {
 
@@ -234,6 +222,52 @@ public final class GenericUtils {
 
         mutableString.deleteLastChars(1);
         return mutableString;
+    }
+
+    ///..
+    public static void longToString(final long number, final StreamWriter writer, final byte[] buffer) throws IOException {
+
+        if(number == 0) {
+
+            writer.write('0');
+            return;
+        }
+
+        long value = number;
+        int idx = 0;
+
+        while(value != 0) {
+
+            final long quotient = value / 10;
+
+            buffer[idx++] = (byte) -(value - quotient * 10);
+            value = quotient;
+        }
+
+        if(number < 0) writer.write('-');
+
+        while(idx > 0) {
+
+            writer.write((byte)(buffer[--idx] + '0'));
+        }
+    }
+
+    ///..
+    public static void longArrayToString(final long[] data, final StreamWriter writer) throws IOException {
+
+        final byte[] buffer = new byte[20];
+        final int length = data.length - 1;
+
+        writer.write('[');
+
+        for(int i = 0; i < length; i++) {
+
+            longToString(data[i], writer, buffer);
+            writer.write(',');
+        }
+
+        if(length >= 0) longToString(length, writer, buffer);
+        writer.write(']');
     }
 
     ///.

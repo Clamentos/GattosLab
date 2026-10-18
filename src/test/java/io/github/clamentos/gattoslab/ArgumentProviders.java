@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab;
 
-import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 ///
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.handling.components.Api;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.utils.GenericUtils;

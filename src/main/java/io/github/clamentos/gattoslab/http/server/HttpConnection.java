@@ -27,4 +27,22 @@ public final class HttpConnection {
     }
 
     ///
+    public boolean isSwept() {
+
+        return this.swept.get();
+    }
+
+    ///..
+    public void sweep() {
+
+        this.swept.set(true);
+    }
+
+    ///..
+    public boolean isValid() {
+
+        return !this.socket.isClosed() && !this.socket.isInputShutdown() && !this.socket.isOutputShutdown();
+    }
+
+    ///
 }

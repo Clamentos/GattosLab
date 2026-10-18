@@ -57,7 +57,9 @@ public final class SortedList<T> extends AbstractList<T> {
 
         else {
 
-            for(int i = this.size() - 2; i >= 0; i--) {
+            final int limit = this.size() - 2;
+
+            for(int i = limit; i >= 0; i--) {
 
                 if(this.comparator.compare(element, this.get(i)) >= 0) {
 

@@ -5,8 +5,8 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.http.server.ConnectionTracker;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
-import io.github.clamentos.gattoslab.http.server.HttpServerConnections;
 import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
@@ -58,7 +58,7 @@ public final class ObservabilityService implements Closeable {
     public ObservabilityService(
         
         final ApplicationProperties applicationProperties,
-        final HttpServerConnections httpServerConnections,
+        final ConnectionTracker connectionTracker,
         final BatchScheduler batchScheduler
 
     ) throws IOException {
@@ -75,7 +75,7 @@ public final class ObservabilityService implements Closeable {
         this.secondarySiphon = new Siphon<>(type, ApplicationProperties.METRICS_SIPHON_CAPACITY, RequestMetricsEntity::new, this::drainSiphonTask);
         this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
 
-        this.systemMetricsService = new SystemMetricsService(httpServerConnections, batchScheduler.schedule(
+        this.systemMetricsService = new SystemMetricsService(connectionTracker, batchScheduler.schedule(
 
             this::pollSystemMetricsTask,
             "gattos-lab-system-metrics-poll-task",

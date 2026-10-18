@@ -38,7 +38,7 @@ public final class SocketReader {
     ///
     public CharSequence readLine() throws IOException {
 
-        final MutableString mutableString = new MutableString(80);
+        final MutableString mutableString = new MutableString(128);
         boolean crFound = false;
 
         while(true) {
