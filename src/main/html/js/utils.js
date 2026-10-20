@@ -37,3 +37,25 @@ function isOk(value) {
 
     return value !== null && value !== undefined && value !== "";
 }
+
+function cleanObservabilityString(value) {
+
+    let result = "";
+
+    for(const char of value) {
+
+        const cp = char.codePointAt(0);
+
+        if(cp < 0x0020 || (cp >= 0x007F && cp <= 0x009F) || cp === 0xFEFF || cp === 0x2028) {
+
+            result += '�';
+        }
+
+        else {
+
+            result += char;
+        }
+    }
+
+    return result;
+}

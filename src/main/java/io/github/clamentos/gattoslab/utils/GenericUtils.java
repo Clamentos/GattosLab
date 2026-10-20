@@ -3,9 +3,9 @@ package io.github.clamentos.gattoslab.utils;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
+import io.github.clamentos.gattoslab.datastructures.StreamWriter;
 import io.github.clamentos.gattoslab.http.HttpHeader;
-import io.github.clamentos.gattoslab.http.server.HttpExchange;
-import io.github.clamentos.gattoslab.http.server.StreamWriter;
+import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
 
 ///..
 import java.io.IOException;
@@ -108,22 +108,24 @@ public final class GenericUtils {
         if(input.isEmpty()) return "";
 
         final int length = input.length();
-        final MutableString stringBuilder = new MutableString(length);
+        final MutableString mutableString = new MutableString(length);
 
         for(int i = 0; i < length; i++) {
 
             final char currentChar = input.charAt(i);
 
-            switch(currentChar) {
+            if(currentChar == '\n' || currentChar == ApplicationProperties.FIELD_SEPARATOR) {
 
-                case '\n': stringBuilder.append(ApplicationProperties.NEWLINE_REPLACEMENT); break;
-                case ApplicationProperties.FIELD_SEPARATOR: stringBuilder.append(ApplicationProperties.FIELD_SEPARATOR_REPLACEMENT); break;
+                mutableString.append(ApplicationProperties.ILLEGAL_CHAR_REPLACEMENT);
+            }
 
-                default: stringBuilder.append(currentChar); break;
+            else {
+
+                mutableString.append((byte)currentChar);
             }
         }
 
-        return stringBuilder;
+        return mutableString;
     }
 
     ///..

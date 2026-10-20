@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import io.github.clamentos.gattoslab.http.server.ConnectionsTracker;
+import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 
@@ -158,12 +158,13 @@ public final class SystemMetricsService implements Closeable {
                 System.currentTimeMillis(),
                 this.threadMXBean.getThreadCount(),
                 this.classLoadingMXBean.getLoadedClassCount(),
+                this.connectionsTracker.getConnectionCount(),
+                this.connectionsTracker.getConnectionClosedEventCount(),
                 this.fileReads.getAndSet(0),
                 this.fileWrites.getAndSet(0),
-                this.connectionsTracker.getConnectionCount(),
                 this.socketReads.getAndSet(0),
                 this.socketWrites.getAndSet(0),
-                this.gcCounts.get(),
+                this.gcCounts.getAndSet(0),
                 this.gcPauseMilliseconds.getAndSet(0),
                 this.cpuLoadJvmUser.getAndSet(0),
                 this.cpuLoadJvmSystem.getAndSet(0),

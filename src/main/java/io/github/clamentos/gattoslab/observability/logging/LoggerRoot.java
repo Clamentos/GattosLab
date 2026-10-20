@@ -62,7 +62,7 @@ public final class LoggerRoot implements Closeable {
     }
 
     ///..
-    public void warn(final String logger, final String message,final Throwable exception) {
+    public void warning(final String logger, final String message, final Throwable exception) {
 
         this.log(LogSeverity.WARNING, logger, message, exception);
     }

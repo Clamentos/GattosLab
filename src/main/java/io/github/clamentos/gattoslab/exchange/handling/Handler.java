@@ -11,10 +11,10 @@ import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
-import io.github.clamentos.gattoslab.http.server.HttpExchange;
+import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
-import io.github.clamentos.gattoslab.security.SecurityFailure;
 import io.github.clamentos.gattoslab.security.SessionService;
+import io.github.clamentos.gattoslab.security.components.SecurityFailure;
 
 ///..
 import java.io.IOException;

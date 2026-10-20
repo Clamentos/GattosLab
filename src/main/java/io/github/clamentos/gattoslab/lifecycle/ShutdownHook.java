@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.lifecycle;
 
 ///
-import io.github.clamentos.gattoslab.exchange.ServerContainer;
+import io.github.clamentos.gattoslab.http.server.ServerContainer;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;

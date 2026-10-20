@@ -1,6 +1,7 @@
 package io.github.clamentos.gattoslab.datastructures;
 
 ///
+import io.github.clamentos.gattoslab.datastructures.interfaces.Resettable;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..

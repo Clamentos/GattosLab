@@ -6,12 +6,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-///..
-import lombok.EqualsAndHashCode;
-
-///
-@EqualsAndHashCode(callSuper = true)
-
 ///
 public final class SortedList<T> extends AbstractList<T> {
 
@@ -70,6 +64,20 @@ public final class SortedList<T> extends AbstractList<T> {
         }
 
         return true;
+    }
+
+    ///..
+    @Override
+    public boolean equals(final Object other) {
+
+        return super.equals(other);
+    }
+
+    ///..
+    @Override
+    public int hashCode() {
+
+        return super.hashCode();
     }
 
     ///

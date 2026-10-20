@@ -123,12 +123,6 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAge
 
 function appendRow(entry, table, hook) {
 
-    /*
-        uri            |numberOfCalls|lastCalled|isUnknown|statuses
-        userAgent      |numberOfCalls|lastSeen  |isBlocked
-        remoteIpAddress|numberOfCalls|lastSeen
-    */
-
     const splits = entry.split('|');
 
     const tr = document.createElement("div");
@@ -146,7 +140,7 @@ function appendRow(entry, table, hook) {
     else tr.style = "color: #ffffff";
 
     key.className = "table-data-elem";
-    key.innerText = splits[0];
+    key.innerText = cleanObservabilityString(splits[0]);
 
     count.className = "table-data-elem";
     count.style = "width: 5%; text-align: end";

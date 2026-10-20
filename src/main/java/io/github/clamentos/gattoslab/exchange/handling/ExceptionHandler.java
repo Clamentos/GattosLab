@@ -3,7 +3,7 @@ package io.github.clamentos.gattoslab.exchange.handling;
 ///
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
-import io.github.clamentos.gattoslab.http.server.HttpExchange;
+import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;

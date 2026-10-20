@@ -5,21 +5,22 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
-import io.github.clamentos.gattoslab.http.server.ConnectionsTracker;
-import io.github.clamentos.gattoslab.http.server.HttpExchange;
-import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
+import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
+import io.github.clamentos.gattoslab.http.server.components.ResponseBodyCallback;
+import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
+import io.github.clamentos.gattoslab.observability.database.ObservabilityDatabase;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetricsService;
-import io.github.clamentos.gattoslab.observability.metrics.entities.CrawlAggregationEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.LineChartEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.LineChartEntry;
-import io.github.clamentos.gattoslab.observability.metrics.entities.RemoteIpAddressAggregationEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsAggregationEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsAggregationEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
-import io.github.clamentos.gattoslab.observability.metrics.entities.UserAgentAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.aggregations.CrawlAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.aggregations.RemoteIpAddressAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.aggregations.RequestMetricsAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.aggregations.SystemMetricsAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.aggregations.UserAgentAggregationEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.chart.LineChartEntity;
+import io.github.clamentos.gattoslab.observability.metrics.entities.chart.LineChartEntry;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
@@ -292,21 +293,22 @@ public final class ObservabilityService implements Closeable {
 
             aggregation.setPlatformThreads(aggregation.getPlatformThreads() + Long.parseLong(splits.get(2)));
             aggregation.setClassesLoaded(aggregation.getClassesLoaded() + Long.parseLong(splits.get(3)));
-            aggregation.setFileReads(aggregation.getFileReads() + Long.parseLong(splits.get(4)));
-            aggregation.setFileWrites(aggregation.getFileWrites() + Long.parseLong(splits.get(5)));
-            aggregation.setSockets(aggregation.getSockets() + Long.parseLong(splits.get(6)));
-            aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(7)));
-            aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(8)));
-            aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(9)));
-            aggregation.setGcPauseMilliseconds(aggregation.getGcPauseMilliseconds() + Long.parseLong(splits.get(10)));
-            aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(11)));
-            aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(12)));
-            aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(13)));
-            aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(14)));
-            aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(15)));
-            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(16)));
-            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(17)));
-            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(18)));
+            aggregation.setSockets(aggregation.getSockets() + Long.parseLong(splits.get(4)));
+            aggregation.setSocketsClosed(Math.max(aggregation.getSocketsClosed(), Long.parseLong(splits.get(5))));
+            aggregation.setFileReads(aggregation.getFileReads() + Long.parseLong(splits.get(6)));
+            aggregation.setFileWrites(aggregation.getFileWrites() + Long.parseLong(splits.get(7)));
+            aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(8)));
+            aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(9)));
+            aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(10)));
+            aggregation.setGcPauseMilliseconds(aggregation.getGcPauseMilliseconds() + Long.parseLong(splits.get(11)));
+            aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(12)));
+            aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(13)));
+            aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(14)));
+            aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(15)));
+            aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(16)));
+            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(17)));
+            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(18)));
+            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(19)));
             aggregation.setCount(aggregation.getCount() + 1);
         }
 
@@ -342,48 +344,41 @@ public final class ObservabilityService implements Closeable {
 
             if(aggregation != null) {
 
-                datasets[0].getData()[i] = Math.ceilDiv(aggregation.getPlatformThreads(), aggregation.getCount());
-                datasets[1].getData()[i] = Math.ceilDiv(aggregation.getClassesLoaded(), aggregation.getCount());
-                datasets[2].getData()[i] = aggregation.getFileReads();
-                datasets[3].getData()[i] = aggregation.getFileWrites();
-                datasets[4].getData()[i] = Math.ceilDiv(aggregation.getSockets(), aggregation.getCount());
-                datasets[5].getData()[i] = aggregation.getSocketReads();
-                datasets[6].getData()[i] = aggregation.getSocketWrites();
-                datasets[7].getData()[i] = aggregation.getGcCounts();
-                datasets[8].getData()[i] = aggregation.getGcPauseMilliseconds();
-                datasets[9].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), aggregation.getCount());
-                datasets[10].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), aggregation.getCount());
-                datasets[11].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), aggregation.getCount());
-                datasets[12].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), aggregation.getCount());
-                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), aggregation.getCount());
-                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), aggregation.getCount());
-                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), aggregation.getCount());
-                datasets[16].getData()[i] = aggregation.getRequestMetricsEquilibrium();
+                final long count = aggregation.getCount();
+
+                datasets[0].getData()[i] = Math.ceilDiv(aggregation.getPlatformThreads(), count);
+                datasets[1].getData()[i] = Math.ceilDiv(aggregation.getClassesLoaded(), count);
+                datasets[2].getData()[i] = Math.ceilDiv(aggregation.getSockets(), count);
+                datasets[3].getData()[i] = aggregation.getSocketsClosed();
+                datasets[4].getData()[i] = aggregation.getFileReads();
+                datasets[5].getData()[i] = aggregation.getFileWrites();
+                datasets[6].getData()[i] = aggregation.getSocketReads();
+                datasets[7].getData()[i] = aggregation.getSocketWrites();
+                datasets[8].getData()[i] = aggregation.getGcCounts();
+                datasets[9].getData()[i] = aggregation.getGcPauseMilliseconds();
+                datasets[10].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), count);
+                datasets[11].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), count);
+                datasets[12].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), count);
+                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), count);
+                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), count);
+                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), count);
+                datasets[16].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), count);
+                datasets[17].getData()[i] = aggregation.getRequestMetricsEquilibrium();
             }
         }
 
-        final String[] chartNames = new String[]{
-
-            "threads",
-            "classes",
-            "ioResources",
-            "garbageCollection",
-            "cpuUtilization",
-            "memoryUtilization",
-            "storageUtilization",
-            "requestMetricsEquilibrium"
-        };
-
+        final String[] chartNames = SystemMetricsAggregationEntity.getChartKeys();
         final LineChartEntity[] charts = new LineChartEntity[chartNames.length];
 
         charts[0] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[0]});
         charts[1] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[1]});
-        charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[2], datasets[3], datasets[4], datasets[5], datasets[6]});
-        charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[7], datasets[8]});
-        charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[9], datasets[10], datasets[11]});
-        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[12], datasets[13], datasets[14]});
-        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[15]});
+        charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[2], datasets[3]});
+        charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[4], datasets[5], datasets[6], datasets[7]});
+        charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[8], datasets[9]});
+        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[10], datasets[11], datasets[12]});
+        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[13], datasets[14], datasets[15]});
         charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[16]});
+        charts[8] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[17]});
 
         return writer -> {
 

@@ -2,10 +2,11 @@ package io.github.clamentos.gattoslab.http.server;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.IpAddress;
-import io.github.clamentos.gattoslab.datastructures.IpV4;
-import io.github.clamentos.gattoslab.datastructures.IpV6;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
+import io.github.clamentos.gattoslab.datastructures.StreamWriter;
+import io.github.clamentos.gattoslab.datastructures.address.IpAddress;
+import io.github.clamentos.gattoslab.datastructures.address.IpV4;
+import io.github.clamentos.gattoslab.datastructures.address.IpV6;
 import io.github.clamentos.gattoslab.exceptions.MalformedRequestException;
 import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
 import io.github.clamentos.gattoslab.exchange.filters.Filter;
@@ -13,6 +14,10 @@ import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
+import io.github.clamentos.gattoslab.http.server.components.SocketReader;
+import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
+import io.github.clamentos.gattoslab.http.server.components.connection.HttpConnection;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
@@ -226,7 +231,7 @@ public final class HttpServer implements Closeable {
 
             client.setSoLinger(lingerAmount > 0, lingerAmount);
             client.setTcpNoDelay(ApplicationProperties.SOCKET_TCP_NO_DELAY);
-            client.setSoTimeout((int)ApplicationProperties.SOCKET_READ_TIMEOUT.toMillis());
+            client.setSoTimeout((int)ApplicationProperties.SOCKET_PRELIMINARY_READ_TIMEOUT.toMillis());
 
             final SocketReader reader = new SocketReader(client.getInputStream(), ApplicationProperties.SERVER_INPUT_BUFFERS_SIZE);
             final StreamWriter writer = new StreamWriter(client.getOutputStream(), ApplicationProperties.SERVER_OUTPUT_BUFFERS_SIZE);
@@ -398,6 +403,7 @@ public final class HttpServer implements Closeable {
         try {
 
             client.close();
+            this.connectionsTracker.trackConnectionClosed();
         }
 
         catch(final IOException exc) {

@@ -120,7 +120,7 @@ function appendRow(log, table) {
 
     exception.className = "table-data-elem";
     exception.style = "width: 15%";
-    exception.innerText = splits[6].replaceAll('\u0002', '\n');
+    exception.innerText = cleanObservabilityString(splits[6]);
 
     tr.appendChild(timestamp);
     tr.appendChild(severity);

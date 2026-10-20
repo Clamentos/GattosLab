@@ -35,7 +35,7 @@ public final class MutableString implements CharSequence {
     ///..
     public void append(final char character) {
 
-        if(this.index + 1 >= this.characters.length) this.grow();
+        if(this.index >= this.characters.length) this.grow();
         this.characters[this.index++] = (byte)character;
     }
 

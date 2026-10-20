@@ -2,12 +2,12 @@ package io.github.clamentos.gattoslab.exchange.handling;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.exchange.handling.components.Api;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
 import io.github.clamentos.gattoslab.exchange.handling.components.StaticResource;
 import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
+import io.github.clamentos.gattoslab.security.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..

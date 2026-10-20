@@ -2,12 +2,12 @@ package io.github.clamentos.gattoslab;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.exchange.ServerContainer;
 import io.github.clamentos.gattoslab.exchange.filters.Filter;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
 import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
-import io.github.clamentos.gattoslab.http.server.ConnectionsTracker;
+import io.github.clamentos.gattoslab.http.server.ServerContainer;
+import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;

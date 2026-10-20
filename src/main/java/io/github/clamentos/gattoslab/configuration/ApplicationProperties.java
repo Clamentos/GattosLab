@@ -32,11 +32,10 @@ public final class ApplicationProperties {
     public static final byte[] NEW_LINE_BYTES = "\r\n".getBytes();
 
     ///..
+    public static final char ILLEGAL_CHAR_REPLACEMENT = '\u0000';
     public static final char FIELD_SEPARATOR = '|';
-    public static final char FIELD_SEPARATOR_REPLACEMENT = '\u0001';
     public static final char ARRAY_SEPARATOR = ',';
     public static final char RANGE_SEPARATOR = '-';
-    public static final char NEWLINE_REPLACEMENT = '\u0002';
     public static final char LOG_SQUASH_COUNTS_CHAR = '#';
     public static final String FINGERPRINT_SEPARATOR = " >> ";
     public static final String EXCHANGE_STRING_SEPARATOR = " >> ";
@@ -51,20 +50,20 @@ public final class ApplicationProperties {
     public static final String SERVER_REGENERATION_CRON = "h24";
 
     ///..
-    public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(5);
-    public static final Duration LOG_CLOSE_TIMEOUT = Duration.ofSeconds(5);
-    public static final Duration SCHEDULER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
+    public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(6);
+    public static final Duration LOG_CLOSE_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration SCHEDULER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(4);
     public static final Duration CORS_DURATION = Duration.ofDays(1);
     public static final Duration CACHE_DURATION = Duration.ofDays(7);
     public static final Duration RATE_LIMIT_BLOCK_DURATION = Duration.ofMinutes(1);
-    public static final Duration SESSION_DURATION = Duration.ofHours(2);
+    public static final Duration SESSION_DURATION = Duration.ofHours(1);
     public static final Duration LOGIN_FAILURE_PAUSE_DURATION = Duration.ofMillis(500);
     public static final Duration SERVER_MAX_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
     public static final Duration LOG_SIPHON_DRAIN_TASK_SLEEP = Duration.ofSeconds(5);
     public static final Duration SCHEDULER_POLL_PERIOD = Duration.ofMillis(100);
-    public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofSeconds(1);
+    public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofSeconds(5);
     public static final Duration SOCKET_LINGER = Duration.ofSeconds(1);
-    public static final Duration SOCKET_READ_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration SOCKET_PRELIMINARY_READ_TIMEOUT = Duration.ofSeconds(2);
     public static final String SESSION_COOKIE_NAME = "GattosLabSessionId=";
     public static final String UNKNOWN_LOGGER_PLACEHOLDER = "UNKNOWN_LOGGER";
     public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
@@ -75,9 +74,9 @@ public final class ApplicationProperties {
     public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
     public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
     public static final Path PID_FILE_PATH = Path.of("./pid.txt");
-    public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 2048;
-    public static final int MAX_SERVER_SOCKETS = 4096;
-    public static final int MAX_SOCKETS_PER_IP = 64;
+    public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 1024;
+    public static final int MAX_SERVER_SOCKETS = 8192;
+    public static final int MAX_SOCKETS_PER_IP = 128;
     public static final int LOG_SIPHON_CAPACITY = 1024;
     public static final int METRICS_SIPHON_CAPACITY = 4096;
     public static final int MAX_SESSIONS = 4;

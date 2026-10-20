@@ -51,14 +51,15 @@ function fetchAndRenderSystemMetrics(startTimestamp, endTimestamp, resolution) {
 
             response.json().then(json => {
 
-                renderLineChart(activeCharts, "SystemThreadChart", "JVM threads", json.threads);
-                renderLineChart(activeCharts, "SystemClassChart", "Loaded JVM classes", json.classes);
-                renderLineChart(activeCharts, "IoChart", "JVM IO resources", json.ioResources);
-                renderLineChart(activeCharts, "SystemGcChart", "JVM GC", json.garbageCollection);
-                renderLineChart(activeCharts, "SystemCpuChart", "CPU utilization %", json.cpuUtilization);
-                renderLineChart(activeCharts, "SystemMemoryChart", "Memory utilization", json.memoryUtilization);
-                renderLineChart(activeCharts, "StorageChart", "Storage utilization", json.storageUtilization);
-                renderLineChart(activeCharts, "RequestMetricsEquilibriumChart", "Request metrics equilibrium", json.requestMetricsEquilibrium);
+                renderLineChart(activeCharts, "chart1", "Threads", json.threads);
+                renderLineChart(activeCharts, "chart2", "Classes loaded", json.classes);
+                renderLineChart(activeCharts, "chart3", "IO resources", json.ioResources);
+                renderLineChart(activeCharts, "chart4", "IO utilization", json.ioUtilization);
+                renderLineChart(activeCharts, "chart5", "Garbage collector", json.garbageCollector);
+                renderLineChart(activeCharts, "chart6", "CPU utilization (%)", json.cpuUtilization);
+                renderLineChart(activeCharts, "chart7", "Memory utilization (Bytes)", json.memoryUtilization);
+                renderLineChart(activeCharts, "chart8", "Storage utilization (Bytes)", json.storageUtilization);
+                renderLineChart(activeCharts, "chart9", "Request metrics equilibrium", json.requestMetricsEquilibrium);
             });
         }
 

@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.exchange.handling.components;
 
 ///
-import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
+import io.github.clamentos.gattoslab.security.components.AuthorizationAction;
 
 ///..
 import lombok.AccessLevel;

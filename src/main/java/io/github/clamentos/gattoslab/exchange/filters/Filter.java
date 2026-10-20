@@ -2,9 +2,8 @@ package io.github.clamentos.gattoslab.exchange.filters;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.IpAddress;
+import io.github.clamentos.gattoslab.datastructures.address.IpAddress;
 import io.github.clamentos.gattoslab.exchange.Responder;
-import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.exchange.filters.components.RateLimitEntry;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
@@ -12,12 +11,13 @@ import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.http.MimeType;
-import io.github.clamentos.gattoslab.http.server.HttpExchange;
+import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
-import io.github.clamentos.gattoslab.security.SecurityFailure;
 import io.github.clamentos.gattoslab.security.SessionService;
+import io.github.clamentos.gattoslab.security.components.AuthorizationAction;
+import io.github.clamentos.gattoslab.security.components.SecurityFailure;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..

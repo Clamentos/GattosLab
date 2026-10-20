@@ -2,9 +2,9 @@ package io.github.clamentos.gattoslab.observability.logging.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.Resettable;
-import io.github.clamentos.gattoslab.http.server.StreamWriter;
-import io.github.clamentos.gattoslab.observability.Entity;
+import io.github.clamentos.gattoslab.datastructures.StreamWriter;
+import io.github.clamentos.gattoslab.datastructures.interfaces.Entity;
+import io.github.clamentos.gattoslab.datastructures.interfaces.Resettable;
 
 ///..
 import java.io.IOException;

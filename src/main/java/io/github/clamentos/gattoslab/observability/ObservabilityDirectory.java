@@ -2,7 +2,8 @@ package io.github.clamentos.gattoslab.observability;
 
 ///
 import io.github.clamentos.gattoslab.datastructures.SortedList;
-import io.github.clamentos.gattoslab.http.server.StreamWriter;
+import io.github.clamentos.gattoslab.datastructures.StreamWriter;
+import io.github.clamentos.gattoslab.datastructures.interfaces.Entity;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 

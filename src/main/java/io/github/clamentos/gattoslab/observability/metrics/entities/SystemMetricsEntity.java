@@ -2,8 +2,8 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.http.server.StreamWriter;
-import io.github.clamentos.gattoslab.observability.Entity;
+import io.github.clamentos.gattoslab.datastructures.StreamWriter;
+import io.github.clamentos.gattoslab.datastructures.interfaces.Entity;
 
 ///..
 import java.io.IOException;
@@ -24,9 +24,10 @@ public final class SystemMetricsEntity implements Entity {
     private final long timestamp;
     private final long platformThreads;
     private final long classesLoaded;
+    private final long sockets;
+    private final long socketsClosed;
     private final long fileReads;
     private final long fileWrites;
-    private final long sockets;
     private final long socketReads;
     private final long socketWrites;
     private final long gcCounts;
@@ -52,11 +53,13 @@ public final class SystemMetricsEntity implements Entity {
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.classesLoaded));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.sockets));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.socketsClosed));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.fileReads));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.fileWrites));
-        writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Long.toString(this.sockets));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.socketReads));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

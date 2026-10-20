@@ -2,12 +2,12 @@ package io.github.clamentos.gattoslab;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.exchange.handling.components.Api;
 import io.github.clamentos.gattoslab.exchange.handling.components.StaticResource;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
+import io.github.clamentos.gattoslab.security.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
@@ -453,10 +453,10 @@ class ApplicationTests {
     @Test @Order(0)
     void testUtf8BomInPath() throws Exception {
 
+        final byte[] prefix = "GET ".getBytes();
         final byte[] bom = {(byte)0xEF, (byte)0xBB, (byte)0xBF};
         final byte[] path = "/index.html".getBytes();
-        final byte[] prefix = "GET ".getBytes();
-        final byte[] suffix = " HTTP/1.1\r\nHost: localhost\r\n\r\n".getBytes();
+        final byte[] suffix = " HTTP/1.1\r\nUser-Agent: bom-test\r\n\r\n".getBytes();
 
         final byte[] request = new byte[prefix.length + bom.length + path.length + suffix.length];
         int offset = 0;
