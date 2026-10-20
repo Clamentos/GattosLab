@@ -35,11 +35,11 @@ public final class IpV4 implements IpAddress {
     @Override
     public void stream(final StreamWriter writer) throws IOException {
 
-        writer.write(Integer.toString((this.address & 0xFF_00_00_00) >> 24));
+        writer.write(Integer.toString((this.address & 0xFF_00_00_00) >>> 24));
         writer.write('.');
-        writer.write(Integer.toString((this.address & 0x00_FF_00_00) >> 16));
+        writer.write(Integer.toString((this.address & 0x00_FF_00_00) >>> 16));
         writer.write('.');
-        writer.write(Integer.toString((this.address & 0x00_00_FF_00) >> 8));
+        writer.write(Integer.toString((this.address & 0x00_00_FF_00) >>> 8));
         writer.write('.');
         writer.write(Integer.toString(this.address & 0x00_00_00_FF));
     }
@@ -50,11 +50,11 @@ public final class IpV4 implements IpAddress {
 
         final MutableString mutableString = new MutableString(15);
 
-        mutableString.append(Integer.toString((this.address & 0xFF_00_00_00) >> 24));
+        mutableString.append(Integer.toString((this.address & 0xFF_00_00_00) >>> 24));
         mutableString.append('.');
-        mutableString.append(Integer.toString((this.address & 0x00_FF_00_00) >> 16));
+        mutableString.append(Integer.toString((this.address & 0x00_FF_00_00) >>> 16));
         mutableString.append('.');
-        mutableString.append(Integer.toString((this.address & 0x00_00_FF_00) >> 8));
+        mutableString.append(Integer.toString((this.address & 0x00_00_FF_00) >>> 8));
         mutableString.append('.');
         mutableString.append(Integer.toString( this.address & 0x00_00_00_FF));
 
