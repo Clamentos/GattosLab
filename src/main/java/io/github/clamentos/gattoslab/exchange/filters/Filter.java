@@ -2,7 +2,7 @@ package io.github.clamentos.gattoslab.exchange.filters;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
+import io.github.clamentos.gattoslab.datastructures.IpAddress;
 import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.filters.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.exchange.filters.components.RateLimitEntry;
@@ -32,8 +32,8 @@ public final class Filter extends Responder {
 
     ///
     private static final String BLOCKED_MESSAGE = "Blocked";
-    private static final byte[] BLOCKED_MESSAGE_BYTES = BLOCKED_MESSAGE.getBytes();
     private static final String RATE_LIMITED_MESSAGE = "Rate limited";
+    private static final byte[] BLOCKED_MESSAGE_BYTES = BLOCKED_MESSAGE.getBytes();
     private static final byte[] RATE_LIMITED_MESSAGE_BYTES = RATE_LIMITED_MESSAGE.getBytes();
 
     ///.
@@ -45,7 +45,7 @@ public final class Filter extends Responder {
 
     ///..
     private final String[] illegalUserAgentContains;
-    private final Map<HashCodedByteArray, RateLimitEntry> rateLimitMap;
+    private final Map<IpAddress, RateLimitEntry> rateLimitTracker;
 
     ///..
     private final Map<HttpHeader, String> corsHeaders;
@@ -73,7 +73,7 @@ public final class Filter extends Responder {
         this.sessionService = sessionService;
 
         this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
-        this.rateLimitMap = new ConcurrentHashMap<>();
+        this.rateLimitTracker = new ConcurrentHashMap<>();
 
         this.corsHeaders = new EnumMap<>(HttpHeader.class);
         this.corsHeaders.putAll(ApplicationProperties.CORS_HEADERS);
@@ -108,17 +108,21 @@ public final class Filter extends Responder {
 
         for(final String illegalContains : this.illegalUserAgentContains) {
 
+            final boolean containsNull = illegalContains == null;
+            final boolean containsEmpty = "".equals(illegalContains);
+            final boolean userAgentNull = userAgent == null;
+            final boolean userAgentEmpty = "".equals(userAgent);
+
             if(
-                (illegalContains == null && userAgent == null) ||
-                ("".equals(illegalContains) && "".equals(userAgent)) ||
-                (illegalContains != null && userAgent != null && illegalContains.toLowerCase(Locale.US).contains(userAgent.toLowerCase(Locale.US)))
+                (containsNull && userAgentNull) || (containsEmpty && userAgentEmpty) ||
+                (!containsNull && !userAgentNull && illegalContains.toLowerCase(Locale.US).contains(userAgent.toLowerCase(Locale.US)))
             ) {
     
                 this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
 
+                exchange.requestClose();
                 exchange.setUserAgentBlocked(true);
                 super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
-                exchange.close();
 
                 return false;
             }
@@ -136,17 +140,25 @@ public final class Filter extends Responder {
     ///..
     private boolean doRateLimitFilter(final HttpExchange exchange) {
 
-        final RateLimitEntry rateLimitEntry = this.rateLimitMap.computeIfAbsent(
+        final RateLimitEntry rateLimitEntry = this.rateLimitTracker.computeIfAbsent(
 
-            new HashCodedByteArray(exchange.getRemoteIpAddress()),
+            exchange.getRemoteAddress(),
             _ -> new RateLimitEntry(this.rateLimitAmount, this.entryCounterStart)
         );
 
         if(rateLimitEntry.isRateLimited()) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash(RATE_LIMITED_MESSAGE, exchange));
-            super.respond(exchange, HttpStatus.TOO_MANY_REQUESTS, ApplicationProperties.RETRY_AFTER_HEADERS, MimeType.TEXT, RATE_LIMITED_MESSAGE_BYTES);
-            exchange.close();
+            exchange.requestClose();
+
+            super.respond(
+
+                exchange,
+                HttpStatus.TOO_MANY_REQUESTS,
+                ApplicationProperties.RETRY_AFTER_HEADERS,
+                MimeType.TEXT,
+                RATE_LIMITED_MESSAGE_BYTES
+            );
 
             return false;
         }
@@ -176,8 +188,9 @@ public final class Filter extends Responder {
                 else {
 
                     this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Authorization failed for", exchange));
+
+                    exchange.requestClose();
                     super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
-                    exchange.close();
                 }
 
                 return false;
@@ -190,9 +203,9 @@ public final class Filter extends Responder {
     ///..
     private void replenishTask() {
 
-        for(final Entry<HashCodedByteArray, RateLimitEntry> entry : this.rateLimitMap.entrySet()) {
+        for(final Entry<IpAddress, RateLimitEntry> entry : this.rateLimitTracker.entrySet()) {
 
-            if(entry.getValue().replenish(this.rateLimitAmount)) this.rateLimitMap.remove(entry.getKey());
+            if(entry.getValue().replenish(this.rateLimitAmount)) this.rateLimitTracker.remove(entry.getKey());
         }
     }
 

@@ -2,10 +2,10 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.datastructures.IpAddress;
 import io.github.clamentos.gattoslab.datastructures.Resettable;
 import io.github.clamentos.gattoslab.http.server.StreamWriter;
 import io.github.clamentos.gattoslab.observability.Entity;
-import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
@@ -30,7 +30,7 @@ public final class RequestMetricsEntity implements Resettable, Entity {
     private boolean isUnknown;
     private short httpStatus;
     private boolean isUserAgentBlocked;
-    private byte[] remoteIpAddress;
+    private IpAddress remoteIpAddress;
 
     ///..
     @Override
@@ -61,7 +61,8 @@ public final class RequestMetricsEntity implements Resettable, Entity {
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Boolean.toString(this.isUserAgentBlocked));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(GenericUtils.composeAddressString(this.remoteIpAddress));
+
+        if(this.remoteIpAddress != null) this.remoteIpAddress.stream(writer);
     }
 
     ///

@@ -1,7 +1,7 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
 ///
-import io.github.clamentos.gattoslab.http.server.ConnectionTracker;
+import io.github.clamentos.gattoslab.http.server.ConnectionsTracker;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
 
@@ -36,7 +36,7 @@ public final class SystemMetricsService implements Closeable {
     private final ClassLoadingMXBean classLoadingMXBean;
     private final RecordingStream recordingStream;
     private final FileStore fileStore;
-    private final ConnectionTracker connectionTracker;
+    private final ConnectionsTracker connectionsTracker;
 
     ///..
     private final AtomicLong systemMetricsIdCounter;
@@ -48,7 +48,7 @@ public final class SystemMetricsService implements Closeable {
     private final AtomicLong socketWrites;
 
     private final AtomicLong gcCounts;
-    private final AtomicLong gcPause;
+    private final AtomicLong gcPauseMilliseconds;
 
     private final AtomicLong cpuLoadJvmUser;
     private final AtomicLong cpuLoadJvmSystem;
@@ -63,7 +63,7 @@ public final class SystemMetricsService implements Closeable {
     private final AtomicLong dumpCounter;
 
     ///
-    public SystemMetricsService(final ConnectionTracker connectionTracker, final long samplingPeriod) throws IOException {
+    public SystemMetricsService(final ConnectionsTracker connectionsTracker, final long samplingPeriod) throws IOException {
 
         this.logger = new Logger();
 
@@ -72,7 +72,7 @@ public final class SystemMetricsService implements Closeable {
         this.classLoadingMXBean = ManagementFactory.getClassLoadingMXBean();
         this.recordingStream = new RecordingStream();
         this.fileStore = Files.getFileStore(Paths.get("/"));
-        this.connectionTracker = connectionTracker;
+        this.connectionsTracker = connectionsTracker;
 
         this.systemMetricsIdCounter = new AtomicLong();
 
@@ -83,7 +83,7 @@ public final class SystemMetricsService implements Closeable {
         this.socketWrites = new AtomicLong();
 
         this.gcCounts = new AtomicLong();
-        this.gcPause = new AtomicLong();
+        this.gcPauseMilliseconds = new AtomicLong();
 
         this.cpuLoadJvmUser = new AtomicLong();
         this.cpuLoadJvmSystem = new AtomicLong();
@@ -104,7 +104,7 @@ public final class SystemMetricsService implements Closeable {
         this.enableRecording("jdk.GarbageCollection", event -> {
 
             this.gcCounts.incrementAndGet();
-            this.gcPause.addAndGet(event.getDuration().get(ChronoUnit.NANOS) / 1_000_000);
+            this.gcPauseMilliseconds.addAndGet(event.getDuration().get(ChronoUnit.NANOS) / 1_000_000);
         });
 
         this.enablePeriodicRecording("jdk.CPULoad", samplingPeriod, event -> {
@@ -160,11 +160,11 @@ public final class SystemMetricsService implements Closeable {
                 this.classLoadingMXBean.getLoadedClassCount(),
                 this.fileReads.getAndSet(0),
                 this.fileWrites.getAndSet(0),
-                this.connectionTracker.getConnectionCount(),
+                this.connectionsTracker.getConnectionCount(),
                 this.socketReads.getAndSet(0),
                 this.socketWrites.getAndSet(0),
                 this.gcCounts.get(),
-                this.gcPause.getAndSet(0),
+                this.gcPauseMilliseconds.getAndSet(0),
                 this.cpuLoadJvmUser.getAndSet(0),
                 this.cpuLoadJvmSystem.getAndSet(0),
                 this.cpuLoadMachineTotal.getAndSet(0),

@@ -28,7 +28,7 @@ public final class ObservabilityDirectory<T extends Entity> {
     private final Logger logger;
 
     ///..
-    private final Path directoryPath;
+    private final Path directory;
     private final List<String> fileNameComponents;
 
     ///
@@ -36,7 +36,7 @@ public final class ObservabilityDirectory<T extends Entity> {
 
         this.logger = logger;
 
-        this.directoryPath = fullPath.getParent();
+        this.directory = fullPath.getParent();
         this.fileNameComponents = GenericUtils.fastSplit(fullPath.toString(), '.');
     }
 
@@ -85,14 +85,14 @@ public final class ObservabilityDirectory<T extends Entity> {
         try(final Stream<Path> files = Files.list(Path.of(this.toString()))) {
 
             final String boundaryFileName = this.composeName(boundaryDate);
-            final int[] counterRef = new int[]{0};
+            final int[] counterReference = new int[]{0};
 
             files.filter(path -> path.toString().compareTo(boundaryFileName) < 0).forEach(path -> {
 
                 try {
 
                     Files.delete(path);
-                    counterRef[0]++;
+                    counterReference[0]++;
                 }
 
                 catch(final IOException exc) {
@@ -102,7 +102,7 @@ public final class ObservabilityDirectory<T extends Entity> {
                 }
             });
 
-            return counterRef[0];
+            return counterReference[0];
         }
 
         catch(final NoSuchFileException _) {
@@ -115,20 +115,19 @@ public final class ObservabilityDirectory<T extends Entity> {
     @Override
     public String toString() {
 
-        return this.directoryPath.toString();
+        return this.directory.toString();
     }
 
     ///.
     private String composeName(final LocalDateTime dateTime) {
 
-        // /path/filename_yyyy-MM-ddTHH.extension
         return fileNameComponents.get(0) + "_" + dateTime.toString().substring(0, 13) + "." + fileNameComponents.get(1);
     }
 
     ///..
     private StreamWriter openForWrite(final LocalDateTime window) throws IOException {
 
-        Files.createDirectories(this.directoryPath);
+        Files.createDirectories(this.directory);
         return new StreamWriter(Files.newOutputStream(Path.of(this.composeName(window)), StandardOpenOption.CREATE, StandardOpenOption.APPEND));
     }
 

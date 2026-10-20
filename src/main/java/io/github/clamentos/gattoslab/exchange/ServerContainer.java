@@ -4,7 +4,7 @@ package io.github.clamentos.gattoslab.exchange;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.exchange.filters.Filter;
 import io.github.clamentos.gattoslab.exchange.handling.Handler;
-import io.github.clamentos.gattoslab.http.server.ConnectionTracker;
+import io.github.clamentos.gattoslab.http.server.ConnectionsTracker;
 import io.github.clamentos.gattoslab.http.server.HttpServer;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
@@ -37,7 +37,7 @@ public final class ServerContainer implements Closeable {
 
     ///..
     private final ApplicationProperties applicationProperties;
-    private final ConnectionTracker connectionTracker;
+    private final ConnectionsTracker connectionsTracker;
     private final Filter filter;
     private final Handler handler;
 
@@ -51,7 +51,7 @@ public final class ServerContainer implements Closeable {
         final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
         final BatchScheduler batchScheduler,
-        final ConnectionTracker connectionTracker,
+        final ConnectionsTracker connectionsTracker,
         final Filter filter,
         final Handler handler
 
@@ -61,14 +61,14 @@ public final class ServerContainer implements Closeable {
         this.squashingLogger = squashingLogger;
 
         this.applicationProperties = applicationProperties;
-        this.connectionTracker = connectionTracker;
+        this.connectionsTracker = connectionsTracker;
         this.filter = filter;
         this.handler = handler;
 
         this.httpServerReference = new AtomicReference<>();
         this.keystoreTimestamp = new AtomicLong(Long.MIN_VALUE);
 
-        this.instantiateServer(applicationProperties, squashingLogger, connectionTracker, filter, handler);
+        this.instantiateServer(applicationProperties, squashingLogger, connectionsTracker, filter, handler);
 
         batchScheduler.schedule(
 
@@ -93,15 +93,15 @@ public final class ServerContainer implements Closeable {
         try {
 
             final FileTime fileTime = Files.getLastModifiedTime(Path.of(applicationProperties.getSslCertificatePath()));
-            final long millis = fileTime.toMillis();
+            final long fileTimeMillis = fileTime.toMillis();
 
-            if(millis > this.keystoreTimestamp.get()) {
+            if(fileTimeMillis > this.keystoreTimestamp.get()) {
 
                 this.logger.info("Begin server regeneration...");
 
                 this.close();
-                this.instantiateServer(this.applicationProperties, this.squashingLogger, this.connectionTracker, this.filter, this.handler);
-                this.keystoreTimestamp.set(millis);
+                this.instantiateServer(this.applicationProperties, this.squashingLogger, this.connectionsTracker, this.filter, this.handler);
+                this.keystoreTimestamp.set(fileTimeMillis);
 
                 this.logger.info("End server regeneration");
             }
@@ -118,7 +118,7 @@ public final class ServerContainer implements Closeable {
 
         final ApplicationProperties applicationProperties,
         final SquashingLogger squashingLogger,
-        final ConnectionTracker connectionTracker,
+        final ConnectionsTracker connectionsTracker,
         final Filter filter,
         final Handler handler
 
@@ -130,7 +130,7 @@ public final class ServerContainer implements Closeable {
             squashingLogger,
             Inet4Address.ofLiteral(applicationProperties.getServerHost()),
             this.createSSLContext(applicationProperties.getSslCertificatePath(), applicationProperties.getSslKeyStorePassword()),
-            connectionTracker,
+            connectionsTracker,
             filter,
             handler
         ));

@@ -88,6 +88,7 @@ public final class ResourceMappings {
 
             final String path = "/" + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
             final boolean isPublic = !path.contains(privilegedStaticResourcePathPrefix);
+            final AuthorizationAction authorizationAction = isPublic ? AuthorizationAction.ALLOW : AuthorizationAction.REDIRECT;
             final Path diskPath = path.contains(diskBasedStaticResourcePathSegment) ? Path.of(path) : null;
             final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
 
@@ -99,15 +100,7 @@ public final class ResourceMappings {
                 mimeType = MimeType.TEXT;
             }
 
-            mappings.put(path, new StaticResource(
-
-                isPublic ? AuthorizationAction.ALLOW : AuthorizationAction.REDIRECT,
-                mimeType,
-                isPublic,
-                diskPath,
-                compressedContent
-            ));
-
+            mappings.put(path, new StaticResource(authorizationAction, mimeType, isPublic, diskPath, compressedContent));
             if(compressedContent != null) compressedSiteSize += compressedContent.length;
         }
 

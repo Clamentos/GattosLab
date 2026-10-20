@@ -31,7 +31,7 @@ public enum MimeType {
     XML(Map.of(HttpHeader.CONTENT_TYPE, "application/xml"));
 
     ///
-    private final Map<HttpHeader, String> valueForResponse;
+    private final Map<HttpHeader, String> responseValue;
 
     ///
     public static MimeType decode(final String fileExtension) {

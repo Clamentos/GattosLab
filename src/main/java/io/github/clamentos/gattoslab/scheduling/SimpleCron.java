@@ -40,11 +40,11 @@ public final class SimpleCron {
     }
 
     ///..
-    public void trigger(final long timestamp, final long[] idRef, final Map<Long, Thread> workers) {
+    public void trigger(final long timestamp, final long[] idReference, final Map<Long, Thread> workers) {
 
         if(timestamp >= this.nextTriggerTimestamp) {
 
-            final long id = idRef[0];
+            final long id = idReference[0];
             this.nextTriggerTimestamp += this.period;
 
             final Thread worker = GenericUtils.createVirtualThread(this.name + "-" + id, () -> {
@@ -64,7 +64,7 @@ public final class SimpleCron {
 
             workers.put(id, worker);
             worker.start();
-            idRef[0]++;
+            idReference[0]++;
         }
     }
 

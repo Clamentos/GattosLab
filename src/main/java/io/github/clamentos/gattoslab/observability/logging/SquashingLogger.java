@@ -21,13 +21,13 @@ public class SquashingLogger implements Closeable {
     private final Logger logger;
 
     ///..
-    private final Map<Pair<String, String>, FastAtomicCounter> squashes;
+    private final Map<Pair<String, String>, FastAtomicCounter> events;
 
     ///
     public SquashingLogger(final BatchScheduler batchScheduler) {
 
         this.logger = new Logger();
-        this.squashes = new ConcurrentHashMap<>();
+        this.events = new ConcurrentHashMap<>();
 
         batchScheduler.schedule(this::logTask, "gattos-lab-squashed-logs-task", ApplicationProperties.SQUASHING_LOGGER_LOG_CRON);
     }
@@ -35,7 +35,7 @@ public class SquashingLogger implements Closeable {
     ///
     public void warning(final String key) {
 
-        this.squashes.computeIfAbsent(new Pair<>(key, this.getCallerMethod()), _ -> new FastAtomicCounter()).increment();
+        this.events.computeIfAbsent(new Pair<>(key, this.getCallerMethod()), _ -> new FastAtomicCounter()).increment();
     }
 
     ///..
@@ -64,23 +64,23 @@ public class SquashingLogger implements Closeable {
 
         final MutableString mutableString = new MutableString(128);
 
-        for(final Entry<Pair<String, String>, FastAtomicCounter> entry : this.squashes.entrySet()) {
+        for(final Entry<Pair<String, String>, FastAtomicCounter> event : this.events.entrySet()) {
 
-            final Pair<String, String> entryKey = entry.getKey();
-            final String messageTemplate = entryKey.getA();
+            final Pair<String, String> eventKey = event.getKey();
+            final String messageTemplate = eventKey.getA();
             final int messageTemplateLength = messageTemplate.length();
 
-            this.squashes.remove(entryKey);
+            this.events.remove(eventKey);
 
             for(int i = 0; i < messageTemplateLength; i++) {
 
                 final char currentChar = messageTemplate.charAt(i);
 
-                if(currentChar == ApplicationProperties.LOG_SQUASH_COUNTS_CHAR) mutableString.append(Long.toString(entry.getValue().get()));
+                if(currentChar == ApplicationProperties.LOG_SQUASH_COUNTS_CHAR) mutableString.append(Long.toString(event.getValue().get()));
                 else mutableString.append(currentChar);
             }
 
-            this.logger.warning(mutableString.toString(), entryKey.getB());
+            this.logger.warning(mutableString.toString(), eventKey.getB());
             mutableString.clear();
         }
     }

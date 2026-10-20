@@ -62,7 +62,7 @@ public final class SessionService {
 
         catch(final NoSuchAlgorithmException exc) {
             
-            this.logger.warning("SecureRandom.getInstanceStrong() failed", exc);
+            this.logger.warning("Could not instantiate strong PRNG", exc);
             secureRandom = new SecureRandom();
         }
 
@@ -104,8 +104,8 @@ public final class SessionService {
             return new Pair<>(SecurityFailure.TOO_MANY_SESSIONS, null);
         }
 
-        final long duration = ApplicationProperties.SESSION_DURATION.toMillis();
-        final long expiration = System.currentTimeMillis() + duration;
+        final long sessionDuration = ApplicationProperties.SESSION_DURATION.toMillis();
+        final long sessionExpiration = System.currentTimeMillis() + sessionDuration;
         final byte[] sessionId = new byte[ApplicationProperties.SESSION_ID_SIZE];
 
         this.randomness.nextBytes(sessionId);
@@ -114,19 +114,19 @@ public final class SessionService {
 
             new MutableString(Base64.getEncoder().encode(sessionId)),
             GenericUtils.composeFingerprint(exchange),
-            expiration
+            sessionExpiration
         );
 
         exchange.getResponseHeaders().put(
 
             HttpHeader.SET_COOKIE,
-            (ApplicationProperties.SESSION_COOKIE_NAME + "=" + session.getSessionId() + this.cookieProperties + " Max-Age=" + (duration / 1000))
+            (ApplicationProperties.SESSION_COOKIE_NAME + session.getSessionId() + this.cookieProperties + (sessionDuration / 1000))
         );
 
         this.sessions.put(session.getSessionId(), session);
         this.logger.info("Login successfull for " + GenericUtils.composeFingerprint(exchange));
 
-        return new Pair<>(null, expiration);
+        return new Pair<>(null, sessionExpiration);
     }
 
     ///..
@@ -152,7 +152,7 @@ public final class SessionService {
         final String cookies = exchange.getRequestHeaders().get(HttpHeader.COOKIE);
         if(cookies == null || cookies.isEmpty()) return;
 
-        if(this.sessions.remove(this.extractSessionIdCookie(exchange.getRequestHeaders().get(HttpHeader.COOKIE))) != null) {
+        if(this.sessions.remove(this.extractSessionIdCookie(cookies)) != null) {
 
             this.logger.info("Logout successfull for " + GenericUtils.composeFingerprint(exchange));
             this.sessionCounter.decrementAndGet();
@@ -175,13 +175,13 @@ public final class SessionService {
     ///.
     private MutableString extractSessionIdCookie(final String cookies) {
 
-        final int index = cookies.indexOf(ApplicationProperties.SESSION_COOKIE_NAME + "=");
+        final int index = cookies.indexOf(ApplicationProperties.SESSION_COOKIE_NAME);
         if(index == -1) return null;
 
         final int length = cookies.length();
-        final MutableString buffer = new MutableString(64);
+        final MutableString buffer = new MutableString(80);
 
-        for(int i = index + ApplicationProperties.SESSION_COOKIE_NAME.length() + 1; i < length; i++) {
+        for(int i = index + ApplicationProperties.SESSION_COOKIE_NAME.length(); i < length; i++) {
 
             final char currentChar = cookies.charAt(i);
 

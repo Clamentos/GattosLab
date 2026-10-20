@@ -36,7 +36,7 @@ public final class LineChartEntity implements Streamable {
         for(int i = 0; i < length; i++) {
 
             this.datasets[i].stream(writer);
-            writer.write(",");
+            writer.write(',');
         }
 
         if(length >= 0) this.datasets[length].stream(writer);

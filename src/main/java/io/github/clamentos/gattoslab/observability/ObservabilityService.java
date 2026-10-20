@@ -5,7 +5,7 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpStatus;
-import io.github.clamentos.gattoslab.http.server.ConnectionTracker;
+import io.github.clamentos.gattoslab.http.server.ConnectionsTracker;
 import io.github.clamentos.gattoslab.http.server.HttpExchange;
 import io.github.clamentos.gattoslab.http.server.ResponseBodyCallback;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -58,7 +58,7 @@ public final class ObservabilityService implements Closeable {
     public ObservabilityService(
         
         final ApplicationProperties applicationProperties,
-        final ConnectionTracker connectionTracker,
+        final ConnectionsTracker connectionsTracker,
         final BatchScheduler batchScheduler
 
     ) throws IOException {
@@ -75,7 +75,7 @@ public final class ObservabilityService implements Closeable {
         this.secondarySiphon = new Siphon<>(type, ApplicationProperties.METRICS_SIPHON_CAPACITY, RequestMetricsEntity::new, this::drainSiphonTask);
         this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
 
-        this.systemMetricsService = new SystemMetricsService(connectionTracker, batchScheduler.schedule(
+        this.systemMetricsService = new SystemMetricsService(connectionsTracker, batchScheduler.schedule(
 
             this::pollSystemMetricsTask,
             "gattos-lab-system-metrics-poll-task",
@@ -84,7 +84,7 @@ public final class ObservabilityService implements Closeable {
 
         this.observabilityDatabase = new ObservabilityDatabase(
 
-            LoggerRoot.getInstance().getLogDirectory(),
+            LoggerRoot.getInstance().getLogsDirectory(),
             this.requestMetricsDirectory,
             this.systemMetricsDirectory
         );
@@ -298,7 +298,7 @@ public final class ObservabilityService implements Closeable {
             aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(7)));
             aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(8)));
             aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(9)));
-            aggregation.setGcPause(aggregation.getGcPause() + Long.parseLong(splits.get(10)));
+            aggregation.setGcPauseMilliseconds(aggregation.getGcPauseMilliseconds() + Long.parseLong(splits.get(10)));
             aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(11)));
             aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(12)));
             aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(13)));
@@ -350,7 +350,7 @@ public final class ObservabilityService implements Closeable {
                 datasets[5].getData()[i] = aggregation.getSocketReads();
                 datasets[6].getData()[i] = aggregation.getSocketWrites();
                 datasets[7].getData()[i] = aggregation.getGcCounts();
-                datasets[8].getData()[i] = aggregation.getGcPause();
+                datasets[8].getData()[i] = aggregation.getGcPauseMilliseconds();
                 datasets[9].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), aggregation.getCount());
                 datasets[10].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), aggregation.getCount());
                 datasets[11].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), aggregation.getCount());
@@ -553,7 +553,7 @@ public final class ObservabilityService implements Closeable {
         requestMetricsEntity.setUnknown(exchange.getResource() == null);
         requestMetricsEntity.setHttpStatus((short)status.getCode());
         requestMetricsEntity.setUserAgentBlocked(exchange.isUserAgentBlocked());
-        requestMetricsEntity.setRemoteIpAddress(exchange.getRemoteIpAddress());
+        requestMetricsEntity.setRemoteIpAddress(exchange.getRemoteAddress());
     }
 
     ///..
@@ -630,7 +630,7 @@ public final class ObservabilityService implements Closeable {
         final long days = retention.toDays();
         final LocalDateTime boundaryDate = LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID).minusDays(days).truncatedTo(ChronoUnit.HOURS);
 
-        final int numLogFilesDeleted = this.applyRetention(LoggerRoot.getInstance().getLogDirectory(), boundaryDate);
+        final int numLogFilesDeleted = this.applyRetention(LoggerRoot.getInstance().getLogsDirectory(), boundaryDate);
         final int numRequestMetricFilesDeleted = this.applyRetention(requestMetricsDirectory, boundaryDate);
         final int numSystemMetricFilesDeleted = this.applyRetention(systemMetricsDirectory, boundaryDate);
 

@@ -35,7 +35,7 @@ public final class StreamWriter extends OutputStream {
     }
 
     ///
-    public void write(final CharSequence data) throws IOException {
+    public void write(final String data) throws IOException {
 
         final int length = data.length();
         int dataIndex = 0;
@@ -44,9 +44,10 @@ public final class StreamWriter extends OutputStream {
 
             int amountPossible = this.buffer.length - this.position;
 
-            while(amountPossible >= 2 && dataIndex < length) {
+            while(amountPossible >= 1 && dataIndex < length) {
 
-                amountPossible -= this.writeChar(data.charAt(dataIndex++));
+                this.buffer[this.position++] = (byte)data.charAt(dataIndex++);
+                amountPossible--;
             }
 
             if(dataIndex >= length) break;
@@ -55,7 +56,7 @@ public final class StreamWriter extends OutputStream {
     }
 
     ///..
-    public void writeForObservability(final CharSequence data) throws IOException {
+    public void writeForObservability(final String data) throws IOException {
 
         final int length = data.length();
         int dataIndex = 0;
@@ -64,31 +65,24 @@ public final class StreamWriter extends OutputStream {
 
             int amountPossible = this.buffer.length - this.position;
 
-            while(amountPossible >= 2 && dataIndex < length) {
+            while(amountPossible >= 1 && dataIndex < length) {
 
                 final char currentChar = data.charAt(dataIndex++);
-                int written;
 
                 switch(currentChar) {
 
-                    case '\n':
-
-                        this.buffer[this.position++] = ApplicationProperties.NEWLINE_REPLACEMENT;
-                        written = 1;
-
-                    break;
+                    case '\n': this.buffer[this.position++] = ApplicationProperties.NEWLINE_REPLACEMENT; break;
 
                     case ApplicationProperties.FIELD_SEPARATOR:
 
                         this.buffer[this.position++] = ApplicationProperties.FIELD_SEPARATOR_REPLACEMENT;
-                        written = 1;
 
                     break;
 
-                    default: written = this.writeChar(currentChar); break;
+                    default: this.buffer[this.position++] = (byte)currentChar; break;
                 }
 
-                amountPossible -= written;
+                amountPossible--;
             }
 
             if(dataIndex >= length) break;
@@ -99,8 +93,8 @@ public final class StreamWriter extends OutputStream {
     ///..
     public void write(final char data) throws IOException {
 
-        if(this.position >= this.buffer.length - 1) this.flush();
-        this.writeChar(data);
+        if(this.position >= this.buffer.length) this.flush();
+        this.buffer[this.position++] = (byte)data;
     }
 
     ///..
@@ -171,24 +165,6 @@ public final class StreamWriter extends OutputStream {
 
         this.flush();
         this.outputStream.close();
-    }
-
-    ///.
-    private int writeChar(final char data) {
-
-        if(data <= 0x007F) {
-
-            this.buffer[this.position++] = (byte)(data & 0x00FF);
-            return 1;
-        }
-
-        else {
-
-            this.buffer[this.position++] = (byte)(data & 0x00FF);
-            this.buffer[this.position++] = (byte)((data & 0xFF00) >> 8);
-
-            return 2;
-        }
     }
 
     ///

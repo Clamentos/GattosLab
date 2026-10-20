@@ -26,19 +26,19 @@ import java.util.stream.Stream;
 public final class ObservabilityDatabase {
 
     ///
-    private final ObservabilityDirectory<LogEvent> logDirectory;
+    private final ObservabilityDirectory<LogEvent> logsDirectory;
     private final ObservabilityDirectory<RequestMetricsEntity> requestMetricsDirectory;
     private final ObservabilityDirectory<SystemMetricsEntity> systemMetricsDirectory;
 
     ///
     public ObservabilityDatabase(
 
-        final ObservabilityDirectory<LogEvent> logDirectory,
+        final ObservabilityDirectory<LogEvent> logsDirectory,
         final ObservabilityDirectory<RequestMetricsEntity> requestMetricsDirectory,
         final ObservabilityDirectory<SystemMetricsEntity> systemMetricsDirectory
     ) {
 
-        this.logDirectory = logDirectory;
+        this.logsDirectory = logsDirectory;
         this.requestMetricsDirectory = requestMetricsDirectory;
         this.systemMetricsDirectory = systemMetricsDirectory;
     }
@@ -56,7 +56,7 @@ public final class ObservabilityDatabase {
 
     ) throws IOException, IllegalArgumentException {
 
-        return this.fetch(startTime, endTime, logDirectory, (line, start, end) -> {
+        return this.fetch(startTime, endTime, logsDirectory, (line, start, end) -> {
 
             final List<String> log = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long logTimestamp = Long.parseLong(log.get(1));
@@ -132,7 +132,7 @@ public final class ObservabilityDatabase {
         if(startTime > endTime) throw new IllegalArgumentException("'startTime' cannot be greater than 'endTime'");
         final List<String> filteredRecords = new ArrayList<>(256);
 
-        final CharsetDecoder decoder = StandardCharsets.UTF_8
+        final CharsetDecoder decoder = StandardCharsets.ISO_8859_1
 
             .newDecoder()
             .onMalformedInput(CodingErrorAction.REPLACE)

@@ -2,26 +2,24 @@ package io.github.clamentos.gattoslab.http.server;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
+import io.github.clamentos.gattoslab.datastructures.IpAddress;
 
 ///..
 import java.util.Collection;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 ///
-public final class ConnectionTracker {
+public final class ConnectionsTracker {
 
     ///
     private final Map<Thread, HttpConnection> connections;
-    private final Map<HashCodedByteArray, AtomicInteger> socketsPerIp;
+    private final Map<IpAddress, AtomicInteger> socketsPerIp;
     private final AtomicInteger connectionCounter;
 
     ///
-    public ConnectionTracker() {
+    public ConnectionsTracker() {
 
         this.connections = new ConcurrentHashMap<>();
         this.socketsPerIp = new ConcurrentHashMap<>();
@@ -29,12 +27,6 @@ public final class ConnectionTracker {
     }
 
     ///
-    public boolean isConnectionsEmpty() {
-
-        return this.connections.isEmpty();
-    }
-
-    ///..
     public int getConnectionCount() {
 
         return this.connectionCounter.get();
@@ -44,12 +36,6 @@ public final class ConnectionTracker {
     public Collection<HttpConnection> getConnections() {
 
         return this.connections.values();
-    }
-
-    ///..
-    public Set<Entry<Thread, HttpConnection>> getConnectionEntries() {
-
-        return this.connections.entrySet();
     }
 
     ///..
@@ -69,7 +55,7 @@ public final class ConnectionTracker {
     }
 
     ///..
-    public void removeConnection(final Thread thread, final HashCodedByteArray address) {
+    public void removeConnection(final Thread thread, final IpAddress address) {
 
         this.connections.remove(thread);
         this.connectionCounter.decrementAndGet();
@@ -83,13 +69,13 @@ public final class ConnectionTracker {
     }
 
     ///..
-    public int updateSocketsPerIpCount(final HashCodedByteArray remoteIp) {
+    public int updateSocketsPerIpCount(final IpAddress remoteIp) {
 
         return this.socketsPerIp.computeIfAbsent(remoteIp, _ -> new AtomicInteger()).incrementAndGet();
     }
 
     ///..
-    public void removeSocketsPerIp(final HashCodedByteArray remoteIp) {
+    public void removeSocketsPerIp(final IpAddress remoteIp) {
 
         final AtomicInteger socketsPerIpCounter = this.socketsPerIp.get(remoteIp);
 

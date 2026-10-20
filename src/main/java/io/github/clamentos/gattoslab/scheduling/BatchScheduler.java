@@ -80,8 +80,8 @@ public final class BatchScheduler implements Closeable {
     ///.
     private final void triggerJobsTask() {
 
-        final long sleep = ApplicationProperties.SCHEDULER_POLL_PERIOD.toMillis();
-        final long[] idRef = new long[]{0};
+        final long pollPeriodMillis = ApplicationProperties.SCHEDULER_POLL_PERIOD.toMillis();
+        final long[] idReference = new long[]{0};
 
         while(!this.isClosed.get()) {
 
@@ -90,10 +90,10 @@ public final class BatchScheduler implements Closeable {
 
             for(int i = 0; i < length; i++) {
 
-                this.jobs.get(i).trigger(now, idRef, this.workers);
+                this.jobs.get(i).trigger(now, idReference, this.workers);
             }
 
-            GenericUtils.silentSleep(sleep);
+            GenericUtils.silentSleep(pollPeriodMillis);
         }
 
         this.logger.info("Exiting, joining " + this.workers.size() + " workers");

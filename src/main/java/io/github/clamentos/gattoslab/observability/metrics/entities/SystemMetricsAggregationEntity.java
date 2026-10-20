@@ -12,7 +12,7 @@ import lombok.Setter;
 public final class SystemMetricsAggregationEntity {
 
     ///
-    private static final String[] probes = new String[]{
+    private static final String[] probeNames = new String[]{
 
         "platformThreads",
         "classesLoaded",
@@ -22,7 +22,7 @@ public final class SystemMetricsAggregationEntity {
         "socketReads",
         "socketWrites",
         "gcCounts",
-        "gcPause",
+        "gcPauseMilliseconds",
         "cpuLoadJvmUser",
         "cpuLoadJvmSystem",
         "cpuLoadMachineTotal",
@@ -42,7 +42,7 @@ public final class SystemMetricsAggregationEntity {
     private long socketReads;
     private long socketWrites;
     private long gcCounts;
-    private long gcPause;
+    private long gcPauseMilliseconds;
     private long cpuLoadJvmUser;
     private long cpuLoadJvmSystem;
     private long cpuLoadMachineTotal;
@@ -58,7 +58,7 @@ public final class SystemMetricsAggregationEntity {
     ///
     public static String[] getProbeNames() {
 
-        return probes;
+        return probeNames;
     }
 
     ///

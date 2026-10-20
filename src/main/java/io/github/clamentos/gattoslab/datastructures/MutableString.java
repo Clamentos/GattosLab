@@ -1,6 +1,7 @@
 package io.github.clamentos.gattoslab.datastructures;
 
 ///
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 ///
@@ -35,26 +36,31 @@ public final class MutableString implements CharSequence {
     public void append(final char character) {
 
         if(this.index + 1 >= this.characters.length) this.grow();
-        this.appendChar(character);
+        this.characters[this.index++] = (byte)character;
     }
 
     ///..
     public void append(final CharSequence charSequence) {
 
-        if(charSequence.isEmpty()) return;
-
         final int length = charSequence.length();
-        final int normalizedLength = length << 1;
+        if(length == 0) return;
 
-        if(this.index + normalizedLength >= this.characters.length) {
-
-            this.characters = Arrays.copyOf(this.characters, this.characters.length + normalizedLength);
-        }
+        this.grow(length);
 
         for(int i = 0; i < length; i++) {
 
-            this.appendChar(charSequence.charAt(i));
+            this.characters[this.index++] = (byte)charSequence.charAt(i);
         }
+    }
+
+    ///..
+    public void append(final byte[] characters) {
+
+        final int length = characters.length;
+        if(length == 0) return;
+
+        this.grow(length);
+        System.arraycopy(characters, 0, this.characters, this.index, length);
     }
 
     ///..
@@ -126,7 +132,7 @@ public final class MutableString implements CharSequence {
     @Override
     public String toString() {
 
-        return new String(this.characters, 0, this.index);
+        return new String(this.characters, 0, this.index, StandardCharsets.ISO_8859_1);
     }
 
     ///.
@@ -136,17 +142,11 @@ public final class MutableString implements CharSequence {
     }
 
     ///..
-    private void appendChar(final char data) {
+    private void grow(final int length) {
 
-        if(data <= 0x007F) {
+        if(this.index + length >= this.characters.length) {
 
-            this.characters[this.index++] = (byte)(data & 0x00FF);
-        }
-
-        else {
-
-            this.characters[this.index++] = (byte)((data & 0xFF00) >> 8);
-            this.characters[this.index++] = (byte)(data & 0x00FF);
+            this.characters = Arrays.copyOf(this.characters, this.characters.length + length);
         }
     }
 

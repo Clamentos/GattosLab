@@ -65,7 +65,7 @@ public final class ApplicationProperties {
     public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofSeconds(1);
     public static final Duration SOCKET_LINGER = Duration.ofSeconds(1);
     public static final Duration SOCKET_READ_TIMEOUT = Duration.ofSeconds(2);
-    public static final String SESSION_COOKIE_NAME = "GattosLabSessionId";
+    public static final String SESSION_COOKIE_NAME = "GattosLabSessionId=";
     public static final String UNKNOWN_LOGGER_PLACEHOLDER = "UNKNOWN_LOGGER";
     public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
     public static final String HOMEPAGE_PATH = "/index.html";

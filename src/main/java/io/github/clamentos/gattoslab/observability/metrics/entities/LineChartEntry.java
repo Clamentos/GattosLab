@@ -36,7 +36,7 @@ public final class LineChartEntry implements Streamable {
         writer.write(this.label);
         writer.write("\",\"data\":");
         GenericUtils.longArrayToString(this.data, writer);
-        writer.write("}");
+        writer.write('}');
     }
 
     ///

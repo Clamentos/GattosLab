@@ -26,7 +26,7 @@ public final class LoggerRoot implements Closeable {
 
     ///.
     @Getter
-    private final ObservabilityDirectory<LogEvent> logDirectory;
+    private final ObservabilityDirectory<LogEvent> logsDirectory;
 
     private final AtomicLong logEventIdCounter;
     private final Siphon<LogEvent> primarySiphon;
@@ -39,7 +39,7 @@ public final class LoggerRoot implements Closeable {
     ///
     private LoggerRoot() {
 
-        this.logDirectory = new ObservabilityDirectory<>(null, ApplicationProperties.LOG_FILE_PATH);
+        this.logsDirectory = new ObservabilityDirectory<>(null, ApplicationProperties.LOG_FILE_PATH);
 
         this.logEventIdCounter = new AtomicLong();
         this.primarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
@@ -90,9 +90,9 @@ public final class LoggerRoot implements Closeable {
     }
 
     ///.
-    private void log(final LogSeverity logSeverity, final String logger, final String message, final Throwable exception) {
+    private void log(final LogSeverity severity, final String logger, final String message, final Throwable exception) {
 
-        while(!(this.currentSiphonReference.get().update(entity -> this.updateLogEvent(entity, logSeverity, logger, message, exception)))) {
+        while(!(this.currentSiphonReference.get().update(entity -> this.updateLogEvent(entity, severity, logger, message, exception)))) {
 
             GenericUtils.silentSleepNanos(100_000);
         }
@@ -102,7 +102,7 @@ public final class LoggerRoot implements Closeable {
     private void updateLogEvent(
 
         final LogEvent event,
-        final LogSeverity logSeverity,
+        final LogSeverity severity,
         final String logger,
         final String message,
         final Throwable exception
@@ -110,7 +110,7 @@ public final class LoggerRoot implements Closeable {
 
         event.setId(this.logEventIdCounter.getAndIncrement());
         event.setTimestamp(System.currentTimeMillis());
-        event.setSeverity(logSeverity);
+        event.setSeverity(severity);
         event.setThread(Thread.currentThread().getName());
         event.setLogger(logger);
         event.setMessage(message);
@@ -142,7 +142,7 @@ public final class LoggerRoot implements Closeable {
 
             try {
 
-                this.logDirectory.write(logEvents, true);
+                this.logsDirectory.write(logEvents, true);
             }
 
             catch(final IOException exc) {

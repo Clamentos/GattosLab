@@ -19,7 +19,7 @@ public enum HttpMethod {
     DELETE("Allowed method: DELETE".getBytes());
 
     ///
-    private final byte[] allowedBody;
+    private final byte[] message;
 
     ///
     public static HttpMethod decode(final String method) {

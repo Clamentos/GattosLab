@@ -30,7 +30,7 @@ public final class SystemMetricsEntity implements Entity {
     private final long socketReads;
     private final long socketWrites;
     private final long gcCounts;
-    private final long gcPause;
+    private final long gcPauseMilliseconds;
     private final long cpuLoadJvmUser;
     private final long cpuLoadJvmSystem;
     private final long cpuLoadMachineTotal;
@@ -64,7 +64,7 @@ public final class SystemMetricsEntity implements Entity {
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.gcCounts));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Long.toString(this.gcPause));
+        writer.write(Long.toString(this.gcPauseMilliseconds));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.cpuLoadJvmUser));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

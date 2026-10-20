@@ -42,7 +42,7 @@ public enum HttpHeader {
     USER_AGENT(null);
 
     ///
-    private final byte[] valueForResponse;
+    private final byte[] responseValue;
 
     ///
     public static HttpHeader decode(final String value) {

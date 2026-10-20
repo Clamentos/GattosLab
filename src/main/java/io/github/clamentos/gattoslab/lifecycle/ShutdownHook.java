@@ -48,12 +48,6 @@ public class ShutdownHook implements Runnable {
     }
 
     ///..
-    public void add(final AutoCloseable autoCloseable) {
-
-        this.closeables.computeIfAbsent(this.priorities.get(autoCloseable.getClass()), _ -> new ArrayList<>()).add(autoCloseable);
-    }
-
-    ///..
     @Override
     public void run() {
 

@@ -7,7 +7,7 @@ package io.github.clamentos.gattoslab.observability;
 public interface RecordFilter {
 
     ///
-    public boolean apply(final String recordLine, final long startTime, final long endTime);
+    public boolean apply(final String line, final long startTime, final long endTime);
 
     ///
 }

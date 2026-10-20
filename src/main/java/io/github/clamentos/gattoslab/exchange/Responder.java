@@ -99,8 +99,9 @@ public abstract class Responder {
         catch(final IOException exc) {
 
             if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Could not respond", exc);
+
             this.observabilityService.requestPartiallyEnded(exchange);
-            exchange.close();
+            exchange.requestClose();
         }
     }
 

@@ -2,7 +2,9 @@ package io.github.clamentos.gattoslab.http.server;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.datastructures.HashCodedByteArray;
+import io.github.clamentos.gattoslab.datastructures.IpAddress;
+import io.github.clamentos.gattoslab.datastructures.IpV4;
+import io.github.clamentos.gattoslab.datastructures.IpV6;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.exceptions.MalformedRequestException;
 import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
@@ -28,7 +30,6 @@ import java.time.Duration;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -43,7 +44,7 @@ public final class HttpServer implements Closeable {
     ///
     private static final byte[] RESPONSE_FOR_MALFORMED = (
 
-        new String(HttpStatus.BAD_REQUEST.getValueForResponse()) +
+        new String(HttpStatus.BAD_REQUEST.getResponseValue()) +
         GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
         "\r\n"
 
@@ -51,7 +52,7 @@ public final class HttpServer implements Closeable {
 
     private static final byte[] RESPONSE_FOR_TOO_BIG = (
 
-        new String(HttpStatus.CONTENT_TOO_LARGE.getValueForResponse()) +
+        new String(HttpStatus.CONTENT_TOO_LARGE.getResponseValue()) +
         GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
         "\r\n"
 
@@ -70,7 +71,7 @@ public final class HttpServer implements Closeable {
     private final Thread sweeper;
 
     ///..
-    private final ConnectionTracker connectionTracker;
+    private final ConnectionsTracker connectionsTracker;
     private final AtomicLong requestIdCounter;
     private final AtomicBoolean isClosed;
 
@@ -88,7 +89,7 @@ public final class HttpServer implements Closeable {
         final SquashingLogger squashingLogger,
         final InetAddress bindAddress,
         final SSLContext sslContext,
-        final ConnectionTracker connectionTracker,
+        final ConnectionsTracker connectionsTracker,
         final Filter filter,
         final Handler handler
 
@@ -99,12 +100,13 @@ public final class HttpServer implements Closeable {
 
         final int port = applicationProperties.getServerPort();
         final boolean isSsl = port == 443 || port == 8443;
+
         this.logger.info("Server SSL enabled: " + isSsl);
 
         final ServerSocketFactory serverSocketFactory = isSsl ? sslContext.getServerSocketFactory() : ServerSocketFactory.getDefault();
         this.serverSocket = serverSocketFactory.createServerSocket(port, ApplicationProperties.SERVER_SOCKET_ACCEPT_QUEUE_SIZE, bindAddress);
 
-        this.connectionTracker = connectionTracker;
+        this.connectionsTracker = connectionsTracker;
         this.requestIdCounter = new AtomicLong();
         this.isClosed = new AtomicBoolean();
 
@@ -136,16 +138,20 @@ public final class HttpServer implements Closeable {
             this.sweeper.interrupt();
             if(!this.sweeper.join(timeout)) this.logger.warning("Timed-out while joining the sweeper thread");
 
-            final long waitForMs = 100;
+            this.logger.info("Waiting for connections to finish...");
+
+            final long waitForMillis = 100;
             long timeBudget = timeout.toMillis();
 
-            while(!this.connectionTracker.isConnectionsEmpty() && timeBudget > 0) {
+            while(this.connectionsTracker.getConnectionCount() > 0 && timeBudget > 0) {
 
-                Thread.sleep(waitForMs);
-                timeBudget -= waitForMs;
+                Thread.sleep(waitForMillis);
+                timeBudget -= waitForMillis;
             }
 
-            for(final HttpConnection connection : this.connectionTracker.getConnections()) {
+            this.logger.info("Closing connections...");
+
+            for(final HttpConnection connection : this.connectionsTracker.getConnections()) {
 
                 connection.sweep();
                 this.closeOrLog(connection.getSocket());
@@ -189,9 +195,7 @@ public final class HttpServer implements Closeable {
 
             final long now = System.currentTimeMillis();
 
-            for(final Entry<Thread, HttpConnection> entry : this.connectionTracker.getConnectionEntries()) {
-
-                final HttpConnection connection = entry.getValue();
+            for(final HttpConnection connection : this.connectionsTracker.getConnections()) {
 
                 if(connection.getCreatedAt() + keepAliveDuration < now) {
 
@@ -207,11 +211,11 @@ public final class HttpServer implements Closeable {
     ///..
     private void handleConnection(final Socket client) {
 
-        final HashCodedByteArray rawRemoteIpAddress = this.isConnectionAllowed(client);
-        if(rawRemoteIpAddress == null) return;
+        final IpAddress remoteAddress = this.isConnectionAllowed(client);
+        if(remoteAddress == null) return;
 
         final HttpConnection connection = new HttpConnection(client);
-        this.connectionTracker.putConnection(Thread.currentThread(), connection);
+        this.connectionsTracker.putConnection(Thread.currentThread(), connection);
 
         final int lingerAmount = (int)ApplicationProperties.SOCKET_LINGER.toSeconds();
         final int keepAliveAmount = (int)ApplicationProperties.SERVER_MAX_KEEP_ALIVE_DURATION.toMillis();
@@ -231,8 +235,7 @@ public final class HttpServer implements Closeable {
 
             while(connection.isValid() && (firstLine = reader.readLine()) != null) {
 
-                reader.resetAllowed();
-                final HttpExchange exchange = this.parseRequest(client, rawRemoteIpAddress, reader, writer, firstLine);
+                final HttpExchange exchange = this.parseRequest(client, remoteAddress, reader, writer, firstLine);
 
                 if(this.filter.filter(exchange)) this.handler.handle(exchange);
                 if(!exchange.isKeepAlive() || exchange.isDoForceClose() || !this.isKeepAliveByDefault) break;
@@ -242,6 +245,8 @@ public final class HttpServer implements Closeable {
                     client.setSoTimeout(keepAliveAmount);
                     doEnlargeReadTimeout = true;
                 }
+
+                reader.resetAllowed();
             }
         }
 
@@ -252,16 +257,16 @@ public final class HttpServer implements Closeable {
         }
 
         this.closeOrLog(client);
-        this.connectionTracker.removeConnection(Thread.currentThread(), rawRemoteIpAddress);
+        this.connectionsTracker.removeConnection(Thread.currentThread(), remoteAddress);
     }
 
     ///..
-    private HashCodedByteArray isConnectionAllowed(final Socket client) {
+    private IpAddress isConnectionAllowed(final Socket client) {
 
-        final int currentConnectionCount = this.connectionTracker.updateConnectionCount();
-        final byte[] rawRemoteIp = ((InetSocketAddress)client.getRemoteSocketAddress()).getAddress().getAddress();
-        final HashCodedByteArray remoteIp = new HashCodedByteArray(rawRemoteIp);
-        final int currentIpConnectionCount = this.connectionTracker.updateSocketsPerIpCount(remoteIp);
+        final int currentConnectionCount = this.connectionsTracker.updateConnectionCount();
+        final byte[] rawRemoteAddress = ((InetSocketAddress)client.getRemoteSocketAddress()).getAddress().getAddress();
+        final IpAddress remoteAddress = rawRemoteAddress.length == 4 ? new IpV4(rawRemoteAddress) : new IpV6(rawRemoteAddress);
+        final int currentIpConnectionCount = this.connectionsTracker.updateSocketsPerIpCount(remoteAddress);
 
         if(
             currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS ||
@@ -272,19 +277,19 @@ public final class HttpServer implements Closeable {
 
             this.respondError(client, TOO_MANY_SOCKETS_MESSAGE_BYTES);
             this.closeOrLog(client);
-            this.connectionTracker.removeSocketsPerIp(remoteIp);
+            this.connectionsTracker.removeSocketsPerIp(remoteAddress);
 
             return null;
         }
 
-        return remoteIp;
+        return remoteAddress;
     }
 
     ///..
     private HttpExchange parseRequest(
-        
-        final Socket socket,
-        final HashCodedByteArray rawRemoteIpAddress,
+
+        final Socket client,
+        final IpAddress rawRemoteIpAddress,
         final SocketReader reader,
         final StreamWriter writer,
         final CharSequence firstLine
@@ -295,7 +300,7 @@ public final class HttpServer implements Closeable {
 
         if(firstLineSplits.size() != 3 || !"HTTP/1.1".equals(firstLineSplits.get(2))) {
 
-            this.respondError(socket, RESPONSE_FOR_MALFORMED);
+            this.respondError(client, RESPONSE_FOR_MALFORMED);
             throw new MalformedRequestException("Bad first line");
         }
 
@@ -304,7 +309,7 @@ public final class HttpServer implements Closeable {
 
         while((line = reader.readLine()) != null && !line.isEmpty()) {
 
-            final String[] headerSplits = this.splitHeader(line, socket);
+            final String[] headerSplits = this.splitHeader(line, client);
             final HttpHeader header = HttpHeader.decode(headerSplits[0]);
 
             if(header != null) headers.put(header, headerSplits[1]);
@@ -313,7 +318,7 @@ public final class HttpServer implements Closeable {
         return new HttpExchange(
 
             this.requestIdCounter.getAndIncrement(),
-            rawRemoteIpAddress.getData(),
+            rawRemoteIpAddress,
             HttpMethod.decode(firstLineSplits.get(0)),
             firstLineSplits.get(1),
             headers,
@@ -323,7 +328,7 @@ public final class HttpServer implements Closeable {
     }
 
     ///..
-    private String[] splitHeader(final CharSequence rawHeader, final Socket socket) throws IOException {
+    private String[] splitHeader(final CharSequence rawHeader, final Socket client) throws IOException {
 
         final String[] header = new String[]{null, ""};
         final int length = rawHeader.length();
@@ -352,7 +357,7 @@ public final class HttpServer implements Closeable {
 
         if(!separatorFound) {
 
-            this.respondError(socket, RESPONSE_FOR_MALFORMED);
+            this.respondError(client, RESPONSE_FOR_MALFORMED);
             throw new MalformedRequestException("Bad header line");
         }
 
@@ -375,25 +380,24 @@ public final class HttpServer implements Closeable {
 
         if(!(exc instanceof SocketTimeoutException) && !(exc instanceof SSLException)) {
 
-            switch(exc) {
+            if(exc instanceof MalformedRequestException || exc instanceof RequestTooBigException) {
 
-                case final MalformedRequestException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.toString()));
-                case final RequestTooBigException _ -> this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Request too big"));
+                this.squashingLogger.warning(GenericUtils.composeMessageForSquash(exc.toString()));
+            }
 
-                default -> {
+            else if(GenericUtils.isExceptionNotable(exc)) {
 
-                    if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Uncaught exception", exc);
-                }
+                this.logger.error("Uncaught exception", exc);
             }
         }
     }
 
     ///..
-    private void closeOrLog(final Socket socket) {
+    private void closeOrLog(final Socket client) {
 
         try {
 
-            socket.close();
+            client.close();
         }
 
         catch(final IOException exc) {
@@ -403,11 +407,11 @@ public final class HttpServer implements Closeable {
     }
 
     ///..
-    private void respondError(final Socket socket, final byte[] message) {
+    private void respondError(final Socket client, final byte[] message) {
 
         try {
 
-            final OutputStream outputStream = socket.getOutputStream();
+            final OutputStream outputStream = client.getOutputStream();
 
             outputStream.write(message);
             outputStream.flush();

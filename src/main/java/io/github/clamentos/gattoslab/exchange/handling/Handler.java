@@ -88,12 +88,7 @@ public final class Handler extends Responder {
         if(this.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
         final Path diskPath = resource.getDiskPath();
-
-        final Map<HttpHeader, String> headers = resource.isCacheable() ?
-
-            ApplicationProperties.GZIP_CACHE_HEADERS :
-            ApplicationProperties.GZIP_HEADER
-        ;
+        final Map<HttpHeader, String> headers = resource.isCacheable() ? ApplicationProperties.GZIP_CACHE_HEADERS : ApplicationProperties.GZIP_HEADER;
 
         if(diskPath != null) {
 
@@ -138,9 +133,7 @@ public final class Handler extends Responder {
     ///..
     private void handleSession(final HttpExchange exchange) {
 
-        final Api api = (Api)exchange.getResource();
-
-        switch(api) {
+        switch((Api)exchange.getResource()) {
 
             case LOGIN:
 
@@ -156,7 +149,7 @@ public final class Handler extends Responder {
 
                 else {
 
-                    exchange.close();
+                    exchange.requestClose();
                     super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
                 }
 
@@ -168,7 +161,7 @@ public final class Handler extends Responder {
 
                 this.sessionService.logout(exchange);
 
-                exchange.close();
+                exchange.requestClose();
                 super.respond(exchange, HttpStatus.OK, ApplicationProperties.CLEAR_SITE_DATA_HEADERS);
 
             return;
@@ -187,12 +180,11 @@ public final class Handler extends Responder {
     ///..
     private void handleObservability(final HttpExchange exchange) throws IOException {
 
-        final Api api = (Api)exchange.getResource();
         if(this.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
         try {
 
-            switch(api) {
+            switch((Api)exchange.getResource()) {
 
                 case GET_LOGS: super.respond(exchange, HttpStatus.OK, MimeType.TEXT, super.observabilityService.getLogs(exchange)); return;
 
@@ -220,7 +212,7 @@ public final class Handler extends Responder {
 
         catch(final IOException | IllegalArgumentException exc) {
 
-            exchange.close();
+            exchange.requestClose();
 
             super.respond(
 
@@ -237,8 +229,8 @@ public final class Handler extends Responder {
 
         if(exchange.getMethod() != method) {
 
-            exchange.close();
-            super.respond(exchange, HttpStatus.METHOD_NOT_ALLOWED, MimeType.TEXT, method.getAllowedBody());
+            exchange.requestClose();
+            super.respond(exchange, HttpStatus.METHOD_NOT_ALLOWED, MimeType.TEXT, method.getMessage());
 
             return true;
         }

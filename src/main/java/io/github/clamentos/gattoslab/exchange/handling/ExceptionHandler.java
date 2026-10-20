@@ -31,7 +31,7 @@ public final class ExceptionHandler {
     ///
     public void handleUncaught(final HttpExchange exchange, final Throwable exception) {
 
-        exchange.close();
+        exchange.requestClose();
 
         if(exchange.isHandled()) {
 

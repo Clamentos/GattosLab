@@ -33,7 +33,7 @@ public enum HttpStatus {
 
     ///
     private final int code;
-    private final byte[] valueForResponse;
+    private final byte[] responseValue;
 
     ///
     public static HttpStatus decode(final int code) {

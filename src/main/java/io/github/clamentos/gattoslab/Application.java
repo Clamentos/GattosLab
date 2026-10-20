@@ -7,7 +7,7 @@ import io.github.clamentos.gattoslab.exchange.filters.Filter;
 import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
 import io.github.clamentos.gattoslab.exchange.handling.Handler;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
-import io.github.clamentos.gattoslab.http.server.ConnectionTracker;
+import io.github.clamentos.gattoslab.http.server.ConnectionsTracker;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -64,7 +64,7 @@ public class Application {
         Runtime.getRuntime().addShutdownHook(GenericUtils.createVirtualThread("gattos-lab-shutdown-hook-task", shutdownHook));
 
         final ApplicationProperties applicationProperties = resolveProfile(args.length > 0 ? args[0] : null);
-        final ConnectionTracker connectionTracker = new ConnectionTracker();
+        final ConnectionsTracker connectionsTracker = new ConnectionsTracker();
 
         final BatchScheduler batchScheduler = new BatchScheduler();
         shutdownHook.add(batchScheduler);
@@ -72,7 +72,7 @@ public class Application {
         final SquashingLogger squashingLogger = new SquashingLogger(batchScheduler);
         shutdownHook.add(squashingLogger);
 
-        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, connectionTracker, batchScheduler);
+        final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, connectionsTracker, batchScheduler);
         shutdownHook.add(observabilityService);
 
         final ResourceMappings resourceMappings = new ResourceMappings(applicationProperties);
@@ -95,7 +95,7 @@ public class Application {
             applicationProperties,
             squashingLogger,
             batchScheduler,
-            connectionTracker,
+            connectionsTracker,
             filter,
             handler
         );

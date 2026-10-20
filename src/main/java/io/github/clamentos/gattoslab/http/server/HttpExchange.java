@@ -2,6 +2,7 @@ package io.github.clamentos.gattoslab.http.server;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.datastructures.IpAddress;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
@@ -10,7 +11,6 @@ import io.github.clamentos.gattoslab.http.MimeType;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
-import java.io.Closeable;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -28,13 +28,13 @@ import lombok.Setter;
 @Getter
 
 ///
-public final class HttpExchange implements Closeable {
+public final class HttpExchange {
 
     ///
     private final long requestId;
     private final long startTime;
 
-    private final byte[] remoteIpAddress;
+    private final IpAddress remoteAddress;
 
     private final HttpMethod method;
     private final String uri;
@@ -65,7 +65,7 @@ public final class HttpExchange implements Closeable {
     public HttpExchange(
 
         final long requestId,
-        final byte[] remoteIpAddress,
+        final IpAddress remoteAddress,
         final HttpMethod method,
         final String uri,
         final Map<HttpHeader, String> requestHeaders,
@@ -76,7 +76,7 @@ public final class HttpExchange implements Closeable {
         this.requestId = requestId;
         this.startTime = System.currentTimeMillis();
 
-        this.remoteIpAddress = remoteIpAddress;
+        this.remoteAddress = remoteAddress;
 
         this.method = method;
         this.uri = uri;
@@ -120,7 +120,7 @@ public final class HttpExchange implements Closeable {
         this.responseHeaders.put(HttpHeader.DATE, this.getDate());
 
         if(this.doForceClose) this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
-        if(mimeType != null) this.responseHeaders.putAll(mimeType.getValueForResponse());
+        if(mimeType != null) this.responseHeaders.putAll(mimeType.getResponseValue());
 
         if(body != null) {
 
@@ -141,11 +141,11 @@ public final class HttpExchange implements Closeable {
         }
 
         this.responseStatus = status;
-        this.writer.write(status.getValueForResponse());
+        this.writer.write(status.getResponseValue());
 
         for(final Entry<HttpHeader, String> header : this.responseHeaders.entrySet()) {
 
-            this.writer.write(header.getKey().getValueForResponse());
+            this.writer.write(header.getKey().getResponseValue());
             this.writer.write(header.getValue());
             this.writer.write(ApplicationProperties.NEW_LINE_BYTES);
         }
@@ -177,8 +177,7 @@ public final class HttpExchange implements Closeable {
     }
 
     ///..
-    @Override
-    public void close() {
+    public void requestClose() {
 
         this.doForceClose = true;
     }

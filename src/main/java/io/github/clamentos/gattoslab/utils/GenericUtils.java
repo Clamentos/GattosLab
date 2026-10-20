@@ -42,7 +42,7 @@ public final class GenericUtils {
 
         return
 
-            composeAddressString(exchange.getRemoteIpAddress()) +
+            exchange.getRemoteAddress().toString() +
             ApplicationProperties.FINGERPRINT_SEPARATOR +
             normalizedForObservability(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT))
         ;
@@ -188,9 +188,9 @@ public final class GenericUtils {
 
         for(final Entry<HttpHeader, String> header : headers.entrySet()) {
 
-            mutableString.append(new String(header.getKey().getValueForResponse()));
+            mutableString.append(header.getKey().getResponseValue());
             mutableString.append(header.getValue());
-            mutableString.append("\r\n");
+            mutableString.append(ApplicationProperties.NEW_LINE_BYTES);
         }
 
         return mutableString.toString();
@@ -209,64 +209,18 @@ public final class GenericUtils {
     }
 
     ///..
-    public static CharSequence composeAddressString(final byte[] address) {
-
-        if(address == null) return null;
-        final MutableString mutableString = new MutableString(40);
-
-        for(final byte section : address) {
-
-            mutableString.append(Short.toString((short)(section & 0x00FF)));
-            mutableString.append(address.length == 4 ? '.' : ':');
-        }
-
-        mutableString.deleteLastChars(1);
-        return mutableString;
-    }
-
-    ///..
-    public static void longToString(final long number, final StreamWriter writer, final byte[] buffer) throws IOException {
-
-        if(number == 0) {
-
-            writer.write('0');
-            return;
-        }
-
-        long value = number;
-        int idx = 0;
-
-        while(value != 0) {
-
-            final long quotient = value / 10;
-
-            buffer[idx++] = (byte) -(value - quotient * 10);
-            value = quotient;
-        }
-
-        if(number < 0) writer.write('-');
-
-        while(idx > 0) {
-
-            writer.write((byte)(buffer[--idx] + '0'));
-        }
-    }
-
-    ///..
     public static void longArrayToString(final long[] data, final StreamWriter writer) throws IOException {
 
-        final byte[] buffer = new byte[20];
         final int length = data.length - 1;
-
         writer.write('[');
 
         for(int i = 0; i < length; i++) {
 
-            longToString(data[i], writer, buffer);
+            writer.write(Long.toString(data[i]));
             writer.write(',');
         }
 
-        if(length >= 0) longToString(length, writer, buffer);
+        if(length >= 0) writer.write(Long.toString(data[length]));
         writer.write(']');
     }
 
