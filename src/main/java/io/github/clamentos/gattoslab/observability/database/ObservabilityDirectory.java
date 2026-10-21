@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab.observability;
+package io.github.clamentos.gattoslab.observability.database;
 
 ///
 import io.github.clamentos.gattoslab.datastructures.SortedList;

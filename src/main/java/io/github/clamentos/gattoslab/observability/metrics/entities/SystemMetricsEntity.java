@@ -25,6 +25,7 @@ public final class SystemMetricsEntity implements Entity {
     private final long platformThreads;
     private final long classesLoaded;
     private final long sockets;
+    private final long socketsOpened;
     private final long socketsClosed;
     private final long fileReads;
     private final long fileWrites;
@@ -54,6 +55,8 @@ public final class SystemMetricsEntity implements Entity {
         writer.write(Long.toString(this.classesLoaded));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.sockets));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.socketsOpened));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.socketsClosed));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

@@ -273,6 +273,8 @@ public final class HttpServer implements Closeable {
         final IpAddress remoteAddress = rawRemoteAddress.length == 4 ? new IpV4(rawRemoteAddress) : new IpV6(rawRemoteAddress);
         final int currentIpConnectionCount = this.connectionsTracker.updateSocketsPerIpCount(remoteAddress);
 
+        this.connectionsTracker.trackConnectionOpened();
+
         if(
             currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS ||
             currentIpConnectionCount >= ApplicationProperties.MAX_SOCKETS_PER_IP

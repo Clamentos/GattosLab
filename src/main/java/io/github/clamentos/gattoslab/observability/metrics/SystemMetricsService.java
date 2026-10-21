@@ -159,6 +159,7 @@ public final class SystemMetricsService implements Closeable {
                 this.threadMXBean.getThreadCount(),
                 this.classLoadingMXBean.getLoadedClassCount(),
                 this.connectionsTracker.getConnectionCount(),
+                this.connectionsTracker.getConnectionOpenedEventCount(),
                 this.connectionsTracker.getConnectionClosedEventCount(),
                 this.fileReads.getAndSet(0),
                 this.fileWrites.getAndSet(0),

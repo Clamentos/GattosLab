@@ -1,0 +1,39 @@
+0|1792567924020|INFO|main|Application.start|Starting Gatto's Lab with pid '13763'|
+1|1792567924021|WARNING|main|Application.resolveProfile|No profile provided, defaulting to 'dev'|
+2|1792567924025|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-squashed-logs-task', period: 60000ms|
+3|1792567924028|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-system-metrics-poll-task', period: 5000ms|
+4|1792567924146|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-metrics-drain-task', period: 5000ms|
+5|1792567924147|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-observability-retention-task', period: 60000ms|
+6|1792567924205|INFO|main|ResourceMappings.populateResources|Site size: 2.4 MiB|
+7|1792567924210|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-session-maintenance-task', period: 60000ms|
+8|1792567924211|INFO|main|BatchScheduler.schedule|Scheduled task 'gattos-lab-rate-limit-replenish-task', period: 1000ms|
+9|1792567924212|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate start...|
+10|1792567924216|INFO|main|ServerContainer.loadKeyStore|Key store file grabbed true|
+11|1792567924290|INFO|main|ServerContainer.createSSLContext|Loading SSL certificate end|
+12|1792567924290|INFO|main|HttpServer.<init>|Server SSL enabled: false|
+13|1792567924292|INFO|main|BatchScheduler.schedule|Scheduled task 'gattoslab-server-regeneration-task', period: 86400000ms|
+14|1792567988494|INFO|gattos-lab-http-handler|SessionService.login|Login successfull for 127.0.0.1 >> Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36|
+15|1792568093976|INFO|gattos-lab-http-handler|SessionService.logout|Logout successfull for 127.0.0.1 >> Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36|
+16|1792568103419|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|Begin shutdown...|
+17|1792568103419|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|Begin shutdown...|
+18|1792568103428|INFO|gattos-lab-batch-scheduler-task|BatchScheduler.triggerJobsTask|Exiting, joining 0 workers|
+19|1792568103428|INFO|gattos-lab-shutdown-hook-task|BatchScheduler.close|End shutdown|
+20|1792568103428|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'BatchScheduler'|
+21|1792568103428|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|Begin shutdown...|
+22|1792568103428|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Begin shutdown...|
+23|1792568103435|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-acceptor-task'|
+24|1792568103435|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Joining 'gattos-lab-http-sweeper-task'|
+25|1792568103435|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Waiting for connections to finish...|
+26|1792568103436|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|Closing connections...|
+27|1792568103436|INFO|gattos-lab-shutdown-hook-task|HttpServer.close|End shutdown|
+28|1792568103436|INFO|gattos-lab-shutdown-hook-task|ServerContainer.close|End shutdown|
+29|1792568103436|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ServerContainer'|
+30|1792568103436|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|Begin shutdown...|
+31|1792568103436|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|Begin shutdown...|
+32|1792568103436|INFO|gattos-lab-shutdown-hook-task|SystemMetricsService.close|End shutdown|
+33|1792568103436|INFO|gattos-lab-shutdown-hook-task|ObservabilityService.close|End shutdown|
+34|1792568103436|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'ObservabilityService'|
+35|1792568103436|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|Begin shutdown...|
+36|1792568103436|INFO|gattos-lab-shutdown-hook-task|SquashingLogger.close|End shutdown|
+37|1792568103436|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.tryClose|Closed 'SquashingLogger'|
+38|1792568103436|INFO|gattos-lab-shutdown-hook-task|ShutdownHook.run|End shutdown|

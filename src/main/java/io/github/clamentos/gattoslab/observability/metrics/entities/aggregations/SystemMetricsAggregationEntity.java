@@ -19,6 +19,7 @@ public final class SystemMetricsAggregationEntity {
         "Classes loaded",
 
         "Sockets active",
+        "Sockets opened",
         "Sockets closed",
 
         "File reads",
@@ -60,6 +61,7 @@ public final class SystemMetricsAggregationEntity {
     private long platformThreads;               // spot               (+-)  -> avg [count]
     private long classesLoaded;                 // spot               (+-)  -> avg [count]
     private long sockets;                       // spot               (+-)  -> avg [count]
+    private long socketsOpened;                 // spot               (+)   -> max [count]
     private long socketsClosed;                 // spot               (+)   -> max [count]
     private long fileReads;                     // accumulate & reset (+-)  -> sum [count]
     private long fileWrites;                    // accumulate & reset (+-)  -> sum [count]

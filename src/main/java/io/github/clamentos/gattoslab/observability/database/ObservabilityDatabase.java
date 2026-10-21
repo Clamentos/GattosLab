@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.observability.database;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.observability.ObservabilityDirectory;
 import io.github.clamentos.gattoslab.observability.logging.entities.LogEvent;
 import io.github.clamentos.gattoslab.observability.metrics.entities.RequestMetricsEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;

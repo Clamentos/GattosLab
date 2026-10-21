@@ -9,6 +9,7 @@ import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
 import io.github.clamentos.gattoslab.http.server.components.ResponseBodyCallback;
 import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
 import io.github.clamentos.gattoslab.observability.database.ObservabilityDatabase;
+import io.github.clamentos.gattoslab.observability.database.ObservabilityDirectory;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 import io.github.clamentos.gattoslab.observability.metrics.SystemMetricsService;
@@ -258,7 +259,7 @@ public final class ObservabilityService implements Closeable {
             rpsChart.stream(writer);
             writer.write(",\"latencies\":");
             latencyChart.stream(writer);
-            writer.write("}");
+            writer.write('}');
         };
     }
 
@@ -294,21 +295,22 @@ public final class ObservabilityService implements Closeable {
             aggregation.setPlatformThreads(aggregation.getPlatformThreads() + Long.parseLong(splits.get(2)));
             aggregation.setClassesLoaded(aggregation.getClassesLoaded() + Long.parseLong(splits.get(3)));
             aggregation.setSockets(aggregation.getSockets() + Long.parseLong(splits.get(4)));
-            aggregation.setSocketsClosed(Math.max(aggregation.getSocketsClosed(), Long.parseLong(splits.get(5))));
-            aggregation.setFileReads(aggregation.getFileReads() + Long.parseLong(splits.get(6)));
-            aggregation.setFileWrites(aggregation.getFileWrites() + Long.parseLong(splits.get(7)));
-            aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(8)));
-            aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(9)));
-            aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(10)));
-            aggregation.setGcPauseMilliseconds(aggregation.getGcPauseMilliseconds() + Long.parseLong(splits.get(11)));
-            aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(12)));
-            aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(13)));
-            aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(14)));
-            aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(15)));
-            aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(16)));
-            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(17)));
-            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(18)));
-            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(19)));
+            aggregation.setSocketsOpened(Math.max(aggregation.getSocketsOpened(), Long.parseLong(splits.get(5))));
+            aggregation.setSocketsClosed(Math.max(aggregation.getSocketsClosed(), Long.parseLong(splits.get(6))));
+            aggregation.setFileReads(aggregation.getFileReads() + Long.parseLong(splits.get(7)));
+            aggregation.setFileWrites(aggregation.getFileWrites() + Long.parseLong(splits.get(8)));
+            aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(9)));
+            aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(10)));
+            aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(11)));
+            aggregation.setGcPauseMilliseconds(aggregation.getGcPauseMilliseconds() + Long.parseLong(splits.get(12)));
+            aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(13)));
+            aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(14)));
+            aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(15)));
+            aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(16)));
+            aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(17)));
+            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(18)));
+            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(19)));
+            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(20)));
             aggregation.setCount(aggregation.getCount() + 1);
         }
 
@@ -349,21 +351,22 @@ public final class ObservabilityService implements Closeable {
                 datasets[0].getData()[i] = Math.ceilDiv(aggregation.getPlatformThreads(), count);
                 datasets[1].getData()[i] = Math.ceilDiv(aggregation.getClassesLoaded(), count);
                 datasets[2].getData()[i] = Math.ceilDiv(aggregation.getSockets(), count);
-                datasets[3].getData()[i] = aggregation.getSocketsClosed();
-                datasets[4].getData()[i] = aggregation.getFileReads();
-                datasets[5].getData()[i] = aggregation.getFileWrites();
-                datasets[6].getData()[i] = aggregation.getSocketReads();
-                datasets[7].getData()[i] = aggregation.getSocketWrites();
-                datasets[8].getData()[i] = aggregation.getGcCounts();
-                datasets[9].getData()[i] = aggregation.getGcPauseMilliseconds();
-                datasets[10].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), count);
-                datasets[11].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), count);
-                datasets[12].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), count);
-                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), count);
-                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), count);
-                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), count);
-                datasets[16].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), count);
-                datasets[17].getData()[i] = aggregation.getRequestMetricsEquilibrium();
+                datasets[3].getData()[i] = aggregation.getSocketsOpened();
+                datasets[4].getData()[i] = aggregation.getSocketsClosed();
+                datasets[5].getData()[i] = aggregation.getFileReads();
+                datasets[6].getData()[i] = aggregation.getFileWrites();
+                datasets[7].getData()[i] = aggregation.getSocketReads();
+                datasets[8].getData()[i] = aggregation.getSocketWrites();
+                datasets[9].getData()[i] = aggregation.getGcCounts();
+                datasets[10].getData()[i] = aggregation.getGcPauseMilliseconds();
+                datasets[11].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), count);
+                datasets[12].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), count);
+                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), count);
+                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), count);
+                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), count);
+                datasets[16].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), count);
+                datasets[17].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), count);
+                datasets[18].getData()[i] = aggregation.getRequestMetricsEquilibrium();
             }
         }
 
@@ -372,33 +375,33 @@ public final class ObservabilityService implements Closeable {
 
         charts[0] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[0]});
         charts[1] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[1]});
-        charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[2], datasets[3]});
-        charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[4], datasets[5], datasets[6], datasets[7]});
-        charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[8], datasets[9]});
-        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[10], datasets[11], datasets[12]});
-        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[13], datasets[14], datasets[15]});
-        charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[16]});
-        charts[8] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[17]});
+        charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[2], datasets[3], datasets[4]});
+        charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[5], datasets[6], datasets[7], datasets[8]});
+        charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[9], datasets[10]});
+        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[11], datasets[12], datasets[13]});
+        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[14], datasets[15], datasets[16]});
+        charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[17]});
+        charts[8] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[18]});
 
         return writer -> {
 
             final int limit = chartNames.length - 1;
-            writer.write("{");
+            writer.write('{');
 
             for(int i = 0; i < limit; i++) {
 
-                writer.write("\"");
+                writer.write('\"');
                 writer.write(chartNames[i]);
                 writer.write("\":");
                 charts[i].stream(writer);
-                writer.write(",");
+                writer.write(',');
             }
 
-            writer.write("\"");
+            writer.write('\"');
             writer.write(chartNames[limit]);
             writer.write("\":");
             charts[limit].stream(writer);
-            writer.write("}");
+            writer.write('}');
         };
     }
 

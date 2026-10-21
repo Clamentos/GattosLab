@@ -20,6 +20,7 @@ public final class ConnectionsTracker {
 
     ///..
     private final AtomicInteger connectionCounter;
+    private final FastAtomicCounter connectionOpenedEventCounter;
     private final FastAtomicCounter connectionClosedEventCounter;
 
     ///
@@ -29,6 +30,7 @@ public final class ConnectionsTracker {
         this.socketsPerIp = new ConcurrentHashMap<>();
 
         this.connectionCounter = new AtomicInteger();
+        this.connectionOpenedEventCounter = new FastAtomicCounter();
         this.connectionClosedEventCounter = new FastAtomicCounter();
     }
 
@@ -89,6 +91,18 @@ public final class ConnectionsTracker {
 
             this.socketsPerIp.remove(remoteIp);
         }
+    }
+
+    ///..
+    public void trackConnectionOpened() {
+
+        this.connectionOpenedEventCounter.increment();
+    }
+
+    ///..
+    public long getConnectionOpenedEventCount() {
+
+        return this.connectionOpenedEventCounter.get();
     }
 
     ///..
