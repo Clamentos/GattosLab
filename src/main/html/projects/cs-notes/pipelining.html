@@ -47,7 +47,7 @@
                 </div>
 
                 <p>
-                    In this set of notes, the concept and various implementations of instruction pipelining are presented. Instruction pipelining, often simply referred as pipelining, is a performance enhancing technique first appeared in electronic computers around the early sixties in commercial projects such as the <a href = "https://en.wikipedia.org/wiki/IBM_7030_Stretch" target = "_blank">IBM 7030 Stretch</a> being one of the most notable ones. It was then heavily adopted in the late seventies in supercomputers, such as the <a href = "https://en.wikipedia.org/wiki/Cray-1" target = "_blank">Cray-1</a> and later on CISC oriented machines in the mid-eighties.
+                    In this set of notes, the concept and various implementations of instruction pipelining are presented. Instruction pipelining, often simply referred as pipelining, is a <u>performance enhancing technique</u> first appeared in electronic computers around the early sixties in commercial projects such as the <a href = "https://en.wikipedia.org/wiki/IBM_7030_Stretch" target = "_blank">IBM 7030 Stretch</a> being one of the most notable ones. It was then heavily adopted in the late seventies in supercomputers, such as the <a href = "https://en.wikipedia.org/wiki/Cray-1" target = "_blank">Cray-1</a> and later on CISC oriented machines in the mid-eighties.
                 </p>
 
                 <h1 class = "project-subtitle">Contents</h1>
@@ -65,11 +65,16 @@
                         <li><a href = "#control-deps">Control dependencies</a></li>
                         <ol>
                             <li><a href = "#control-hazards">Handling control hazards</a></li>
+                            <li><a href = "#delay-slots">Delay slots</a></li>
+                            <li><a href = "#speculation">Speculation</a></li>
                         </ol>
                         <li><a href = "#structural-deps">Structural dependencies</a></li>
-                        <li><a href = "#complete-example">Complete example</a></li>
-                        <li><a href = "#complete-example-variant">Variants</a></li>
+                        <li><a href = "#hazard-handling-example">Hazard handling example</a></li>
+                        <li><a href = "#forwarding-misfires">Forwarding misfires</a></li>
+                        <li><a href = "#hazard-handling-variant">Variants</a></li>
                     </ol>
+                    <li><a href = "#variable-length-fetching">Variable-length instruction fetching</a></li>
+                    <li><a href = "#event-handling">Event handling and exceptions</a></li>
                     <li><a href = "#closing-remarks">Closing remarks</a></li>
                 </ol>
 
@@ -85,19 +90,21 @@
                 </figure>
 
                 <p>
-                    Assume the following for the baseline implementation:</br></br>
+                    The baseline operates on the following assumptions:</br></br>
 
                     <ul>
-                        <li>Instruction memories, data memories and registers are all asynchronous-read and synchronous-write for simplicity.</li>
-                        <li>All instructions take 1 cycle to resolve for simplicity (no multistep or microcode).</li>
+                        <li>Instruction memories, data memories and registers are all asynchronous-read and synchronous-write.</li>
+                        <li>All instructions take 1 cycle to resolve (no multistep or microcode).</li>
+                        <li>All instructions have a fixed length.</li>
                         <li>The instruction memory is read only.</li>
+                        <li>Control-flow instructions perform absolute jumps.</li>
                     </ul>
                 </p>
 
                 </br>
 
                 <p>
-                    In this basic microarchitecture, each instruction goes through the usual processing phases: <u>fetch</u>, <u>decode</u>, <u>execute</u>, <u>memory access</u> and <u>write-result</u> all in a single cycle, thus resulting in an IPC (instructions-per-clock) of 1. The clock period, however, must be long enough to allow the execution of all the phases in a single cycle, effectively placing all the circuitry in series with one another, resulting in a long combinatorial path. This is a major performance bottleneck, which can be significantly improved without modifications to the component themselves, by implementing instruction pipelining.
+                    In this basic microarchitecture, each instruction goes through the usual processing phases: <u>fetch</u>, <u>decode</u>, <u>execute</u>, <u>memory access</u> and <u>write-result</u> all in a single cycle, thus resulting in an IPC (instructions-per-clock) of 1. The clock period, however, must be long enough to allow the execution of all the phases in a single cycle, effectively <u>placing all the circuitry in series</u> with one another, resulting in a long combinatorial path. This is a major performance bottleneck, which can be significantly improved, by implementing instruction pipelining.
                 </p>
 
                 <h1 class = "project-subtitle" id = "concept">2. Concept and application</h1>
@@ -121,24 +128,24 @@
                 </br>
 
                 <p>
-                    If those steps are executed in series and no new car can be built until the current one is complete, then it's easy to see that the throughput of the production line is 1 car per day. In reality though, it's possible to have multiple cars being built on the same production line because once the chassis of car <code>X</code> has been built, it will move to the painting step. This means that the equipment for building chassis is sitting idle when it could be building the chassis for the next car <code>X+1</code>. Since all steps are independent, we can apply this logic to all production stages, which allows several cars to be built in "parallel" with each in a different stage.
+                    If those steps are executed in series and <u>no new car can be built until the current one is complete</u>, then it's easy to see that the throughput of the production line is 1 car per day. In reality though, it's possible to have multiple cars being built on the same production line because once the chassis of car <code>X</code> has been built, it will move to the painting step. This means that the equipment for building chassis is sitting idle when it could be building the chassis for the next car <code>X+1</code>. Since all steps are <u>independent</u>, we can apply this logic to all production stages, which allows several cars to be built in "parallel" <u>with each in a different stage</u>.
                 </p>
 
                 <figure class = "diagram-figure-small">
                     <img class = "diagram" src = "./images/car-pipe.svg" alt = "Car production pipeline example diagram"/>
                     <figcaption>
-                        Car production pipeline stage diagram. Time is on the vertical axis going down and, at each step, the car moves one stage to the right, progressing through the pipeline.
+                        Car production pipeline stage diagram. Time is on the vertical axis going down and, at each step, the car moves one stage to the right, progressing through the pipeline. Note that after 8 steps, the pipeline is full and reaches its peak throughput.
                     </figcaption>
                 </figure>
 
                 <p>
-                    With this, the time it takes to build a single car stays the same, but the throughput increases by the number of stages that the production line has: 8 times in this example, so 1 car every 3 hours. When a car exits the production line, soon another one that was one stage behind completes and exits the pipeline. In short, this technique exploits "temporal" parallelism by reutilizing as much of the already existing equipment as possible.
+                    With this, <u>the time it takes to build a single car stays the same</u>, but the <u>throughput increases by the number of stages</u> that the production line has: 8 times in this example, so 1 car every 3 hours. When a car exits the production line, soon another one that was one stage behind completes and exits the pipeline. In short, this technique exploits "temporal" parallelism by <u>reutilizing as much of the already existing equipment as possible</u>.
                 </p>
 
                 </br>
 
                 <p>
-                    This concept can be applied to logic circuits too, including CPUs because instructions go through different independent steps just like the car production line example. In order to make the processor pipelined, we need to divide each step boundary with a <u>pipeline register</u> creating a single pipeline stage. This register is a single line of d-type flip-flops that stores the result of the stage associated to it, this way, the stage is free to handle the next input without losing information. We place these registers at the end of each stage forming something that vaguely resembles a gigantic shift-register.
+                    This concept can be applied to logic circuits too, including CPUs because instructions go through different independent steps just like the car production line example. In order to make the processor pipelined, we need to <u>divide each step boundary with a pipeline register</u> creating a single pipeline stage. This register is a single line of d-type flip-flops that stores the result of the stage associated to it, this way, the stage is free to handle the next input without losing information. These registers are placed at the end of each stage forming something that vaguely resembles a gigantic shift-register.
                 </p>
 
                 <figure>
@@ -149,13 +156,13 @@
                 </figure>
 
                 <p>
-                    Just like the car example, the time it takes to execute a single instruction is the same (in reality though, it's slightly longer due to the pipeline registers which add small delay due to their setup and hold times). However, it now becomes possible to drastically decrease the clock period because the amount of "work" that needs to be done per stage is much lower, which means that the combinatorial path of each individual stage is shorter, thus increasing the overall throughput.
+                    Just like the car example, the time it takes to execute a single instruction is the same (in reality though, it's slightly longer due to the pipeline registers which add small delay due to their setup and hold times). However, it now becomes possible to drastically decrease the clock period because the amount of "work" that needs to be done per stage is much lower, thus increasing the overall throughput of the processor.
                 </p>
 
                 </br>
 
                 <p>
-                    An important observation is that, even though the processor executes multiple instructions per cycle, those instructions are all at different stages which has no effect on the overall IPC, which stays at 1, like the initial non pipelined version. We can prove this intuitively by calculating the number of cycles it takes to execute a program composed of 1 instruction, then one with 2, then one with 3 and so on. For example, assume that the pipeline has 5 stages: fetch, decode, execute, store and writeback</br></br>
+                    An important observation is that, even though the processor executes multiple instructions per cycle, those instructions are all at different stages which has <u>no effect on the overall IPC</u>, which stays at 1, like the initial non pipelined version. We can prove this intuitively by calculating the number of cycles it takes to execute a program composed of 1 instruction, then one with 2, then one with 3 and so on. For example, assume that the pipeline has 5 stages: fetch, decode, execute, store and writeback:</br></br>
 
                     <ul>
                         <li>1 instruction: 5 cycles (IPC = 0.2).</li>
@@ -169,7 +176,7 @@
                 </br>
 
                 <p>
-                    The more instructions are executed, the closer the IPC approaches 1 and, since programs execute billions of instructions, the IPC very quickly reaches 1.
+                    The more instructions are executed, the closer the IPC approaches 1 and, since programs execute billions of instructions, the IPC very quickly reaches 1. Basically, <u>the number of cycles it takes to fill the pipeline gets amortized</u> more and more, the longer the pipeline runs.
                 </p>
 
                 <h1 class = "project-subtitle" id = "deps">3. Dependencies and hazards</h1>
@@ -187,32 +194,54 @@
                 </br>
 
                 <p>
-                    It's important to note that dependencies are a <u>property of a program</u> and not of any particular microarchitecture, pipelined or not. On a given microarchitecture, however, such dependencies can lead to incorrect execution and, when they do, it's referred to as a <u>hazard</u> and they must be avoided and/or handled in order to correctly execute any given program.
+                    It's important to note that dependencies are a <u>property of a program</u> and not of any particular microarchitecture, pipelined or not. On a given microarchitecture, however, such dependencies can lead to incorrect execution and, when they do, it's referred to as a <u>hazard</u> and they must be avoided and/or handled in order to properly execute any given program.
                 </p>
+
+                </br>
+
+                <p>
+                    There are 3 broad ways of handling a hazard in a pipeline:</br></br>
+
+                    <ol>
+                        <li><u>Stalling</u>: all the stages before a certain desired one <code>X</code> will not advance, while all the stages from <code>X</code> and after will proceed normally. <u>This is primarily used to fix timing related issues</u>, and it's a technique that is performed by the hardware itself when appropriate, usually after other handling techniques cannot be applied. At the boundary of <code>X</code> and <code>X-1</code> a "bubble" (no-op instruction/s) is injected, which will travel along the whole pipeline to pad the execution for the desired number of cycles.</li>
+
+                        <li><u>Flushing</u>: the instructions in the desired stages are "flushed", that is, transformed into no-ops to avoid executing them. This is primarily used to <u>eliminate instructions that have been erroneously ingested, or that might need cancellation due to an event</u>, like an interrupt or an exception. Similarly to option 1, this technique creates a bubble that travels along the whole pipeline lowering performance.</li>
+
+                        <li><u>Forwarding</u>: feed the result of a previous instruction to a subsequent one, before the result is written into the destination register or memory. This technique will be explored in more detail in the next section.</li>
+                    </ol>
+                </p>
+
+                <figure class = "diagram-figure-small">
+                    <img class = "diagram" src = "./images/pipeline-hazards-diagram.svg" alt = "Pipeline hazards example diagram"/>
+                    <figcaption>
+                        Example of stalling and flushing in a simple 5 stage pipeline. In this example, the pipeline wastes a total of 5 cycles: 3 from stalling and 2 from flushing. Ideal pipeline on the right for comparison.
+                    </figcaption>
+                </figure>
 
                 <h1 class = "project-subsubtitle" id = "data-deps">3.1. Data dependencies</h1>
 
                 <p>
-                    Data dependencies define how the data flows through the program and dictate how it computes. They can be further divided into three subcategories:</br></br>
+                    Data dependencies, at a high level, define how the data flows through the program and dictate how it computes. They can be further divided into three subcategories:</br></br>
 
                     <ul>
-                        <li>RAW (read-after-write) dependencies. These are also sometimes called <u>true dependencies</u> or <u>flow dependencies</u> because they define how the program computes and manipulates data. They cannot be removed and must always be obeyed.</li>
+                        <li><u>RAW (read-after-write)</u> dependencies. These are also sometimes called <u>true dependencies</u> or <u>flow dependencies</u> because they define how the program computes and manipulates data, in other words, how the data flows. They cannot be removed and must always be obeyed.</li>
 
-                        <li>WAW (write-after-write) dependencies. These are also sometimes called <u>output dependencies</u> because they specify what should be the final value of something. For register-to-register dependencies, these often exist because there might only be a limited number of registers available to hold variables.</li>
+                        <li><u>WAW (write-after-write)</u> dependencies. These are also sometimes called <u>output dependencies</u> because they specify what should be the final value of something. For register-to-register dependencies, these often exist because there is only a limited number of registers available to hold data.</li>
 
-                        <li>WAR (write-after-read) dependencies. These are also sometimes called <u>anti dependencies</u> because it can be thought as the reverse of the RAW dependency.</li>
+                        <li><u>WAR (write-after-read)</u> dependencies. These are also sometimes called <u>anti dependencies</u> because it can be thought as the reverse of the RAW dependency.</li>
                     </ul>
                 </p>
 
                 </br>
 
                 <p>
-                    For this class of dependencies, we will use <u>register-to-register</u> data dependencies for illustrative purposes as it's simpler to reason with them, but they are not exclusive to registers. It's entirely possible, to have data dependencies between register and memory operations and even between memory operations themselves, but the underlying logic is always the same. Take the following code snippet as example:
+                    For this class of dependencies, we will use <u>register-to-register</u> cases for illustrative purposes as it's simpler to reason with them, but they are not exclusive to registers. It's entirely possible to have data dependencies between register and memory operations and even between memory operations themselves, but the underlying logic is always the same. Take the following code snippet as example:
                 </p>
 
                 <div class = "code-snippet">
 
                     <div class = "code-comment">
+                        # Data dependencies
                         # Syntax: [operation]: [destination], [operand 1], [operand 2], ... [operand n]
                     </div>
                     </br>
@@ -225,7 +254,7 @@
                 </br>
 
                 <p>
-                    There are 3 data dependencies in this snippet: a RAW from line 1 to 2, a WAW from line 1 to 3 and a WAR from line 2 to 3 all targeting register 1. The RAW dependency is present because the SUB must wait for the ADD to finish before it can go, because one of its inputs depends on the result produced by the ADD. The WAW dependency is present because the program demands that the last value of register 1 should be the one produced by the MUL. In this specific example, the MUL and the ADD could swap places without affecting execution, but this is only a simple snippet and in a real program the MUL might feed subsequent instructions. It's easy to see now why the WAW dependency is also called output dependency, and it's because it dictates what the last output of a particular variable (register or memory location) should be. Finally, the WAR dependency exists because the MUL should not be allowed to overwrite register 1 before the SUB has finished reading it, because that would lead to incorrect execution of the program.
+                    There are 3 data dependencies in this snippet: a RAW from line 1 to 2, a WAW from line 1 to 3 and a WAR from line 2 to 3, all targeting register 1. The RAW dependency is present because <u>the SUB must wait for the ADD to finish before it can go</u>, because one of its inputs depends on the result produced by the ADD. The WAW dependency is present because the program demands that <u>the last value of register 1 should be the one produced by the MUL</u>. In this specific example, the MUL and the ADD could swap places without affecting execution, but this is only a simple snippet and in a real program the MUL might feed subsequent instructions. It's easy to see now why the WAW dependency is also called output dependency, and it's because it dictates what the last output of a particular variable (register or memory location) should be. Finally, the WAR dependency exists because the <u>MUL should not be allowed to overwrite register 1 before the SUB has finished reading it</u>, because that would lead to incorrect execution of the program.
                 </p>
 
                 </br>
@@ -237,18 +266,22 @@
                 <h1 class = "project-subsubsubtitle" id = "data-hazards">3.1.1. Handling data hazards</h1>
 
                 <p>
-                    As mentioned earlier, dependencies can potentially transform into hazards on microarchitectures that go beyond the baseline that we have defined earlier. For simple in-order scalar microarchitectures, that is, microarchitectures that execute instructions strictly in program order and process a single instruction per stage, the RAW dependency is the only relevant one. The WAW and the WAR are automatically satisfied by the pipeline itself, simply because it executes 1 instruction at a time in the order that they appear in the program.
+                    As mentioned earlier, dependencies can potentially transform into hazards on microarchitectures that go beyond the baseline defined at the beginning. For simple in-order scalar microarchitectures, that is, microarchitectures that execute instructions strictly in program order and process a single instruction per stage, <u>the RAW dependency is the only relevant one</u>. The WAW and the WAR are automatically satisfied by the pipeline itself, simply because it executes 1 instruction at a time in the order that they appear in the program. To see this, refer to the previous snippet: The WAR on the MUL doesn't lead to issues because the MUL will always execute after the SUB, and the same can be said for the WAW.
                 </p>
 
+                </br>
+
                 <p>
-                    To understand how the RAW hazard can manifest itself in a simple pipeline, we can take the naive 5-stage pipelined microarchitecture that we discussed earlier. If we try to execute the code snippet we run into a problem... When the ADD is in the execute stage, the SUB is in the decode stage, which means that it's also reading the registers. This is problematic as the SUB will latch the old value of register 1 at the end of the cycle before the ADD had a chance to save its result. In fact, this issue will persist even with two independent instructions in the middle of the ADD and the SUB. With a separation of three or more cycles, the hazard is automatically resolved because the SUB will be in the fetch stage (or not even in the pipeline at all) when the ADD is writing the result into the register file. There are different ways to handle this situation each with its positive and negative aspects:</br></br>
+                    To understand how the RAW hazard can manifest itself in a simple pipeline, we can take the naive 5-stage pipelined microarchitecture presented earlier and try to execute the code snippet above. We run into a problem... when the ADD is in the execute stage, the SUB is in the decode stage, which means that it's also reading the registers. This is problematic as the <u>SUB will latch the old value of register 1 at the end of the cycle before the ADD had a chance to save its result</u>. In fact, this issue will persist even with two independent instructions in the middle of the ADD and the SUB. With a separation of 3 or more cycles, the hazard is automatically resolved because the SUB will be in the fetch stage (or not even in the pipeline at all) when the ADD is writing the result into the register file.</br></br>
+
+                    There are 4 different ways to handle this situation each with its positive and negative aspects:</br></br>
 
                     <ol>
-                        <li>Place no-op instructions between the ADD and the SUB at the program level. This requires no changes to the hardware, but it severely lowers performance and the program will be microarchitecture-dependent instead of just ISA-dependent, which is also a severe compatibility drawback.</li>
+                        <li><u>Place no-op instructions</u> between the ADD and the SUB at the <u>program level</u>. This requires no changes to the hardware, but it severely lowers performance and the program will be microarchitecture-dependent instead of just ISA-dependent, which is also a severe compatibility drawback. This is basically option 1 from the broad way of handling hazards list, but implemented in software. The hardware doesn't physically stall the pipeline, because the program already injected no-ops when appropriate.</li>
 
-                        <li>Reorder independent instructions to fill the gap. Better than option 1, but it still has the same compatibility drawback as the first option and is not always practical to perform. Compilers have a limited "window" of instructions that they can examine, and they might not find any instruction suitable for reordering.</li>
+                        <li><u>Reorder independent instructions</u> to fill the gap. Better than option 1, but it still has the same compatibility drawback as the first option and is not always practical to perform. Compilers have a limited "window" of instructions that they can examine, and they might not find any instruction suitable for reordering.</li>
 
-                        <li>Inject no-op instructions between the ADD and the SUB at the hardware level. This requires changes to the hardware because the processor must be able to detect when a RAW hazard is going to happen and that might slow down the critical path. It's still suboptimal for performance, like the first two options, but it solves the compatibility drawback.</li>
+                        <li><u>Inject no-op instructions</u> between the ADD and the SUB at the <u>hardware level</u>. This requires changes to the hardware because the processor must be able to detect when a RAW hazard is going to happen and that might slow down the critical path. It's still suboptimal for performance, like the first two options, but it solves the compatibility drawback. This is an example of the option 1 from the broad way of handling hazards list.</li>
 
                         <li><u>Forward</u> the value produced by the ADD directly into the execute stage without waiting for the write event to the register file or injecting any no-op. This is the best option as it has no performance impact (when applicable) and, like option 3, it has no compatibility drawbacks. It requires, however, significant hardware changes and may slow down the critical path.</li>
                     </ol>
@@ -257,7 +290,7 @@
                 <h1 class = "project-subsubsubtitle" id = "forwarding">3.1.2. Forwarding</h1>
 
                 <p>
-                    Forwarding is a technique that consists in feeding the dependant instruction the result produced by an earlier instruction <code>X</code> before <code>X</code> has written the result into the register file. To do this, the CPU needs to detect when a conflict will happen between two instructions and "bypass" the correct result when appropriate. In practice, forwarding implementations consist of:</br></br>
+                    Forwarding is a technique that consists in <u>feeding the dependant instruction the result produced by an earlier instruction</u> <code>X</code> before <code>X</code> has written the result into the register file (or other stateful components). To do this, the CPU needs to detect when a conflict will happen between two instructions and "bypass" the correct result to the appropriate stage. In practice, forwarding implementations consist of:</br></br>
 
                     <ul>
                         <li><u>Forwarding-unit</u>: a dedicated hardware structure, usually placed in the decode stage (the stage where registers are also read), that compares the source registers of the instruction in the decode stage, with the destination registers of earlier instructions in order to activate the various bypass paths.</li>
@@ -272,12 +305,13 @@
                 <h1 class = "project-subsubtitle" id = "control-deps">3.2. Control dependencies</h1>
 
                 <p>
-                    Control dependencies define the <u>control-flow</u> of the program itself and they arise from <u>control-flow instructions</u>, such as conditional branches, jumps, function calls and function returns. This is because every time the program executes an instruction that changes the control-flow, <u>all</u> subsequent instructions become dependent on it. To complicate things further, branches cause the processor to conditionally execute blocks of code depending on the condition that it checks, which causes a hazard only when the condition is true. To see more clearly, take the following snippet as example:
+                    Control dependencies define the <u>control-flow</u> of the program itself and they arise from <u>control-flow instructions</u>, such as conditional branches, jumps, function calls and function returns. This is because every time the program executes an instruction that changes the control-flow, <u>all subsequent instructions become dependent on it</u>. To complicate things further, branches cause the processor to conditionally execute blocks of code depending on the condition that it checks, which causes a hazard only when the condition is true. To see more clearly, take the following snippet as example:
                 </p>
 
                 <div class = "code-snippet">
 
                     <div class = "code-comment">
+                        # Control dependency
                         # Syntax: [operation]: [destination], [operand 1], [operand 2], ... [operand n]
                     </div>
                     </br>
@@ -294,13 +328,13 @@
                 </br>
 
                 <p>
-                    Depending on the outcome of the branch, either lines 1 through 4 or line 44 onwards are executed depending on if register 1 and 2 are equal. This can be problematic because if the branch condition is true, then the pipeline might potentially be filled with the instructions from the wrong path. In that case, the erroneous instructions must be "flushed". If the branch condition is false, however, then those instructions are indeed the correct ones and no hazard is generated.
+                    Either lines 1 through 4 or line 44 onwards are executed depending on if register 1 and 2 are equal. This can be problematic because if the branch condition is true, then <u>the pipeline might potentially be filled with the instructions from the wrong path</u>. In that case, the erroneous instructions must be flushed by using the option 2 from the broad hazard handling list. If the branch condition is false, however, then those instructions are indeed the correct ones and no hazard is generated.
                 </p>
 
                 </br>
 
                 <p>
-                    To flush the erroneous instruction, all that is needed to do is to block such instructions from altering any stateful component. Doing so, will effectively transform those instructions into no-ops that travel along the pipeline.
+                    To flush the erroneous instruction, all that is needed to do is to <u>block such instructions from altering any stateful component</u>, for example, by injecting a "write-disable" bit into the stages. Doing so, will effectively transform those instructions into no-ops, thus creating a pipeline bubble.
                 </p>
 
                 <figure class = "diagram-figure-small">
@@ -311,7 +345,7 @@
                 </figure>
 
                 <p>
-                    Simply put, every time an instruction causes the program-counter to not go to the next instruction, but to jump somewhere else, it will generate this hazard.
+                    Simply put, every time an instruction causes the program-counter to not go to the next instruction, but to jump somewhere else, it will generate a control hazard.
                 </p>
 
                 <h1 class = "project-subsubsubtitle" id = "control-hazards">3.2.1. Handling control hazards</h1>
@@ -320,17 +354,17 @@
                     There are different solutions for handling this type of hazard, many of which are similar to what we saw earlier for data dependencies:</br></br>
 
                     <ul>
-                        <li>Place no-op instructions after every branch at the program level. This option does not require any hardware changes, but it severely lowers performance and the program will be microarchitecture-dependent instead of just ISA-dependent, which is also a severe compatibility drawback.</li>
+                        <li><u>Place no-op instructions</u> after every branch at the <u>program level</u>. This option does not require any hardware changes, but it severely lowers performance and the program will be microarchitecture-dependent instead of just ISA-dependent, which is also a severe compatibility drawback.</li>
 
-                        <li>Inject no-op instructions after every branch at the hardware level. This requires changes to the hardware because the processor must be able to detect a potential control-flow change during the fetch stage. It's still suboptimal for performance, like the first option, but it solves the compatibility drawback.</li>
+                        <li><u>Inject no-op instructions</u> after every branch at the <u>hardware level</u>. This requires changes to the hardware because the processor must be able to detect a potential control-flow change during the fetch stage. It's still suboptimal for performance, like the first option, but it solves the compatibility drawback.</li>
 
-                        <li>Reorder instructions to fill the gap at the program level. The pipeline has a number of stages before the EX stage, which is usually where the control-flow instructions are resolved. Those stages, also referred as <u>delay slots</u>, can be filled with instructions that come after the if-then-else statement and will always be executed unconditionally. This strategy has two drawbacks: one is the compatibility issue that options 1 and 2 have, the other is that it's not always practical or possible to find suitable instructions to fill the delay slots.</li>
+                        <li><u>Reorder instructions</u> to fill the gap at the <u>program level</u>. The pipeline has a number of stages before the EX stage, which is usually where the control-flow instructions are resolved. Those stages, also referred as <u>delay slots</u>, can be filled with instructions that come after the control-flow instruction and will always be executed unconditionally. This strategy has two drawbacks: one is the compatibility issue that options 1 and 2 have, the other is that it's not always practical or possible to find suitable instructions to fill the delay slots.</li>
 
-                        <li>Speculation: implement circuitry that tries to predict what the outcome of a control-flow instruction will be, in order to minimize the chance of getting the hazard.</li>
+                        <li><u>Speculation</u>: implement circuitry that tries to predict what the outcome of a control-flow instruction will be, in order to <u>minimize the chance</u> of getting the hazard.</li>
                     </ul>
                 </p>
 
-                </br>
+                <h1 class = "project-subsubsubtitle" id = "delay-slots">3.2.2 Delay slots</h1>
 
                 <p>
                     The following is an example of the branch delay slot filling strategy mentioned above. The first snippet uses the first option, while the second is rewritten by taking advantage of the delay slots:
@@ -377,13 +411,13 @@
                 </br>
 
                 <p>
-                    The two snippet implement a very simple C-like string length calculation (in this example it also includes the null-character in the length). They are composed of a loop that loads a byte from memory at the address referenced by register 2 into register 1. They then increment the appropriate counters and finally check if the fetched character is the null-character with a "branch if not equal" instruction (assume that register 0 is a constant value of 0, which is what the null-character is). If the condition is true, then the loop hasn't reached the end and continues, otherwise it exits. The second snippet replaces the NOP instructions with the ADI ones while keeping the overall behavior unchanged. As explained, this is because the 5-stage pipeline has 2 cycles worth of delay slots, therefore, by the time the branch is resolved, the ADI operations are in the pipeline and will always execute unconditionally.
+                    The two snippet implement a very simple C-like string length calculation (in this example it also includes the null-character in the length). They are composed of a loop that loads a byte from memory at the address referenced by register 2 into register 1. They then increment the appropriate counters and finally check if the fetched character is the null-character with a "branch if not equal" instruction (assume that register 0 is a constant value of 0, which is what the null-character is). If the condition is true, then the loop hasn't reached the end and continues, otherwise it exits. The second snippet replaces the NOP instructions with the ADI ones while keeping the overall behavior unchanged. As explained, this is because the 5-stage pipeline has 2 cycles worth of delay slots, therefore, <u>by the time the branch is resolved, the ADI operations are in the pipeline and will always execute unconditionally</u>.
                 </p>
 
-                </br>
+                <h1 class = "project-subsubsubtitle" id = "speculation">3.2.3 Speculation</h1>
 
                 <p>
-                    Speculation, also called <u>branch prediction</u> when it comes to control-flow, is the best way of handling control-flow dependencies, and it's what modern processors employ. It doesn't guarantee to completely eliminate them (as that is practically impossible), but it will <u>reduce the chance</u> of a hazard, and thus, the performance penalty associated with it without modifying the program. There are many ways of implementing this option, and they will be explored in detail in subsequent sets of notes, but for now, the simplest approach is to implement the "always-not-taken-predictor", which simply keeps fetching the next instruction normally and flushes when the hazard happens.
+                    Speculation, also called <u>branch prediction</u> when it comes to control-flow, is the best way of handling control-flow dependencies, and it's what modern processors employ. It doesn't guarantee to completely eliminate them (as that is practically impossible as that requires knowledge of the future), but it will <u>reduce the chance</u> of a hazard, and thus, the performance penalty associated with it without modifying the program. There are many ways of implementing this option, and they will be explored in detail in subsequent sets of notes, but for now, the simplest approach is to implement the "always-not-taken predictor", which simply keeps fetching the next instruction normally and flushes when the hazard happens.
                 </p>
 
                 <h1 class = "project-subsubtitle" id = "structural-deps">3.3. Structural dependencies</h1>
@@ -398,40 +432,40 @@
                     There isn't really a solution to this type of dependency, other than to equip the pipeline with enough resources to give good performance under a variety of different conditions.
                 </p>
 
-                <h1 class = "project-subsubtitle" id = "complete-example">3.4. Complete example</h1>
+                <h1 class = "project-subsubtitle" id = "hazard-handling-example">3.4. Hazard handling example</h1>
 
                 <figure>
-                    <img class = "diagram" src = "./images/pipelined-cpu.svg" alt = "Complete pipelined CPU diagram"/>
+                    <img class = "diagram" src = "./images/pipelined-cpu.svg" alt = "Non-naive pipelined CPU diagram with forwarding"/>
                     <figcaption>
-                        Complete non-naive pipeline implementation, with forwarding handling all possible cases and flushing logic for the "always-predict-not-taken" branch predictor.
+                        Non-naive (but still relatively simple) pipeline implementation, with forwarding handling all possible cases and flushing logic for the "always-predict-not-taken" branch predictor.
                     </figcaption>
                 </figure>
 
                 <p>
-                    The above example diagram is a "complete" pipeline with an extensive and aggressive forwarding approach and the basic "always-predict-not-taken" branch predictor. There are several forwarding paths, which cover all possible cases:</br></br>
+                    The above example diagram is a processor pipeline with an extensive and aggressive forwarding approach and the basic "always-predict-not-taken" branch predictor. There are several forwarding paths, which cover all possible cases:</br></br>
 
                     <ol>
-                        <li>Register-register cases: all handled via the bypass multiplexers on both ALU inputs in the EX stage. Two are required because classic RISC-like architectures employ 3-operand instructions that read up to 2 sources. The bypass multiplexers are controlled by the forwarding-unit via outputs <u>fwd-2</u> and <u>fwd-3</u>.</li>
+                        <li><u>Register-register cases</u>: all handled via the bypass multiplexers on both ALU inputs in the EX stage. Two are required because classic RISC-like architectures employ 3-operand instructions that read up to 2 sources. The bypass multiplexers are controlled by the forwarding-unit via outputs <u>fwd-2</u> and <u>fwd-3</u>.</li>
 
-                        <li>Memory load to memory load: the only possible dependency is on the address, that is, the first operation loads a value from memory that will be used by the second operation as part of the address calculation. In this case, it's not possible to forward without stalling because when the second load is calculating the address with the ALU, the first one doesn't even have the value yet. The solution is to stall the IF, ID and EX stages for one cycle to allow the first load to proceed. After that, it's possible to use the already present bypass paths to forward the correct value to the second load.</li>
+                        <li><u>Memory load to memory load</u>: the only possible dependency is on the address, that is, the first operation loads a value from memory that will be used by the second operation as part of the address calculation. In this case, it's not possible to forward without stalling because when the second load is calculating the address with the ALU, the first one doesn't even have the value yet. The solution is to stall the IF, ID and EX stages for 1 cycle to allow the first load to proceed. After that, it's possible to use the already present bypass paths to forward the correct value to the second load.</li>
 
-                        <li>Memory load to memory store (on data): handled via the bypass multiplexer on the <u>data-in</u> input in the memory stage, controlled by the <u>fwd-1</u> on the forwarding unit. This hazard can also be partially solved without the additional bypass path, but requires stalling the IF, ID and EX stages for one cycle when the store is in the EX stage.</li>
+                        <li><u>Memory load to memory store (on data)</u>: handled via the bypass multiplexer on the <u>data-in</u> input in the memory stage, controlled by the <u>fwd-1</u> on the forwarding unit. This hazard can also be partially solved without the additional bypass path, but requires stalling the IF, ID and EX stages for 1 cycle when the store is in the EX stage.</li>
 
-                        <li>Memory load to memory store (on address): same case as 2.</li>
-                        <li>Memory load to register instruction: same as case 2.</li>
-                        <li>Register instruction to memory load: same as case 1.</li>
+                        <li><u>Memory load to memory store (on address)</u>: same case as 2.</li>
+                        <li><u>Memory load to register instruction</u>: same as case 2.</li>
+                        <li><u>Register instruction to memory load</u>: same as case 1.</li>
                     </ol>
                 </p>
 
-                </br>
+                <h1 class = "project-subsubsubtitle" id = "forwarding-misfires">3.4.1. Forwarding misfires</h1>
 
                 <p>
                     To avoid forwarding on inappropriate instruction sequences, the forwarding unit has 3 "inhibit" inputs taken from the EX, ST and WB stages. This is to avoid forwarding bogus data from instructions that don't actually produce a result, like control flow instructions. This "misfire" might happen due to the raw instruction encodings:
                 </p>
 
                 <figure class = "diagram-figure-small">
-                    <img class = "diagram" src = "./images/instruction-bit-conflict.svg" alt = "Instruction bit conflicts"/>
-                    <figcaption>Instruction bit conflict between the register sources and the immediate.</figcaption>
+                    <img class = "diagram" src = "./images/instruction-bit-conflict.svg" alt = "Potential instruction bit conflicts"/>
+                    <figcaption>Potential instruction bit conflict between the register sources and the immediate.</figcaption>
                 </figure>
 
                 <p>
@@ -454,13 +488,13 @@
                 </br>
 
                 <p>
-                    A naive forwarding unit will incorrectly issue a forward on the <u>src1</u> for the ADD, which would be wrong. This is because the forwarding unit simply compares for equality fixed bits from the incoming instruction.
+                    A naive forwarding unit will incorrectly issue a forward on the <u>src1</u> for the ADD, which would be incorrect. This is because the forwarding unit simply compares for equality fixed bits from the incoming instruction.
                 </p>
 
-                <h1 class = "project-subsubsubtitle" id = "complete-example-variant">3.4.1. Variants</h1>
+                <h1 class = "project-subsubsubtitle" id = "hazard-handling-variant">3.4.2. Variants</h1>
 
                 <p>
-                    The register file chosen in the example diagram is a standard one and does not implement "data flow-through". A simple d-type flip-flop will only return the new value that is being written, only after the strike of the clock. A d-type flip-flop with flow through will always present the new value that is being written instead.
+                    The register file chosen in the example diagram is a standard one and does not implement "data flow-through". A simple d-type flip-flop will return the new value that is being written, only after the strike of the clock. A d-type flip-flop with flow through will <u>always present the new value that is being written</u> instead.
                 </p>
 
                 <figure class = "diagram-figure-small">
@@ -470,17 +504,127 @@
                     </figcaption>
                 </figure>
 
-                This variant is useful because it automatically integrates the bypass path from the writeback stage (in pink):
+                <p>
+                    This variant is useful because it automatically integrates the bypass path from the writeback stage (in pink in the previous diagram). However, it usually increases the complexity in the register file, which may worsen the critical path.
+                </p>
 
                 <figure>
                     <img class = "diagram" src = "./images/pipelined-cpu-flowthrough.svg" alt = "Complete pipelined CPU diagram with flow-through"/>
                     <figcaption>Complete non-naive pipeline implementation with data flow-through on the register file.</figcaption>
                 </figure>
 
-                <h1 class = "project-subtitle" id = "closing-remarks">4. Closing remarks</h1>
+                <h1 class = "project-subtitle" id = "variable-length-fetching">4. Variable-length instruction fetching</h1>
 
                 <p>
-                    Instruction pipelining is a complex topic that has many intricate details, rules and exceptions. The point of this writing is to lay down the basics and some of the most notable issues and solutions. This space is dedicated to some additional remarks, under the form or a Q&A.
+                    All previous examples have assumed that the processor ISA has fixed-length instructions, which plays very nicely in a pipeline, and it's a strong point in favor of such ISAs. In fact, historically in the early days, RISC-like ISAs only contained fixed-length instructions because it makes implementing a pipeline much easier. However, while pipelining a variable-length ISA is not an impossible task, it does require extra hardware to do it efficiently.
+                </p>
+
+                </br>
+
+                <p>
+                    There are two main issues when it comes to variable-length instruction fetching:</br></br>
+
+                    <ol>
+                        <li><u>How to get the next instruction address</u> without waiting for the ID stage.</li>
+                        <li><u>How to handle misaligned accesses</u> in the instruction memory itself.</li>
+                    </ol>
+                </p>
+
+                </br>
+
+                <p>
+                    To solve the first issue, the simplest way is to always <u>fetch the biggest instruction size</u> and ignore any unwanted byte in the ID stage. To go to the next instruction, the IF stage has to decode enough of the instruction to know its size, and use that to increment the program-counter.
+                </p>
+
+                <figure>
+                    <img class = "diagram" src = "./images/variable-length-fetch.svg" alt = "Variable-length fetch diagram"/>
+                    <figcaption>
+                        Variable-length instruction fetching in a simple scalar pipeline. The green lines represent the fetched bytes at each passing cycle (going downwards), while the dashed portions represent the bytes that must be ignored / discarded. Fixed-length instruction sequence for reference.
+                    </figcaption>
+                </figure>
+
+                <p>
+                    With the diagram above, it's easy to see why fixed-length instructions are trivial to fetch. That is because the length is always the same, and therefore, the program-counter will <u>always be incremented by a fixed amount</u> (4 bytes in the example). For variable-length, always fetching the largest possible instruction size can cause the IF stage to <u>fetch more than necessary</u>. In the simplest implementation, as depicted in the diagram, the extra bytes are simply ignored and the program counter is advanced by the size of the currently fetched instruction.
+                </p>
+
+                <figure class = "diagram-figure-small">
+                    <img
+                        class = "diagram"
+                        src = "./images/variable-length-fetch-pipe.svg"
+                        alt = "Variable-length fetch pipeline diagram"
+                    />
+                    <figcaption>
+                        Earlier variable-length instruction fetching viewed as a pipeline diagram. Discarded instruction chunks are marked as strike-through text.
+                    </figcaption>
+                </figure>
+
+                <p>
+                    To solve the second issue, we need a memory that can actually fetch misaligned instructions. To better show the issue, take the following diagram and assume 4-byte instructions:
+                </p>
+
+                <figure class = "diagram-figure-small">
+                    <img class = "diagram" src = "./images/misaligned-memory.svg" alt = "Misaligned instruction fetching"/>
+                    <figcaption>
+                        Misaligned (below) with 4 and 2-byte instructions vs aligned accesses (above) with only 4-byte instructions. Misalignment happens every time the address of the instruction is not a multiple of its length.
+                    </figcaption>
+                </figure>
+
+                <p>
+                    In the aligned case, each instruction neatly falls into each square, allowing the memory to simply read the whole line and then select the desired chunk with the output multiplexer, but for the second case, that isn't enough. To read the instruction 5, the memory needs to read both lines and merge the correct chunks together via an <u>alignment-network</u> right before the output multiplexer. This is the hardest case to handle, but it only happens if the instruction address is 2 less than the length of the whole line, 14 in this case. In all other misalignment cases, the larger instruction is split among consecutive blocks of the same line. This is easier to fix, as it only requires selecting the correct blocks, then concatenate them, and finally, shift them all the way to the left.
+                </p>
+
+                </br>
+
+                <p>
+                    Overall, this "over-fetch and discard" approach is simple and doesn't result in pipeline bubbles or stalls, but it's inefficient because it's overly aggressive. A better, but significantly more complex approach, would be to <u>buffer the additional bytes</u>. To implement this strategy, we would need a hardware buffer that is similar to a queue which is always filled with a fixed amount of bytes each time (4 if we refer to the earlier example as it's the largest instruction size), but drained by a variable number of bytes (2 or 4, in this example). This technique will be explained in more detail in subsequent sets of notes as it's useful for more advanced microarchitectures.
+                </p>
+
+                <h1 class = "project-subtitle" id = "event-handling">5. Event handing and exceptions</h1>
+
+                <p>
+                    In a pipelined processor, interrupts and exceptions require additional hardware to be handled properly and, in practice, it's useful to model these events as <u>control-flow instructions that are injected at the time of the event</u>.
+                </p>
+
+                <h1 class = "project-subsubtitle" id = "interrupt-handling">5.1. Interrupt handling</h1>
+
+                <p>
+                    Interrupts are events that are generated externally (also referred as "asynchronous") and can arrive at the CPU at any time. This can be problematic in pipelines because instructions are no longer executed in a literal single cycle, and changing control-flow immediately can lead to unintended behavior. For example, if an interrupt is triggered when there is a control-flow instruction being processed in the pipeline, it can erroneously re-direct the program-counter back out of the interrupt handler routine. With this in mind, we can define two broad strategies for properly handling interrupts:</br></br>
+
+                    <ol>
+                        <li><u>Cancel all in-flight instructions</u> currently in the pipeline. This is the easiest strategy to implement and simply requires injecting the "nullify" bit into all stages, effectively flushing the pipeline completely. The advantage of this option is that the processor can begin handling the interrupt the very next cycle. The disadvantage is that, because the pipeline is flushed completely, the processor has to re-execute the lost instructions when returning from the interrupt handler.</li>
+
+                        <li><u>Make the interrupt wait</u>: to do this, the instructions already present in the pipeline will finish normally, but no new instruction will be ingested until the pipeline is fully empty. This can be done by injecting no-ops for <code>N</code> amount of cycles where <code>N</code> is the number of pipeline stages (an optimization could be, only the number of delay-slot stages). Once the last bubble has been injected, the interrupt is allowed to trigger the jump to the handling routine. This strategy has the advantage that no currently executing instruction is destroyed, leading to a lower loss of throughput. The disadvantage is that it's more complex to implement, and the handling latency of the interrupt increases proportionally to the number of stages of the pipeline.</li>
+                    </ol>
+                </p>
+
+                <figure>
+                    <img class = "diagram" src = "./images/interrupt-handling-diagram.svg" alt = "Interrupt handling diagram"/>
+                    <figcaption>
+                        Example of handling an interrupt with the "cancel all in-flight instructions" strategy on the left and the "make the interrupt wait" on the left. The H signifies the interrupt handler routine instructions, while G signifies garbage instructions that are simply the instructions physically after the handler function.
+                    </figcaption>
+                </figure>
+
+                <p>
+                    One thing to note for the second strategy, is that if instruction 4 in the diagram above is a control-flow instruction, it must be allowed to change the program-counter, because it will be saved by the interrupt the next cycle. This way, the handler can return to the next instruction after 4, which might be 5 or something else.
+                </p>
+
+                <h1 class = "project-subsubtitle" id = "exception-handling">5.2. Exception handling</h1>
+
+                <p>
+                    Exceptions are events that are generated internally (also referred as "synchronous") and will, generally, manifest themselves somewhat predictably. An example of an exception, is an arithmetic divide-by-zero error, which happens when the divisor of the operation is 0. In this specific case, since the exception is raised in the EX stage, it will be very similar to a jump or a taken branch instruction. In fact, it's possible to treat these cases in the exact same way as regular control-flow instructions as far as the pipeline is concerned. If an exception can be raised in a different stage <code>X</code> other than EX, then all the instructions before <code>X</code> must be cancelled.
+                </p>
+
+                <figure>
+                    <img class = "diagram" src = "./images/pipelined-cpu-interrupt.svg" alt = "Complete pipelined CPU with interrupt handling"/>
+                    <figcaption>
+                        Pipelined CPU with basic interrupt handling logic, implementing the "cancel all in-flight instructions" strategy.
+                    </figcaption>
+                </figure>
+
+                <h1 class = "project-subtitle" id = "closing-remarks">6. Closing remarks</h1>
+
+                <p>
+                    Instruction pipelining is a complex topic that has many intricate details, rules and exceptions. The point of this writing is to lay down the basics and some of the most notable issues and solutions. This space is dedicated to some additional remarks.
 
                     <h1 class = "project-subsubsubtitle">Is the read-after-read (RAR) dependence a thing?</h1>
 
@@ -491,7 +635,7 @@
                     </br>
 
                     <p>
-                        There are more complex and obscure dependencies, that don't have a dedicated name, but they involve advanced CPUs with multiple cores, caches and Out-of-Order execution. Those techniques, when combined, can result in some nasty behavior in certain cases (which will be explored in subsequent sets of notes).
+                        There are more complex and obscure dependencies, that don't have a dedicated name, but they involve CPUs with multiple cores, caches and Out-of-Order execution. Those techniques, when combined, can result in some nasty behavior in certain cases (which will be explored in subsequent sets of notes).
                     </p>
 
                     <h1 class = "project-subsubsubtitle">What about self-modifying code?</h1>
@@ -520,13 +664,19 @@
                     </br>
 
                     <p>
-                        In the end, hard to say. There have been CPUs with a very deep <u>superpipeline</u> (when a pipeline has "a lot of stages", it's usually called superpipeline) such as the final revision of the Pentium 4 (Caedar Mill) with 31 stages. More modern CPUs have fewer stages, for example, Intel's Kabylake had 14. The most appropriate answer, I would say, is to aim for the least number of stages that achieve the desired target clock speed.
+                        In the end, hard to say. There have been CPUs with very deep <u>superpipelines</u> (when a pipeline has "a lot of stages", it's usually called superpipeline) such as the final revision of the Pentium 4 (Caedar Mill) with 31 stages. More modern CPUs have fewer stages, for example, Intel's Kabylake had 14.
                     </p>
 
-                    <h1 class = "project-subsubsubtitle">Some pipeline stages can be faster than others</h1>
+                    </br>
 
                     <p>
-                        Up until now, we have assumed that all stages in a pipeline take the same amount of time to perform their function, but this is rarely the case... usually the clock speed will be tailored for the slowest stage, but it's possible to "rebalance" the stages a bit, by using <u>clock offsets</u>. If a stage <code>A</code> takes 10ns to complete and <code>B</code> takes 8ns, it's possible to delay <code>B</code> by 1ns with respect to <code>A</code>, balancing both stages at 9ns. The reason why this works, is because <code>A</code> timings "spill over" to the next stage by 1ns, allowing it to run "late", while <code>B</code> is fast enough to recoup the deficit.
+                        The most appropriate answer, I would say, is to <u>aim for the least number of stages required to achieve the desired clock speed</u>.
+                    </p>
+
+                    <h1 class = "project-subsubsubtitle">Are pipeline stages actually balanced?</h1>
+
+                    <p>
+                        Up until now, we have assumed that all stages in a pipeline take the same amount of time to perform their function, but this is rarely the case... usually the clock speed will be tailored for the slowest stage, but it's possible to "rebalance" the stages a bit, by using <u>clock offsets</u>. If a stage <code>A</code> takes 10ns to complete and <code>B</code> takes 8ns, it's possible to delay <code>B</code> by 1ns, balancing both stages at 9ns. The reason why this works, is because <code>A</code> timings "spill over" to the next stage by 1ns, allowing it to run "late", while <code>B</code> is fast enough to recoup the deficit.
                     </p>
 
                     <figure>
