@@ -42,7 +42,8 @@ public final class ResourceMappings {
         this.staticResourcesMappings = this.populateResources(
 
             applicationProperties.getPrivilegedStaticResourcePathPrefix(),
-            applicationProperties.getDiskBasedStaticResourcePathSegment()
+            applicationProperties.getDiskBasedStaticResourcePathSegment(),
+            applicationProperties.getBlockedPayloadPath()
         );
     }
 
@@ -73,7 +74,8 @@ public final class ResourceMappings {
     private Map<String, StaticResource> populateResources(
 
         final String privilegedStaticResourcePathPrefix,
-        final String diskBasedStaticResourcePathSegment
+        final String diskBasedStaticResourcePathSegment,
+        final String blockedPayloadPath
 
     ) throws IOException {
 
@@ -90,7 +92,7 @@ public final class ResourceMappings {
             final boolean isPublic = !path.contains(privilegedStaticResourcePathPrefix);
             final AuthorizationAction authorizationAction = isPublic ? AuthorizationAction.ALLOW : AuthorizationAction.REDIRECT;
             final Path diskPath = path.contains(diskBasedStaticResourcePathSegment) ? Path.of(path) : null;
-            final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
+            final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath, blockedPayloadPath) : null;
 
             MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
 
@@ -123,11 +125,16 @@ public final class ResourceMappings {
     }
 
     ///..
-    private byte[] compress(final Path resourcePath) throws IOException {
+    private byte[] compress(final Path resourcePath, final String blockedPayloadPath) throws IOException {
 
         try(final InputStream resourceStream = Files.newInputStream(resourcePath)) {
 
             if(resourceStream == null) throw new IOException("Resource '" + resourcePath + "' not found");
+
+            if(blockedPayloadPath != null && !blockedPayloadPath.isEmpty() && resourcePath.toString().contains(blockedPayloadPath)) {
+
+                return resourceStream.readAllBytes();
+            }
 
             final ByteArrayOutputStream resourceBytes = new ByteArrayOutputStream();
             final GZIPOutputStream compressor = new GZIPOutputStream(resourceBytes);

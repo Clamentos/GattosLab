@@ -92,6 +92,7 @@ public final class ApplicationProperties {
     public static final Map<HttpHeader, String> LOGIN_REDIRECT_HEADERS = Map.of(HttpHeader.LOCATION, REDIRECT_PATH);
     public static final Map<HttpHeader, String> CLEAR_SITE_DATA_HEADERS = Map.of(HttpHeader.CLEAR_SITE_DATA, "cookies");
     public static final Map<HttpHeader, String> GZIP_HEADER = Map.of(HttpHeader.CONTENT_ENCODING, "gzip");
+    public static final Map<HttpHeader, String> ZSTD_HEADER = Map.of(HttpHeader.CONTENT_ENCODING, "zstd");
     public static final Map<HttpHeader, String> TRANSFER_CHUNKED_HEADER = Map.of(HttpHeader.TRANSFER_ENCODING, "chunked");
     public static final Map<HttpHeader, String> CLOSE_CONNECTION_HEADER = Map.of(HttpHeader.CONNECTION, "close");
     public static final Map<HttpHeader, String> NO_LENGTH_HEADER = Map.of(HttpHeader.CONTENT_LENGTH, "0");
@@ -149,6 +150,8 @@ public final class ApplicationProperties {
     private final Duration observabilityDataRetention;
     private final int rateLimitAmount;
     private final Set<String> illegalUserAgentContains;
+    private final Set<String> illegalPathContains;
+    private final String blockedPayloadPath;
 
     ///
     public ApplicationProperties(final String environment) throws IOException, IllegalArgumentException {
@@ -188,6 +191,8 @@ public final class ApplicationProperties {
         if(this.rateLimitAmount <= 0) throw new IllegalArgumentException("Rate limit amount must be greater than 0");
 
         this.illegalUserAgentContains = this.parseList(this.resolveProperty(properties, "illegalUserAgentContains", String.class, true));
+        this.illegalPathContains = this.parseList(this.resolveProperty(properties, "illegalPathContains", String.class, true));
+        this.blockedPayloadPath = this.resolveProperty(properties, "blockedPayloadPath", String.class, true);
     }
 
     ///

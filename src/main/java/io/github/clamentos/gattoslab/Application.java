@@ -64,6 +64,9 @@ public class Application {
         Runtime.getRuntime().addShutdownHook(GenericUtils.createVirtualThread("gattos-lab-shutdown-hook-task", shutdownHook));
 
         final ApplicationProperties applicationProperties = resolveProfile(args.length > 0 ? args[0] : null);
+        logger.info("Illegal user agent contains: " + applicationProperties.getIllegalUserAgentContains());
+        logger.info("Illegal user path contains: " + applicationProperties.getIllegalPathContains());
+
         final ConnectionsTracker connectionsTracker = new ConnectionsTracker();
 
         final BatchScheduler batchScheduler = new BatchScheduler();

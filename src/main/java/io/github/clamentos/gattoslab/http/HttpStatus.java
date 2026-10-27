@@ -29,7 +29,8 @@ public enum HttpStatus {
     HTTP_VERSION_NOT_SUPPORTED(505, "HTTP/1.1 HTTP Version Not Supported\r\n".getBytes()),
 
     ///..
-    TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n".getBytes());
+    TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n".getBytes()),
+    BLOCKED(999, "HTTP/1.1 200 OK\r\n".getBytes());
 
     ///
     private final int code;
@@ -55,6 +56,7 @@ public enum HttpStatus {
             case 503: return HttpStatus.SERVICE_UNAVAILABLE;
             case 505: return HttpStatus.HTTP_VERSION_NOT_SUPPORTED;
             case 599: return HttpStatus.TRUNCATED;
+            case 999: return HttpStatus.BLOCKED;
 
             default: return null;
         }

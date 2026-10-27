@@ -7,6 +7,7 @@ import io.github.clamentos.gattoslab.exchange.Responder;
 import io.github.clamentos.gattoslab.exchange.filters.components.RateLimitEntry;
 import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
 import io.github.clamentos.gattoslab.exchange.handling.components.Resource;
+import io.github.clamentos.gattoslab.exchange.handling.components.StaticResource;
 import io.github.clamentos.gattoslab.http.HttpHeader;
 import io.github.clamentos.gattoslab.http.HttpMethod;
 import io.github.clamentos.gattoslab.http.HttpStatus;
@@ -33,7 +34,6 @@ public final class Filter extends Responder {
     ///
     private static final String BLOCKED_MESSAGE = "Blocked";
     private static final String RATE_LIMITED_MESSAGE = "Rate limited";
-    private static final byte[] BLOCKED_MESSAGE_BYTES = BLOCKED_MESSAGE.getBytes();
     private static final byte[] RATE_LIMITED_MESSAGE_BYTES = RATE_LIMITED_MESSAGE.getBytes();
 
     ///.
@@ -45,6 +45,7 @@ public final class Filter extends Responder {
 
     ///..
     private final String[] illegalUserAgentContains;
+    private final String[] illegalPathContains;
     private final Map<IpAddress, RateLimitEntry> rateLimitTracker;
 
     ///..
@@ -53,6 +54,8 @@ public final class Filter extends Responder {
     ///..
     private final int rateLimitAmount;
     private final int entryCounterStart;
+    private final String blockedPayloadPath;
+    private final byte[] blockedPayload;
 
     ///
     public Filter(
@@ -73,6 +76,7 @@ public final class Filter extends Responder {
         this.sessionService = sessionService;
 
         this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
+        this.illegalPathContains = applicationProperties.getIllegalPathContains().stream().toArray(String[]::new);
         this.rateLimitTracker = new ConcurrentHashMap<>();
 
         this.corsHeaders = new EnumMap<>(HttpHeader.class);
@@ -87,6 +91,9 @@ public final class Filter extends Responder {
             "gattos-lab-rate-limit-replenish-task",
             ApplicationProperties.RATE_LIMIT_REPLENISH_CRON
         ));
+
+        this.blockedPayloadPath = applicationProperties.getBlockedPayloadPath();
+        this.blockedPayload = ((StaticResource)resourceMappings.get(this.blockedPayloadPath)).getCompressedContent();
     }
 
     ///
@@ -103,7 +110,14 @@ public final class Filter extends Responder {
     ///.
     private boolean doIngressFilter(final HttpExchange exchange) {
 
+        final String uri = exchange.getUri();
         final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
+
+        if(this.blockedPayloadPath != null && !this.blockedPayloadPath.isEmpty() && uri.equals(this.blockedPayloadPath)) {
+
+            this.respondBlocked(exchange);
+        }
+
         exchange.setResource(this.resourceMappings.get(exchange.getUri()));
 
         for(final String illegalContains : this.illegalUserAgentContains) {
@@ -115,15 +129,27 @@ public final class Filter extends Responder {
 
             if(
                 (containsNull && userAgentNull) || (containsEmpty && userAgentEmpty) ||
-                (!containsNull && !userAgentNull && illegalContains.toLowerCase(Locale.US).contains(userAgent.toLowerCase(Locale.US)))
+                (!containsNull && !userAgentNull && userAgent.toLowerCase(Locale.US).contains(illegalContains.toLowerCase(Locale.US)))
             ) {
     
-                this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
+                this.respondBlocked(exchange);
+                return false;
+            }
+        }
 
-                exchange.requestClose();
-                exchange.setUserAgentBlocked(true);
-                super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
+        for(final String illegalContains : this.illegalPathContains) {
 
+            final boolean containsNull = illegalContains == null;
+            final boolean containsEmpty = "".equals(illegalContains);
+            final boolean uriNull = uri == null;
+            final boolean uriEmpty = "".equals(uri);
+
+            if(
+                (containsNull && uriNull) || (containsEmpty && uriEmpty) ||
+                (!containsNull && !uriNull && uri.toLowerCase(Locale.US).contains(illegalContains.toLowerCase(Locale.US)))
+            ) {
+    
+                this.respondBlocked(exchange);
                 return false;
             }
         }
@@ -198,6 +224,25 @@ public final class Filter extends Responder {
         }
 
         return true;
+    }
+
+    ///..
+    private void respondBlocked(final HttpExchange exchange) {
+
+        this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
+
+        exchange.requestClose();
+        exchange.setUserAgentBlocked(true);
+
+        if(this.blockedPayloadPath != null && !this.blockedPayloadPath.isEmpty()) {
+
+            super.respond(exchange, HttpStatus.BLOCKED, ApplicationProperties.ZSTD_HEADER, MimeType.TEXT, this.blockedPayload);
+        }
+
+        else {
+
+            super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE.getBytes());
+        }
     }
 
     ///..

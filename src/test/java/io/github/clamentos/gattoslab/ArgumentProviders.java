@@ -103,6 +103,7 @@ public class ArgumentProviders {
 
         return Stream.of(
 
+            Arguments.of("GET /some/path/bad-string/index.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.FORBIDDEN),
             Arguments.of("GET /separator|.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
             Arguments.of("GET /line\n.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
             Arguments.of("GET /\u00e9.html HTTP/1.1\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.NOT_FOUND),
