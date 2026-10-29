@@ -120,8 +120,13 @@ public final class HttpExchange {
         this.responseHeaders.putAll(headers);
         this.responseHeaders.put(HttpHeader.DATE, this.getDate());
 
-        if(this.doForceClose) this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
         if(mimeType != null) this.responseHeaders.putAll(mimeType.getResponseValue());
+
+        if(this.doForceClose) {
+
+            this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
+            this.responseHeaders.remove(HttpHeader.KEEP_ALIVE);
+        }
 
         if(body != null) {
 

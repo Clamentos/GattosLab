@@ -9,11 +9,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
+import java.util.zip.GZIPOutputStream;
 
 ///..
 import org.jsoup.Jsoup;
@@ -28,15 +30,26 @@ public class SiteCollapser {
     private static final Path INTERMEDIATE = Path.of("./merged_site");
     private static final Path DESTINATION = Path.of("./site");
 
+    ///..
+    private static final int BLACKHOLE_CHUNK_SIZE = 1000;
+    private static final int BLACKHOLE_NUM_CHUNKS = 10_000_000;
+
     ///
     public static void main(final String[] args) throws IOException, InterruptedException {
 
         System.out.println("SiteCollapser BEGIN");
+
         deleteDirectory(DESTINATION);
+        deleteDirectory(INTERMEDIATE);
 
         try(final Stream<Path> stream = Files.walk(SOURCE)) {
 
-            final Path[] paths = stream.filter(Files::isRegularFile).toArray(Path[]::new);
+            final Path[] paths = stream
+
+                .filter(Files::isRegularFile)
+                .filter(p -> !p.toString().contains("blackhole.html"))
+                .toArray(Path[]::new)
+            ;
 
             for(final Path path : paths) {
 
@@ -74,6 +87,9 @@ public class SiteCollapser {
 
             deleteDirectory(INTERMEDIATE);
         }
+
+        System.out.println("SiteCollapser :: blackhole");
+        createBlackhole();
 
         System.out.println("SiteCollapser END");
         if(exitCode != 0) System.exit(1);
@@ -211,6 +227,28 @@ public class SiteCollapser {
         catch(final NoSuchFileException _) {
 
             System.out.println("SiteCollapser: Directory was already not present: " + root);
+        }
+    }
+
+    ///..
+    private static void createBlackhole() throws IOException {
+
+        final String alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        final int index = (int)Math.abs(System.currentTimeMillis() % alphabet.length());
+        final byte[] chunk = Character.toString(alphabet.charAt(index)).repeat(BLACKHOLE_CHUNK_SIZE).getBytes();
+        final Path path = Path.of(DESTINATION.toString() + "/blackhole.html");
+
+        try(final GZIPOutputStream compressor = new GZIPOutputStream(Files.newOutputStream(path, StandardOpenOption.CREATE))) {
+
+            compressor.write("<!DOCTYPE html><html lang = \"en\">".getBytes());
+
+            for(int i = 0; i < BLACKHOLE_NUM_CHUNKS; i++) {
+
+                compressor.write(chunk);
+            }
+
+            compressor.write("</html>".getBytes());
+            compressor.finish();
         }
     }
 
