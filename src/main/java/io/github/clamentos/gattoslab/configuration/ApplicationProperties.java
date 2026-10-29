@@ -92,7 +92,6 @@ public final class ApplicationProperties {
     public static final Map<HttpHeader, String> LOGIN_REDIRECT_HEADERS = Map.of(HttpHeader.LOCATION, REDIRECT_PATH);
     public static final Map<HttpHeader, String> CLEAR_SITE_DATA_HEADERS = Map.of(HttpHeader.CLEAR_SITE_DATA, "cookies");
     public static final Map<HttpHeader, String> GZIP_HEADER = Map.of(HttpHeader.CONTENT_ENCODING, "gzip");
-    public static final Map<HttpHeader, String> ZSTD_HEADER = Map.of(HttpHeader.CONTENT_ENCODING, "zstd");
     public static final Map<HttpHeader, String> TRANSFER_CHUNKED_HEADER = Map.of(HttpHeader.TRANSFER_ENCODING, "chunked");
     public static final Map<HttpHeader, String> CLOSE_CONNECTION_HEADER = Map.of(HttpHeader.CONNECTION, "close");
     public static final Map<HttpHeader, String> NO_LENGTH_HEADER = Map.of(HttpHeader.CONTENT_LENGTH, "0");

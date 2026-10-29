@@ -113,12 +113,12 @@ public final class Filter extends Responder {
         final String uri = exchange.getUri();
         final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
 
+        exchange.setResource(this.resourceMappings.get(exchange.getUri()));
+
         if(this.blockedPayloadPath != null && !this.blockedPayloadPath.isEmpty() && uri.equals(this.blockedPayloadPath)) {
 
             this.respondBlocked(exchange);
         }
-
-        exchange.setResource(this.resourceMappings.get(exchange.getUri()));
 
         for(final String illegalContains : this.illegalUserAgentContains) {
 
@@ -236,7 +236,7 @@ public final class Filter extends Responder {
 
         if(this.blockedPayloadPath != null && !this.blockedPayloadPath.isEmpty()) {
 
-            super.respond(exchange, HttpStatus.BLOCKED, ApplicationProperties.ZSTD_HEADER, MimeType.TEXT, this.blockedPayload);
+            super.respond(exchange, HttpStatus.BLOCKED, ApplicationProperties.GZIP_HEADER, MimeType.HTML, this.blockedPayload);
         }
 
         else {
