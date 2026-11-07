@@ -14,7 +14,7 @@ import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
@@ -68,13 +68,7 @@ public final class ServerContainer implements Closeable {
         this.keystoreTimestamp = new AtomicLong(Long.MIN_VALUE);
 
         this.instantiateServer(applicationProperties, squashingLogger, connectionsTracker, filter, handler);
-
-        batchScheduler.schedule(
-
-            this::regenerateServerTask,
-            "gattoslab-server-regeneration-task",
-            ApplicationProperties.SERVER_REGENERATION_CRON
-        );
+        batchScheduler.schedule(this::regenerateServerTask, "gattoslab-server-regeneration-task", ApplicationProperties.SERVER_REGENERATION_CRON);
     }
 
     ///
@@ -123,12 +117,20 @@ public final class ServerContainer implements Closeable {
 
     ) throws GeneralSecurityException, IOException {
 
+        final InetAddress bindAddress = InetAddress.ofLiteral(applicationProperties.getServerHost());
+
+        final SSLContext sslContext = this.createSSLContext(
+
+            applicationProperties.getSslCertificatePath(),
+            applicationProperties.getSslKeyStorePassword()
+        );
+
         this.httpServerReference.set(new HttpServer(
 
             applicationProperties,
             squashingLogger,
-            Inet4Address.ofLiteral(applicationProperties.getServerHost()),
-            this.createSSLContext(applicationProperties.getSslCertificatePath(), applicationProperties.getSslKeyStorePassword()),
+            bindAddress,
+            sslContext,
             connectionsTracker,
             filter,
             handler

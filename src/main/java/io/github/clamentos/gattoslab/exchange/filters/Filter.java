@@ -23,9 +23,10 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.util.EnumMap;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 ///
@@ -34,6 +35,7 @@ public final class Filter extends Responder {
     ///
     private static final String BLOCKED_MESSAGE = "Blocked";
     private static final String RATE_LIMITED_MESSAGE = "Rate limited";
+    private static final byte[] BLOCKED_MESSAGE_BYTES = BLOCKED_MESSAGE.getBytes();
     private static final byte[] RATE_LIMITED_MESSAGE_BYTES = RATE_LIMITED_MESSAGE.getBytes();
 
     ///.
@@ -44,8 +46,9 @@ public final class Filter extends Responder {
     private final SessionService sessionService;
 
     ///..
-    private final String[] illegalUserAgentContains;
     private final String[] illegalPathContains;
+    private final List<StaticResource> defenses;
+    private final Random randomness;
     private final Map<IpAddress, RateLimitEntry> rateLimitTracker;
 
     ///..
@@ -54,8 +57,7 @@ public final class Filter extends Responder {
     ///..
     private final int rateLimitAmount;
     private final int entryCounterStart;
-    private final String blockedPayloadPath;
-    private final byte[] blockedPayload;
+    private final boolean isDefenseEnabled;
 
     ///
     public Filter(
@@ -75,9 +77,10 @@ public final class Filter extends Responder {
         this.resourceMappings = resourceMappings;
         this.sessionService = sessionService;
 
-        this.illegalUserAgentContains = applicationProperties.getIllegalUserAgentContains().stream().toArray(String[]::new);
-        this.illegalPathContains = applicationProperties.getIllegalPathContains().stream().toArray(String[]::new);
+        this.illegalPathContains = applicationProperties.getIllegalPathContains();
         this.rateLimitTracker = new ConcurrentHashMap<>();
+        this.defenses = resourceMappings.getDefenses();
+        this.randomness = new Random();
 
         this.corsHeaders = new EnumMap<>(HttpHeader.class);
         this.corsHeaders.putAll(ApplicationProperties.CORS_HEADERS);
@@ -92,8 +95,7 @@ public final class Filter extends Responder {
             ApplicationProperties.RATE_LIMIT_REPLENISH_CRON
         ));
 
-        this.blockedPayloadPath = applicationProperties.getBlockedPayloadPath();
-        this.blockedPayload = ((StaticResource)resourceMappings.get(this.blockedPayloadPath)).getCompressedContent();
+        this.isDefenseEnabled = applicationProperties.isDefenseEnabled();
     }
 
     ///
@@ -111,44 +113,12 @@ public final class Filter extends Responder {
     private boolean doIngressFilter(final HttpExchange exchange) {
 
         final String uri = exchange.getUri();
-        final String userAgent = exchange.getRequestHeaders().get(HttpHeader.USER_AGENT);
+        exchange.setResource(this.resourceMappings.get(uri));
 
-        exchange.setResource(this.resourceMappings.get(exchange.getUri()));
+        for(final String illegalElement : this.illegalPathContains) {
 
-        if(this.blockedPayloadPath != null && !this.blockedPayloadPath.isEmpty() && uri.equals(this.blockedPayloadPath)) {
+            if(uri.contains(illegalElement)) {
 
-            this.respondBlocked(exchange);
-        }
-
-        for(final String illegalContains : this.illegalUserAgentContains) {
-
-            final boolean containsNull = illegalContains == null;
-            final boolean containsEmpty = "".equals(illegalContains);
-            final boolean userAgentNull = userAgent == null;
-            final boolean userAgentEmpty = "".equals(userAgent);
-
-            if(
-                (containsNull && userAgentNull) || (containsEmpty && userAgentEmpty) ||
-                (!containsNull && !userAgentNull && userAgent.toLowerCase(Locale.US).contains(illegalContains.toLowerCase(Locale.US)))
-            ) {
-    
-                this.respondBlocked(exchange);
-                return false;
-            }
-        }
-
-        for(final String illegalContains : this.illegalPathContains) {
-
-            final boolean containsNull = illegalContains == null;
-            final boolean containsEmpty = "".equals(illegalContains);
-            final boolean uriNull = uri == null;
-            final boolean uriEmpty = "".equals(uri);
-
-            if(
-                (containsNull && uriNull) || (containsEmpty && uriEmpty) ||
-                (!containsNull && !uriNull && uri.toLowerCase(Locale.US).contains(illegalContains.toLowerCase(Locale.US)))
-            ) {
-    
                 this.respondBlocked(exchange);
                 return false;
             }
@@ -231,17 +201,18 @@ public final class Filter extends Responder {
 
         this.squashingLogger.warning(GenericUtils.composeMessageForSquash(BLOCKED_MESSAGE, exchange));
 
+        exchange.setUriBad(true);
         exchange.requestClose();
-        exchange.setUserAgentBlocked(true);
 
-        if(this.blockedPayloadPath != null && !this.blockedPayloadPath.isEmpty()) {
+        if(this.isDefenseEnabled) {
 
-            super.respond(exchange, HttpStatus.BLOCKED, ApplicationProperties.GZIP_HEADER, MimeType.HTML, this.blockedPayload);
+            final StaticResource defense = this.defenses.get(randomness.nextInt(0, this.defenses.size()));
+            super.respond(exchange, HttpStatus.BLOCKED, ApplicationProperties.GZIP_HEADER, defense.getMimeType(), defense.getCompressedContent());
         }
 
         else {
 
-            super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE.getBytes());
+            super.respond(exchange, HttpStatus.FORBIDDEN, MimeType.TEXT, BLOCKED_MESSAGE_BYTES);
         }
     }
 

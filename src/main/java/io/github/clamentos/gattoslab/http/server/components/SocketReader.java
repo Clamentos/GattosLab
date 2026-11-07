@@ -57,7 +57,7 @@ public final class SocketReader {
 
                 else if(currentByte == '\n' && crFound) {
 
-                    mutableString.deleteLastChars(1);
+                    mutableString.deleteLastChar();
                     return mutableString;
                 }
 

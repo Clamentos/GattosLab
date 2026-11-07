@@ -26,7 +26,7 @@ public enum HttpStatus {
     TOO_MANY_REQUESTS(429, "HTTP/1.1 429 Too Many Requests\r\n".getBytes()),
     INTERNAL_SERVER_ERROR(500, "HTTP/1.1 500 Internal Server Error\r\n".getBytes()),
     SERVICE_UNAVAILABLE(503, "HTTP/1.1 503 Service Unavailable\r\n".getBytes()),
-    HTTP_VERSION_NOT_SUPPORTED(505, "HTTP/1.1 HTTP Version Not Supported\r\n".getBytes()),
+    HTTP_VERSION_NOT_SUPPORTED(505, "HTTP/1.1 505 HTTP Version Not Supported\r\n".getBytes()),
 
     ///..
     TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n".getBytes()),
@@ -60,6 +60,12 @@ public enum HttpStatus {
 
             default: return null;
         }
+    }
+
+    ///
+    public boolean isSuccessfull() {
+
+        return (this.code >= 200 && this.code <= 299) || this.code == 303;
     }
 
     ///

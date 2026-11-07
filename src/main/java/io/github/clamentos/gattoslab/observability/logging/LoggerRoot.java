@@ -12,7 +12,6 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 ///..
@@ -28,7 +27,6 @@ public final class LoggerRoot implements Closeable {
     @Getter
     private final ObservabilityDirectory<LogEvent> logsDirectory;
 
-    private final AtomicLong logEventIdCounter;
     private final Siphon<LogEvent> primarySiphon;
     private final Siphon<LogEvent> secondarySiphon;
     private final AtomicReference<Siphon<LogEvent>> currentSiphonReference;
@@ -41,7 +39,6 @@ public final class LoggerRoot implements Closeable {
 
         this.logsDirectory = new ObservabilityDirectory<>(null, ApplicationProperties.LOG_FILE_PATH);
 
-        this.logEventIdCounter = new AtomicLong();
         this.primarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
         this.secondarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
         this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
@@ -108,7 +105,6 @@ public final class LoggerRoot implements Closeable {
         final Throwable exception
     ) {
 
-        event.setId(this.logEventIdCounter.getAndIncrement());
         event.setTimestamp(System.currentTimeMillis());
         event.setSeverity(severity);
         event.setThread(Thread.currentThread().getName());
@@ -155,7 +151,7 @@ public final class LoggerRoot implements Closeable {
     ///..
     private void forceDrainSiphonTask() {
 
-        final long sleepAmount = ApplicationProperties.LOG_SIPHON_DRAIN_TASK_SLEEP.toMillis();
+        final long sleepAmount = ApplicationProperties.LOG_SIPHON_DRAIN_TASK_POLL_PERIOD.toMillis();
         GenericUtils.silentSleep(sleepAmount - (System.currentTimeMillis() % sleepAmount));
 
         while(true) {

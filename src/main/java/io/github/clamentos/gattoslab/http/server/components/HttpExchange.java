@@ -32,11 +32,9 @@ import lombok.Setter;
 public final class HttpExchange {
 
     ///
-    private final long requestId;
     private final long startTime;
 
     private final IpAddress remoteAddress;
-
     private final HttpMethod method;
     private final String uri;
 
@@ -46,15 +44,18 @@ public final class HttpExchange {
     private final SocketReader reader;
     private final StreamWriter writer;
 
+    private final boolean isKeepAlive;
+
     ///..
-    @Setter private Resource resource;
-    @Setter private boolean isUserAgentBlocked;
+    @Setter
+    private Resource resource;
 
     ///..
     private HttpStatus responseStatus;
 
     ///..
-    private final boolean isKeepAlive;
+    @Setter
+    private boolean isUriBad;
 
     @Setter
     private boolean isTracked;
@@ -65,7 +66,6 @@ public final class HttpExchange {
     ///
     public HttpExchange(
 
-        final long requestId,
         final IpAddress remoteAddress,
         final HttpMethod method,
         final String uri,
@@ -74,11 +74,9 @@ public final class HttpExchange {
         final StreamWriter writer
     ) {
 
-        this.requestId = requestId;
         this.startTime = System.currentTimeMillis();
 
         this.remoteAddress = remoteAddress;
-
         this.method = method;
         this.uri = uri;
 
@@ -87,15 +85,6 @@ public final class HttpExchange {
 
         this.reader = reader;
         this.writer = writer;
-
-        this.resource = null;
-        this.isUserAgentBlocked = false;
-
-        this.responseStatus = null;
-
-        this.isTracked = false;
-        this.isHandled = false;
-        this.doForceClose = false;
 
         final String connectionHeader = this.requestHeaders.get(HttpHeader.CONNECTION);
 
@@ -110,6 +99,15 @@ public final class HttpExchange {
             this.responseHeaders.putAll(ApplicationProperties.KEEP_ALIVE_HEADERS);
             this.isKeepAlive = true;
         }
+
+        this.resource = null;
+
+        this.responseStatus = null;
+
+        this.isUriBad = false;
+        this.isTracked = false;
+        this.isHandled = false;
+        this.doForceClose = false;
     }
 
     ///
@@ -191,11 +189,8 @@ public final class HttpExchange {
     ///.
     private String getDate() {
 
-        return DateTimeFormatter.RFC_1123_DATE_TIME.format(
-
-            OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime),
-            GenericUtils.DEFAULT_ZONE_ID
-        ));
+        final OffsetDateTime startTimeDate = OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime), GenericUtils.DEFAULT_ZONE_ID);
+        return DateTimeFormatter.RFC_1123_DATE_TIME.format(startTimeDate);
     }
 
     ///

@@ -33,11 +33,29 @@ public final class GenericUtils {
     ///
     public static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
     public static final OfVirtual OF_VIRTUAL = Thread.ofVirtual();
+    public static final String[] IPV4_LOOKUP_TABLE = new String[256];
+    public static final String[] IPV6_LOOKUP_TABLE = new String[65536];
+    public static final long MIN_ISO_DATE_TIMESTAMP = -62167222196000L;
+    public static final long MAX_ISO_DATE_TIMESTAMP = 253402297199999L;
 
     ///..
     private static final String[] DATA_SIZE_UNITS = {"KiB", "MiB", "GiB", "TiB"};
 
-    ///.
+    ///
+    static {
+
+        for(int i = 0; i < IPV4_LOOKUP_TABLE.length; i++) {
+
+            IPV4_LOOKUP_TABLE[i] = Integer.toString(i);
+        }
+
+        for(int i = 0; i < IPV6_LOOKUP_TABLE.length; i++) {
+
+            IPV6_LOOKUP_TABLE[i] = Integer.toHexString(i);
+        }
+    }
+
+    ///
     public static String composeFingerprint(final HttpExchange exchange) {
 
         return
@@ -121,7 +139,7 @@ public final class GenericUtils {
 
             else {
 
-                mutableString.append((byte)currentChar);
+                mutableString.append(currentChar);
             }
         }
 

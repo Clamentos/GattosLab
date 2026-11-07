@@ -1,3 +1,23 @@
+const colorTable = new Map([
+
+    ["599", 1],
+    ["999", 1],
+
+    ["400", 2],
+    ["401", 2],
+    ["403", 2],
+    ["404", 2],
+    ["405", 2],
+    ["505", 2],
+
+    ["503", 3],
+    ["413", 3],
+    ["429", 3],
+
+    ["422", 4],
+    ["500", 4]
+]);
+
 const today = new Date();
 today.setUTCHours(0, 0, 0, 0);
 
@@ -7,7 +27,7 @@ const nextDayTime = todayTime + 86400000;
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 document.getElementById("end-timestamp").value = new Date(nextDayTime).toISOString().slice(0, 16);
 
-fetchAndRenderCrawls(todayTime, nextDayTime, "", "", "", "", "");
+fetchAndRenderCrawls(todayTime, nextDayTime, "", "", "", "");
 
 function onSubmitEvent(event) {
 
@@ -16,7 +36,6 @@ function onSubmitEvent(event) {
     const formStartTimestamp = event.target.startTimestamp.value;
     const formEndTimestamp = event.target.endTimestamp.value;
     const formIsUnknown = event.target.isUnknown.value;
-    const formIsUserAgentBlocked = event.target.isUserAgentBlocked.value;
     const formUserAgentPattern = event.target.userAgentPattern.value;
     const formPathPattern = event.target.pathPattern.value;
     const formRemoteIpAddressPattern = event.target.remoteIpAddressPattern.value;
@@ -28,14 +47,13 @@ function onSubmitEvent(event) {
         range.start,
         range.end,
         isOk(formIsUnknown) ? formIsUnknown : "",
-        isOk(formIsUserAgentBlocked) ? formIsUserAgentBlocked : "",
         isOk(formUserAgentPattern) ? formUserAgentPattern : "",
         isOk(formPathPattern) ? formPathPattern : "",
         isOk(formRemoteIpAddressPattern) ? formRemoteIpAddressPattern : ""
     );
 }
 
-function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAgentBlocked, userAgentPattern, pathPattern, remoteIpAddressPattern) {
+function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgentPattern, pathPattern, remoteIpAddressPattern) {
 
     document.getElementById("submit-loader").style = "display: inline-block";
     document.getElementById("invocations-count").innerText = "Distinct paths: -";
@@ -50,10 +68,7 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, isUserAge
     userAgentsTableBody.replaceChildren();
     remoteIpAddressesTableBody.replaceChildren();
 
-    const filter =
-
-        `${startTimestamp}|${endTimestamp}|${isUnknown}|${isUserAgentBlocked}|${userAgentPattern}|${pathPattern}|${remoteIpAddressPattern}`
-    ;
+    const filter =`${startTimestamp}|${endTimestamp}|${isUnknown}|${userAgentPattern}|${pathPattern}|${remoteIpAddressPattern}`;
 
     fetch("/api/observability/crawl-metrics", {
 
@@ -136,9 +151,6 @@ function appendRow(entry, table, hook) {
 
     tr.className = "table-data-row";
 
-    if(hook !== "remote-ips-table-hook") tr.style = `color: ${splits[3] === "true" ? "#f1fa8c" : "#ffffff"}`;
-    else tr.style = "color: #ffffff";
-
     key.className = "table-data-elem";
     key.innerText = cleanObservabilityString(splits[0]);
 
@@ -157,14 +169,37 @@ function appendRow(entry, table, hook) {
         const httpStatuses = document.createElement("div");
         httpStatuses.className = "table-data-elem";
         httpStatuses.style = "width: 14%";
-        httpStatuses.innerText = splits[4];
+        httpStatuses.innerText = splits[3];
 
         tr.appendChild(httpStatuses);
+
+        const httpStatusesArray = splits[3].split(',');
+        let worst = 0;
+
+        for(const httpStatus of httpStatusesArray) {
+
+            const color = colorTable.get(httpStatus);
+
+            if(color !== null && color !== undefined && color > worst) {
+
+                worst = color;
+            }
+        }
+
+        switch(worst) {
+
+            case 1: tr.style = "color: #8be9fd"; break;
+            case 2: tr.style = "color: #f1fa8c"; break;
+            case 3: tr.style = "color: #ffb86c"; break;
+            case 4: tr.style = "color: #ff5555"; break;
+
+            default: tr.style = "color: #ffffff"; break;
+        }
     }
 
     else {
 
-        key.style = "width: 84%";
+        key.style = "width: 84%; color: #ffffff";
     }
 
     table.appendChild(tr);

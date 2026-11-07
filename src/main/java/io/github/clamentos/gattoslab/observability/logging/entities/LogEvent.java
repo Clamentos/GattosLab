@@ -23,7 +23,6 @@ import lombok.Setter;
 public final class LogEvent implements Resettable, Entity {
 
     ///
-    private long id;
     private long timestamp;
     private LogSeverity severity;
     private String thread;
@@ -62,8 +61,6 @@ public final class LogEvent implements Resettable, Entity {
             exceptionString = "";
         }
 
-        writer.write(Long.toString(this.id));
-        writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.timestamp));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(String.valueOf(this.severity));

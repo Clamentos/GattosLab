@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -64,8 +65,7 @@ public class Application {
         Runtime.getRuntime().addShutdownHook(GenericUtils.createVirtualThread("gattos-lab-shutdown-hook-task", shutdownHook));
 
         final ApplicationProperties applicationProperties = resolveProfile(args.length > 0 ? args[0] : null);
-        logger.info("Illegal user agent contains: " + applicationProperties.getIllegalUserAgentContains());
-        logger.info("Illegal user path contains: " + applicationProperties.getIllegalPathContains());
+        logger.info("Illegal user path contains: " + Arrays.stream(applicationProperties.getIllegalPathContains()).toList());
 
         final ConnectionsTracker connectionsTracker = new ConnectionsTracker();
 
@@ -78,7 +78,7 @@ public class Application {
         final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, connectionsTracker, batchScheduler);
         shutdownHook.add(observabilityService);
 
-        final ResourceMappings resourceMappings = new ResourceMappings(applicationProperties);
+        final ResourceMappings resourceMappings = new ResourceMappings();
         final SessionService sessionService = new SessionService(squashingLogger, applicationProperties, batchScheduler);
         final ExceptionHandler exceptionHandler = new ExceptionHandler(observabilityService);
         final Handler handler = new Handler(observabilityService, sessionService, exceptionHandler);

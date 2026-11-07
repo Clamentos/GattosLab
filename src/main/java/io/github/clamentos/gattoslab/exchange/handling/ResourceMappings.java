@@ -16,8 +16,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 
@@ -35,16 +38,10 @@ public final class ResourceMappings {
     private final Map<String, StaticResource> staticResourcesMappings;
 
     ///
-    public ResourceMappings(final ApplicationProperties applicationProperties) throws IOException {
+    public ResourceMappings() throws IOException {
 
         this.apiMappings = this.populateApis();
-
-        this.staticResourcesMappings = this.populateResources(
-
-            applicationProperties.getPrivilegedStaticResourcePathPrefix(),
-            applicationProperties.getDiskBasedStaticResourcePathSegment(),
-            applicationProperties.getBlockedPayloadPath()
-        );
+        this.staticResourcesMappings = this.populateResources();
     }
 
     ///
@@ -54,6 +51,22 @@ public final class ResourceMappings {
         if(resource != null) return resource;
 
         return this.apiMappings.get(path);
+    }
+
+    ///..
+    public List<StaticResource> getDefenses() {
+
+        final List<StaticResource> defenses = new ArrayList<>();
+
+        for(final Entry<String, StaticResource> staticResourceEntry : this.staticResourcesMappings.entrySet()) {
+
+            if(staticResourceEntry.getKey().contains(ApplicationProperties.DEFENSES_PATH_PREFIX)) {
+
+                defenses.add(staticResourceEntry.getValue());
+            }
+        }
+
+        return defenses;
     }
 
     ///.
@@ -71,13 +84,7 @@ public final class ResourceMappings {
     }
 
     ///..
-    private Map<String, StaticResource> populateResources(
-
-        final String privilegedStaticResourcePathPrefix,
-        final String diskBasedStaticResourcePathSegment,
-        final String blockedPayloadPath
-
-    ) throws IOException {
+    private Map<String, StaticResource> populateResources() throws IOException {
 
         final Logger logger = new Logger();
 
@@ -88,21 +95,21 @@ public final class ResourceMappings {
 
         for(final Path prefixedPath : sitePaths) {
 
-            final String path = "/" + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
-            final boolean isPublic = !path.contains(privilegedStaticResourcePathPrefix);
+            final String uri = "/" + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
+            final boolean isPublic = !uri.contains(ApplicationProperties.PRIVILEGED_STATIC_RESOURCES_PATH_PREFIX);
             final AuthorizationAction authorizationAction = isPublic ? AuthorizationAction.ALLOW : AuthorizationAction.REDIRECT;
-            final Path diskPath = path.contains(diskBasedStaticResourcePathSegment) ? Path.of(path) : null;
-            final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath, blockedPayloadPath) : null;
+            final Path diskPath = uri.contains(ApplicationProperties.DISK_BASED_STATIC_RESOURCES_PATH_PREFIX) ? Path.of(uri) : null;
+            final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
 
-            MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
+            MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(uri, '.').getLast());
 
             if(mimeType == null) {
 
-                logger.warning("Could not decode the mime type for '" + path + "', defaulting to TEXT");
+                logger.warning("Could not decode the mime type for '" + uri + "', defaulting to TEXT");
                 mimeType = MimeType.TEXT;
             }
 
-            mappings.put(path, new StaticResource(authorizationAction, mimeType, isPublic, diskPath, compressedContent));
+            mappings.put(uri, new StaticResource(authorizationAction, mimeType, isPublic, diskPath, compressedContent));
             if(compressedContent != null) compressedSiteSize += compressedContent.length;
         }
 
@@ -125,13 +132,13 @@ public final class ResourceMappings {
     }
 
     ///..
-    private byte[] compress(final Path resourcePath, final String blockedPayloadPath) throws IOException {
+    private byte[] compress(final Path resourcePath) throws IOException {
 
         try(final InputStream resourceStream = Files.newInputStream(resourcePath)) {
 
             if(resourceStream == null) throw new IOException("Resource '" + resourcePath + "' not found");
 
-            if(blockedPayloadPath != null && !blockedPayloadPath.isEmpty() && resourcePath.toString().contains(blockedPayloadPath)) {
+            if(resourcePath.toString().contains(ApplicationProperties.BLACKHOLE_PATH)) {
 
                 return resourceStream.readAllBytes();
             }

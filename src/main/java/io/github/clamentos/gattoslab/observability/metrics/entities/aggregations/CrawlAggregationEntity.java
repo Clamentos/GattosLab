@@ -23,7 +23,6 @@ public final class CrawlAggregationEntity implements Streamable {
 
     ///
     private final String uri;
-    private final boolean isUnknown;
     private final Set<String> statuses;
 
     ///..
@@ -31,10 +30,9 @@ public final class CrawlAggregationEntity implements Streamable {
     private int numberOfCalls;
 
     ///
-    public CrawlAggregationEntity(final String uri, final boolean isUnknown) {
+    public CrawlAggregationEntity(final String uri) {
 
         this.uri = uri;
-        this.isUnknown = isUnknown;
         this.statuses = new TreeSet<>();
     }
 
@@ -47,8 +45,6 @@ public final class CrawlAggregationEntity implements Streamable {
         writer.write(Integer.toString(this.numberOfCalls));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.lastCalled));
-        writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Boolean.toString(this.isUnknown));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
 
         int remaining = statuses.size() - 1;

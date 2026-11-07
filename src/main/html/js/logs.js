@@ -88,8 +88,8 @@ function appendRow(log, table) {
     const tr = document.createElement("div");
     tr.className = "table-data-row";
 
-    if(splits[2] === "ERROR") tr.style = "color: #ff5555;";
-    if(splits[2] === "WARNING") tr.style = "color: #ffb86c;";
+    if(splits[1] === "ERROR") tr.style = "color: #ff5555;";
+    if(splits[1] === "WARNING") tr.style = "color: #ffb86c;";
 
     const timestamp = document.createElement("div");
     const severity = document.createElement("div");
@@ -100,27 +100,27 @@ function appendRow(log, table) {
 
     timestamp.className = "table-data-elem";
     timestamp.style = "text-align: center; width: 7%";
-    timestamp.innerText = formatDate(new Date(Number.parseInt(splits[1])));
+    timestamp.innerText = formatDate(new Date(Number.parseInt(splits[0])));
 
     severity.className = "table-data-elem";
     severity.style = "text-align: center; width: 4%";
-    severity.innerText = splits[2];
+    severity.innerText = splits[1];
 
     message.className = "table-data-elem";
     message.style = "width: 44%";
-    message.innerText = splits[5];
+    message.innerText = splits[4];
 
     logger.className = "table-data-elem";
     logger.style = "width: 15%";
-    logger.innerText = splits[4];
+    logger.innerText = splits[3];
 
     thread.className = "table-data-elem";
     thread.style = "width: 15%";
-    thread.innerText = splits[3];
+    thread.innerText = splits[2];
 
     exception.className = "table-data-elem";
     exception.style = "width: 15%";
-    exception.innerText = cleanObservabilityString(splits[6]);
+    exception.innerText = cleanObservabilityString(splits[5]);
 
     tr.appendChild(timestamp);
     tr.appendChild(severity);

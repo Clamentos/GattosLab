@@ -1,6 +1,7 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 
 ///..
@@ -10,6 +11,8 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 import java.util.Comparator;
@@ -31,13 +34,16 @@ public class SiteCollapser {
     private static final Path DESTINATION = Path.of("./site");
 
     ///..
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+
+    ///..
     private static final int BLACKHOLE_CHUNK_SIZE = 1000;
     private static final int BLACKHOLE_NUM_CHUNKS = 10_000_000;
 
     ///
     public static void main(final String[] args) throws IOException, InterruptedException {
 
-        System.out.println("SiteCollapser BEGIN");
+        simpleLog("SiteCollapser BEGIN");
 
         deleteDirectory(DESTINATION);
         deleteDirectory(INTERMEDIATE);
@@ -47,7 +53,7 @@ public class SiteCollapser {
             final Path[] paths = stream
 
                 .filter(Files::isRegularFile)
-                .filter(p -> !p.toString().contains("blackhole.html"))
+                .filter(p -> !p.toString().contains(ApplicationProperties.BLACKHOLE_PATH))
                 .toArray(Path[]::new)
             ;
 
@@ -71,7 +77,7 @@ public class SiteCollapser {
         final String output = new String(process.getInputStream().readAllBytes());
         final int exitCode = process.waitFor();
 
-        System.out.println("SiteCollapser :: html-minifier-next :: " + output);
+        simpleLog("SiteCollapser :: html-minifier-next :: " + output);
 
         if(exitCode == 0) {
 
@@ -88,10 +94,10 @@ public class SiteCollapser {
             deleteDirectory(INTERMEDIATE);
         }
 
-        System.out.println("SiteCollapser :: blackhole");
+        simpleLog("SiteCollapser :: blackhole");
         createBlackhole();
 
-        System.out.println("SiteCollapser END");
+        simpleLog("SiteCollapser END");
         if(exitCode != 0) System.exit(1);
     }
 
@@ -199,10 +205,14 @@ public class SiteCollapser {
         for(final Element script : scripts) {
 
             final String jsRef = script.attr("src");
-            final String jsSource = new String(Files.readAllBytes(getPath(htmlPath.getParent(), jsRef)));
 
-            script.removeAttr("src");
-            script.text(jsSource);
+            if(jsRef != null && !jsRef.isEmpty()) {
+
+                final String jsSource = new String(Files.readAllBytes(getPath(htmlPath.getParent(), jsRef)));
+
+                script.removeAttr("src");
+                script.text(jsSource);
+            }
         }
     }
 
@@ -236,7 +246,9 @@ public class SiteCollapser {
         final String alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         final int index = (int)Math.abs(System.currentTimeMillis() % alphabet.length());
         final byte[] chunk = Character.toString(alphabet.charAt(index)).repeat(BLACKHOLE_CHUNK_SIZE).getBytes();
-        final Path path = Path.of(DESTINATION.toString() + "/blackhole.html");
+        final Path path = Path.of(DESTINATION.toString() + '/' + ApplicationProperties.BLACKHOLE_PATH);
+
+        Files.createDirectories(path.getParent());
 
         try(final GZIPOutputStream compressor = new GZIPOutputStream(Files.newOutputStream(path, StandardOpenOption.CREATE))) {
 
@@ -250,6 +262,12 @@ public class SiteCollapser {
             compressor.write("</html>".getBytes());
             compressor.finish();
         }
+    }
+
+    ///..
+    private static void simpleLog(final String message) {
+
+        System.out.println(DATE_FORMATTER.format(LocalDateTime.now(GenericUtils.DEFAULT_ZONE_ID)) + ": " + message);
     }
 
     ///

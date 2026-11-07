@@ -22,14 +22,13 @@ import lombok.Setter;
 public final class RequestMetricsEntity implements Resettable, Entity {
 
     ///
-    private long id;
     private long timestamp;
     private int latency;
     private String uri;
     private String userAgent;
     private boolean isUnknown;
     private short httpStatus;
-    private boolean isUserAgentBlocked;
+    private boolean isUriBad;
     private IpAddress remoteIpAddress;
 
     ///..
@@ -45,8 +44,6 @@ public final class RequestMetricsEntity implements Resettable, Entity {
     @Override
     public void stream(final StreamWriter writer) throws IOException {
 
-        writer.write(Long.toString(this.id));
-        writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.timestamp));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Integer.toString(this.latency));
@@ -59,7 +56,7 @@ public final class RequestMetricsEntity implements Resettable, Entity {
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Short.toString(this.httpStatus));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.write(Boolean.toString(this.isUserAgentBlocked));
+        writer.write(Boolean.toString(this.isUriBad));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
 
         if(this.remoteIpAddress != null) this.remoteIpAddress.stream(writer);

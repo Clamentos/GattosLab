@@ -146,7 +146,7 @@ public class ArgumentProviders {
             Arguments.of("GET /index.html\r\n", HttpStatus.BAD_REQUEST),
             Arguments.of("GET /index.html\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.BAD_REQUEST),
             Arguments.of("GET /index.html HTTP/1.1 EXTRA PARTS\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.BAD_REQUEST),
-            Arguments.of("GET /index.html HTTP/9.9\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.BAD_REQUEST),
+            Arguments.of("GET /index.html HTTP/9.9\r\nUser-Agent: junit-tests\r\n\r\n", HttpStatus.HTTP_VERSION_NOT_SUPPORTED),
             Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent junit-tests\r\n\r\n", HttpStatus.BAD_REQUEST),
             Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: junit\u0000tests\r\n\r\n", HttpStatus.OK),
             Arguments.of("GET /index.html HTTP/1.1\r\nHost: localhost\r\nContent-Length: 100\r\n\r\n", HttpStatus.OK),
@@ -176,8 +176,8 @@ public class ArgumentProviders {
 
             Arguments.of("GET /index .html HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.BAD_REQUEST),
             Arguments.of("GET /index.html?param=\u00e9\u00e8\u00ea HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
-            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: bad-string\r\n\r\n", HttpStatus.FORBIDDEN),
-            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: very-bad-string\r\n\r\n", HttpStatus.FORBIDDEN),
+            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: bad-string\r\n\r\n", HttpStatus.OK),
+            Arguments.of("GET /index.html HTTP/1.1\r\nUser-Agent: very-bad-string\r\n\r\n", HttpStatus.OK),
 
             Arguments.of("GET /admin/index.html?password=admin HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
             Arguments.of("GET /admin/index.html#secret HTTP/1.1\r\nHost: localhost\r\n\r\n", HttpStatus.NOT_FOUND),
@@ -226,11 +226,11 @@ public class ArgumentProviders {
             Arguments.of(Api.GET_SESSIONS.getPath(), null, HttpStatus.OK),
             Arguments.of(Api.GET_LOGS.getPath(), "0|5000000000000|||||", HttpStatus.OK),
             Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "0|5000000000000|10000000000", HttpStatus.OK),
-            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000|||||", HttpStatus.OK),
+            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000||||", HttpStatus.OK),
             Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "0|5000000000000|10000000000", HttpStatus.OK),
             Arguments.of(Api.GET_LOGS.getPath(), "0|5000000000000||||||", HttpStatus.BAD_REQUEST),
             Arguments.of(Api.GET_SYSTEM_METRICS.getPath(), "0|5000000000000|10000000000|", HttpStatus.BAD_REQUEST),
-            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000||", HttpStatus.BAD_REQUEST),
+            Arguments.of(Api.GET_CRAWL_METRICS.getPath(), "0|5000000000000|", HttpStatus.BAD_REQUEST),
             Arguments.of(Api.GET_REQUEST_METRICS.getPath(), "0|5000000000000|10000000000|", HttpStatus.BAD_REQUEST)
         );
     }

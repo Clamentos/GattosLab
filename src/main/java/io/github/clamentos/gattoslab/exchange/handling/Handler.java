@@ -60,17 +60,19 @@ public final class Handler extends Responder {
                 super.respond(exchange, HttpStatus.NOT_FOUND, MimeType.TEXT, NOT_FOUND_MESSAGE_BYTES);
             }
 
-            else if(resource instanceof StaticResource) {
+            else if(resource instanceof final StaticResource staticResource) {
 
-                this.handleWebsite(exchange);
+                this.handleWebsite(exchange, staticResource);
             }
 
             else {
 
-                switch((Api)resource) {
+                final Api api = (Api)resource;
 
-                    case LOGIN, LOGOUT, GET_SESSIONS: this.handleSession(exchange); break;
-                    case GET_LOGS, GET_REQUEST_METRICS, GET_SYSTEM_METRICS, GET_CRAWL_METRICS: this.handleObservability(exchange); break;
+                switch(api) {
+
+                    case LOGIN, LOGOUT, GET_SESSIONS: this.handleSession(exchange, api); break;
+                    case GET_LOGS, GET_REQUEST_METRICS, GET_SYSTEM_METRICS, GET_CRAWL_METRICS: this.handleObservability(exchange, api); break;
                 }
             }
         }
@@ -82,9 +84,8 @@ public final class Handler extends Responder {
     }
 
     ///
-    private void handleWebsite(final HttpExchange exchange) {
+    private void handleWebsite(final HttpExchange exchange, final StaticResource resource) {
 
-        final StaticResource resource = (StaticResource)exchange.getResource();
         if(this.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
         final Path diskPath = resource.getDiskPath();
@@ -100,12 +101,7 @@ public final class Handler extends Responder {
                     return;
                 }
 
-                super.respond(
-
-                    exchange,
-                    HttpStatus.OK,
-                    headers,
-                    resource.getMimeType(),
+                super.respond(exchange, HttpStatus.OK, headers, resource.getMimeType(),
 
                     writer -> {
 
@@ -131,9 +127,9 @@ public final class Handler extends Responder {
     }
 
     ///..
-    private void handleSession(final HttpExchange exchange) {
+    private void handleSession(final HttpExchange exchange, final Api api) {
 
-        switch((Api)exchange.getResource()) {
+        switch(api) {
 
             case LOGIN:
 
@@ -178,13 +174,13 @@ public final class Handler extends Responder {
     }
 
     ///..
-    private void handleObservability(final HttpExchange exchange) throws IOException {
+    private void handleObservability(final HttpExchange exchange, final Api api) throws IOException {
 
         if(this.rejectMethodNotAllowed(exchange, HttpMethod.GET)) return;
 
         try {
 
-            switch((Api)exchange.getResource()) {
+            switch(api) {
 
                 case GET_LOGS: super.respond(exchange, HttpStatus.OK, MimeType.TEXT, super.observabilityService.getLogs(exchange)); return;
 
@@ -214,13 +210,8 @@ public final class Handler extends Responder {
 
             exchange.requestClose();
 
-            super.respond(
-
-                exchange,
-                exc instanceof IOException ? HttpStatus.UNPROCESSABLE : HttpStatus.BAD_REQUEST,
-                MimeType.TEXT,
-                exc.toString().getBytes()
-            );
+            final HttpStatus status = exc instanceof IOException ? HttpStatus.UNPROCESSABLE : HttpStatus.BAD_REQUEST;
+            super.respond(exchange, status, MimeType.TEXT, exc.toString().getBytes());
         }
     }
 

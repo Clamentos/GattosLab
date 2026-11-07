@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.datastructures.address;
 ///
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
@@ -35,13 +36,13 @@ public final class IpV4 implements IpAddress {
     @Override
     public void stream(final StreamWriter writer) throws IOException {
 
-        writer.write(Integer.toString((this.address & 0xFF_00_00_00) >>> 24));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(this.address & 0xFF_00_00_00) >>> 24]);
         writer.write('.');
-        writer.write(Integer.toString((this.address & 0x00_FF_00_00) >>> 16));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(this.address & 0x00_FF_00_00) >>> 16]);
         writer.write('.');
-        writer.write(Integer.toString((this.address & 0x00_00_FF_00) >>> 8));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(this.address & 0x00_00_FF_00) >>> 8]);
         writer.write('.');
-        writer.write(Integer.toString(this.address & 0x00_00_00_FF));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[this.address & 0x00_00_00_FF]);
     }
 
     ///..
@@ -50,13 +51,13 @@ public final class IpV4 implements IpAddress {
 
         final MutableString mutableString = new MutableString(15);
 
-        mutableString.append(Integer.toString((this.address & 0xFF_00_00_00) >>> 24));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(this.address & 0xFF_00_00_00) >>> 24]);
         mutableString.append('.');
-        mutableString.append(Integer.toString((this.address & 0x00_FF_00_00) >>> 16));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(this.address & 0x00_FF_00_00) >>> 16]);
         mutableString.append('.');
-        mutableString.append(Integer.toString((this.address & 0x00_00_FF_00) >>> 8));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(this.address & 0x00_00_FF_00) >>> 8]);
         mutableString.append('.');
-        mutableString.append(Integer.toString( this.address & 0x00_00_00_FF));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[ this.address & 0x00_00_00_FF]);
 
         return mutableString.toString();
     }

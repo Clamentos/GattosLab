@@ -55,11 +55,7 @@ public final class ConnectionsTracker {
     ///..
     public int updateConnectionCount() {
 
-        return this.connectionCounter.getAndUpdate((currentValue -> Math.min(
-
-            currentValue + 1,
-            ApplicationProperties.MAX_SERVER_SOCKETS
-        )));
+        return this.connectionCounter.getAndUpdate(currentValue -> Math.min(currentValue + 1, ApplicationProperties.MAX_SERVER_SOCKETS));
     }
 
     ///..

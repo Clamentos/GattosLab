@@ -11,8 +11,6 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -35,7 +33,6 @@ public final class ApplicationProperties {
     public static final char ILLEGAL_CHAR_REPLACEMENT = '\u0000';
     public static final char FIELD_SEPARATOR = '|';
     public static final char ARRAY_SEPARATOR = ',';
-    public static final char RANGE_SEPARATOR = '-';
     public static final char LOG_SQUASH_COUNTS_CHAR = '#';
     public static final String FINGERPRINT_SEPARATOR = " >> ";
     public static final String EXCHANGE_STRING_SEPARATOR = " >> ";
@@ -48,6 +45,7 @@ public final class ApplicationProperties {
     public static final String METRICS_DRAIN_CRON = "s5";
     public static final String OBSERVABILITY_RETENTION_CRON = "m1";
     public static final String SERVER_REGENERATION_CRON = "h24";
+    public static final String BLOCKLIST_GENERATION_CRON = "h4";
 
     ///..
     public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(6);
@@ -59,7 +57,7 @@ public final class ApplicationProperties {
     public static final Duration SESSION_DURATION = Duration.ofHours(1);
     public static final Duration LOGIN_FAILURE_PAUSE_DURATION = Duration.ofMillis(500);
     public static final Duration SERVER_MAX_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
-    public static final Duration LOG_SIPHON_DRAIN_TASK_SLEEP = Duration.ofSeconds(5);
+    public static final Duration LOG_SIPHON_DRAIN_TASK_POLL_PERIOD = Duration.ofSeconds(5);
     public static final Duration SCHEDULER_POLL_PERIOD = Duration.ofMillis(100);
     public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofSeconds(5);
     public static final Duration SOCKET_LINGER = Duration.ofSeconds(1);
@@ -69,11 +67,17 @@ public final class ApplicationProperties {
     public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
     public static final String HOMEPAGE_PATH = "/index.html";
     public static final String REDIRECT_PATH = "/login.html";
+    public static final String BLACKHOLE_PATH = "defenses/blackhole.html";
+    public static final String DEFENSES_PATH_PREFIX = "defenses/";
+    public static final String PRIVILEGED_STATIC_RESOURCES_PATH_PREFIX = "admin/";
+    public static final String DISK_BASED_STATIC_RESOURCES_PATH_PREFIX = "disk/";
     public static final Path STATIC_SITE_RESOURCES_PATH = Path.of("./site");
     public static final Path LOG_FILE_PATH = Path.of("observability/logs/logs.log");
     public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
     public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
     public static final Path PID_FILE_PATH = Path.of("./pid.txt");
+    public static final Path IPV4_BLOCKLIST_PATH = Path.of("observability/blocklist/ipv4s.txt");
+    public static final Path IPV6_BLOCKLIST_PATH = Path.of("observability/blocklist/ipv6s.txt");
     public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 1024;
     public static final int MAX_SERVER_SOCKETS = 8192;
     public static final int MAX_SOCKETS_PER_IP = 128;
@@ -144,13 +148,10 @@ public final class ApplicationProperties {
     private final String cookieProperties;
 
     ///..
-    private final String privilegedStaticResourcePathPrefix;
-    private final String diskBasedStaticResourcePathSegment;
     private final Duration observabilityDataRetention;
     private final int rateLimitAmount;
-    private final Set<String> illegalUserAgentContains;
-    private final Set<String> illegalPathContains;
-    private final String blockedPayloadPath;
+    private final String[] illegalPathContains;
+    private final boolean isDefenseEnabled;
 
     ///
     public ApplicationProperties(final String environment) throws IOException, IllegalArgumentException {
@@ -179,8 +180,6 @@ public final class ApplicationProperties {
 
         this.loginPassword = this.resolveProperty(properties, "loginPassword", String.class, false);
         this.cookieProperties = this.resolveProperty(properties, "cookieProperties", String.class, false);
-        this.privilegedStaticResourcePathPrefix = this.resolveProperty(properties, "privilegedStaticResourcePathPrefix", String.class, false);
-        this.diskBasedStaticResourcePathSegment = this.resolveProperty(properties, "diskBasedStaticResourcePathSegment", String.class, false);
 
         final int observabilityDataRetentionDays = this.resolveProperty(properties, "observabilityDataRetentionDays", Integer.class, false);
         if(observabilityDataRetentionDays <= 0) throw new IllegalArgumentException("Observability retention days must be greater than 0");
@@ -189,9 +188,8 @@ public final class ApplicationProperties {
         this.rateLimitAmount = this.resolveProperty(properties, "rateLimitAmount", Integer.class, false);
         if(this.rateLimitAmount <= 0) throw new IllegalArgumentException("Rate limit amount must be greater than 0");
 
-        this.illegalUserAgentContains = this.parseList(this.resolveProperty(properties, "illegalUserAgentContains", String.class, true));
         this.illegalPathContains = this.parseList(this.resolveProperty(properties, "illegalPathContains", String.class, true));
-        this.blockedPayloadPath = this.resolveProperty(properties, "blockedPayloadPath", String.class, true);
+        this.isDefenseEnabled = this.resolveProperty(properties, "isDefenseEnabled", Boolean.class, false);
     }
 
     ///
@@ -233,21 +231,10 @@ public final class ApplicationProperties {
     }
 
     ///..
-    private Set<String> parseList(final String data) {
+    private String[] parseList(final String data) {
 
-        if(data == null || data.isBlank()) return Set.of();
-        final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
-
-        return splits.stream().map(elem -> {
-
-            final String trimmedElem = elem.trim();
-
-            if("null".equals(trimmedElem)) return null;
-            if(trimmedElem.isEmpty() || "\"\"".equals(trimmedElem)) return "";
-
-            return trimmedElem;
-
-        }).collect(Collectors.toCollection(LinkedHashSet::new));
+        if(data == null || data.isEmpty()) return new String[0];
+        return GenericUtils.fastSplit(data, ARRAY_SEPARATOR).stream().toArray(String[]::new);
     }
 
     ///

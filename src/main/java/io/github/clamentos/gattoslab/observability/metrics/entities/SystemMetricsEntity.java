@@ -20,7 +20,6 @@ import lombok.Getter;
 public final class SystemMetricsEntity implements Entity {
 
     ///
-    private final long id;
     private final long timestamp;
     private final long platformThreads;
     private final long classesLoaded;
@@ -46,8 +45,6 @@ public final class SystemMetricsEntity implements Entity {
     @Override
     public void stream(final StreamWriter writer) throws IOException {
 
-        writer.write(Long.toString(this.id));
-        writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.timestamp));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.platformThreads));

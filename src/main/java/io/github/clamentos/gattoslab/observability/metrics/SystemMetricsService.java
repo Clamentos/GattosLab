@@ -39,8 +39,6 @@ public final class SystemMetricsService implements Closeable {
     private final ConnectionsTracker connectionsTracker;
 
     ///..
-    private final AtomicLong systemMetricsIdCounter;
-
     private final AtomicLong fileReads;
     private final AtomicLong fileWrites;
 
@@ -73,8 +71,6 @@ public final class SystemMetricsService implements Closeable {
         this.recordingStream = new RecordingStream();
         this.fileStore = Files.getFileStore(Paths.get("/"));
         this.connectionsTracker = connectionsTracker;
-
-        this.systemMetricsIdCounter = new AtomicLong();
 
         this.fileReads = new AtomicLong();
         this.fileWrites = new AtomicLong();
@@ -154,7 +150,6 @@ public final class SystemMetricsService implements Closeable {
 
             return new SystemMetricsEntity(
 
-                this.systemMetricsIdCounter.getAndIncrement(),
                 System.currentTimeMillis(),
                 this.threadMXBean.getThreadCount(),
                 this.classLoadingMXBean.getLoadedClassCount(),

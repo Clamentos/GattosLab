@@ -80,13 +80,7 @@ public final class ExceptionHandler {
     ///.
     private String composeMessage(final HttpExchange exchange, final String postfix) {
 
-        return
-
-            "Unhandled exception for request " +
-            exchange.getRequestId() + ", " +
-            postfix + ". Exchange is: " +
-            GenericUtils.exchangeToString(exchange)
-        ;
+        return "Unhandled exception, " + postfix + ". Exchange was: " + GenericUtils.exchangeToString(exchange);
     }
 
     ///

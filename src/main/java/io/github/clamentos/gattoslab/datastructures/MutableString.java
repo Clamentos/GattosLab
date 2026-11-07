@@ -70,9 +70,9 @@ public final class MutableString implements CharSequence {
     }
 
     ///..
-    public void deleteLastChars(final int amount) {
+    public void deleteLastChar() {
 
-        this.index -= amount;
+        this.index--;
     }
 
     ///..

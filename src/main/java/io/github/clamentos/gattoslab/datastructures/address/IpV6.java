@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.datastructures.address;
 ///
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
@@ -31,21 +32,21 @@ public final class IpV6 implements IpAddress {
     @Override
     public void stream(final StreamWriter writer) throws IOException {
 
-        writer.write(Long.toHexString((this.high & 0xFFFF_0000_0000_0000L) >>> 48));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0xFFFF_0000_0000_0000L) >>> 48]);
         writer.write(':');
-        writer.write(Long.toHexString((this.high & 0x0000_FFFF_0000_0000L) >>> 32));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0x0000_FFFF_0000_0000L) >>> 32]);
         writer.write(':');
-        writer.write(Long.toHexString((this.high & 0x0000_0000_FFFF_0000L) >>> 16));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0x0000_0000_FFFF_0000L) >>> 16]);
         writer.write(':');
-        writer.write(Long.toHexString(this.high & 0x0000_0000_0000_FFFFL));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0x0000_0000_0000_FFFFL)]);
         writer.write(':');
-        writer.write(Long.toHexString((this.low & 0xFFFF_0000_0000_0000L) >>> 48));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0xFFFF_0000_0000_0000L) >>> 48]);
         writer.write(':');
-        writer.write(Long.toHexString((this.low & 0x0000_FFFF_0000_0000L) >>> 32));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0x0000_FFFF_0000_0000L) >>> 32]);
         writer.write(':');
-        writer.write(Long.toHexString((this.low & 0x0000_0000_FFFF_0000L) >>> 16));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0x0000_0000_FFFF_0000L) >>> 16]);
         writer.write(':');
-        writer.write(Long.toHexString(this.low & 0x0000_0000_0000_FFFFL));
+        writer.write(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0x0000_0000_0000_FFFFL)]);
     }
 
     ///..
@@ -54,21 +55,21 @@ public final class IpV6 implements IpAddress {
 
         final MutableString mutableString = new MutableString(15);
 
-        mutableString.append(Long.toHexString((this.high & 0xFFFF_0000_0000_0000L) >>> 48));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0xFFFF_0000_0000_0000L) >>> 48]);
         mutableString.append(':');
-        mutableString.append(Long.toHexString((this.high & 0x0000_FFFF_0000_0000L) >>> 32));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0x0000_FFFF_0000_0000L) >>> 32]);
         mutableString.append(':');
-        mutableString.append(Long.toHexString((this.high & 0x0000_0000_FFFF_0000L) >>> 16));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0x0000_0000_FFFF_0000L) >>> 16]);
         mutableString.append(':');
-        mutableString.append(Long.toHexString(this.high & 0x0000_0000_0000_FFFFL));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0x0000_0000_0000_FFFFL)]);
         mutableString.append(':');
-        mutableString.append(Long.toHexString((this.low & 0xFFFF_0000_0000_0000L) >>> 48));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0xFFFF_0000_0000_0000L) >>> 48]);
         mutableString.append(':');
-        mutableString.append(Long.toHexString((this.low & 0x0000_FFFF_0000_0000L) >>> 32));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0x0000_FFFF_0000_0000L) >>> 32]);
         mutableString.append(':');
-        mutableString.append(Long.toHexString((this.low & 0x0000_0000_FFFF_0000L) >>> 16));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0x0000_0000_FFFF_0000L) >>> 16]);
         mutableString.append(':');
-        mutableString.append(Long.toHexString(this.low & 0x0000_0000_0000_FFFFL));
+        mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.low & 0x0000_0000_0000_FFFFL)]);
 
         return mutableString.toString();
     }

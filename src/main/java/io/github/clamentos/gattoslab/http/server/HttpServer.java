@@ -36,7 +36,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 ///..
 import javax.net.ServerSocketFactory;
@@ -50,6 +49,14 @@ public final class HttpServer implements Closeable {
     private static final byte[] RESPONSE_FOR_MALFORMED = (
 
         new String(HttpStatus.BAD_REQUEST.getResponseValue()) +
+        GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
+        "\r\n"
+
+    ).getBytes();
+
+    private static final byte[] RESPONSE_FOR_BAD_PROTOCOL = (
+
+        new String(HttpStatus.HTTP_VERSION_NOT_SUPPORTED.getResponseValue()) +
         GenericUtils.headerToString(ApplicationProperties.CLOSE_CONNECTION_HEADER) +
         "\r\n"
 
@@ -77,7 +84,6 @@ public final class HttpServer implements Closeable {
 
     ///..
     private final ConnectionsTracker connectionsTracker;
-    private final AtomicLong requestIdCounter;
     private final AtomicBoolean isClosed;
 
     ///..
@@ -112,7 +118,6 @@ public final class HttpServer implements Closeable {
         this.serverSocket = serverSocketFactory.createServerSocket(port, ApplicationProperties.SERVER_SOCKET_ACCEPT_QUEUE_SIZE, bindAddress);
 
         this.connectionsTracker = connectionsTracker;
-        this.requestIdCounter = new AtomicLong();
         this.isClosed = new AtomicBoolean();
 
         this.filter = filter;
@@ -245,7 +250,9 @@ public final class HttpServer implements Closeable {
                 if(this.filter.filter(exchange)) this.handler.handle(exchange);
                 if(!exchange.isKeepAlive() || exchange.isDoForceClose() || !this.isKeepAliveByDefault) break;
 
-                if(!doEnlargeReadTimeout) {
+                final HttpStatus status = exchange.getResponseStatus();
+
+                if(!doEnlargeReadTimeout && status != null && status.isSuccessfull()) {
 
                     client.setSoTimeout(keepAliveAmount);
                     doEnlargeReadTimeout = true;
@@ -275,10 +282,10 @@ public final class HttpServer implements Closeable {
 
         this.connectionsTracker.trackConnectionOpened();
 
-        if(
-            currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS ||
-            currentIpConnectionCount >= ApplicationProperties.MAX_SOCKETS_PER_IP
-        ) {
+        final boolean isConnectionCountOver = currentConnectionCount >= ApplicationProperties.MAX_SERVER_SOCKETS;
+        final boolean isIpCountOver = currentIpConnectionCount >= ApplicationProperties.MAX_SOCKETS_PER_IP;
+
+        if(isConnectionCountOver || isIpCountOver) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash(TOO_MANY_SOCKETS_MESSAGE));
 
@@ -305,9 +312,15 @@ public final class HttpServer implements Closeable {
 
         final List<String> firstLineSplits = GenericUtils.fastSplit(firstLine, ' ');
 
-        if(firstLineSplits.size() != 3 || !"HTTP/1.1".equals(firstLineSplits.get(2))) {
+        if(firstLineSplits.size() != 3) {
 
             this.respondError(client, RESPONSE_FOR_MALFORMED);
+            throw new MalformedRequestException("Bad first line");
+        }
+
+        if(!"HTTP/1.1".equals(firstLineSplits.get(2))) {
+
+            this.respondError(client, RESPONSE_FOR_BAD_PROTOCOL);
             throw new MalformedRequestException("Bad first line");
         }
 
@@ -322,16 +335,7 @@ public final class HttpServer implements Closeable {
             if(header != null) headers.put(header, headerSplits[1]);
         }
 
-        return new HttpExchange(
-
-            this.requestIdCounter.getAndIncrement(),
-            rawRemoteIpAddress,
-            HttpMethod.decode(firstLineSplits.get(0)),
-            firstLineSplits.get(1),
-            headers,
-            reader,
-            writer
-        );
+        return new HttpExchange(rawRemoteIpAddress, HttpMethod.decode(firstLineSplits.get(0)), firstLineSplits.get(1), headers, reader, writer);
     }
 
     ///..
