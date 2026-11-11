@@ -5,8 +5,7 @@ public enum AuthorizationAction {
 
     ///
     ALLOW,
-    REDIRECT,
-    BLOCK;
+    REDIRECT;
 
     ///
 }

@@ -8,9 +8,11 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -67,11 +69,6 @@ public final class ApplicationProperties {
     public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
     public static final String HOMEPAGE_PATH = "/index.html";
     public static final String REDIRECT_PATH = "/login.html";
-    public static final String BLACKHOLE_PATH = "defenses/blackhole.html";
-    public static final String DEFENSES_PATH_PREFIX = "defenses/";
-    public static final String PRIVILEGED_STATIC_RESOURCES_PATH_PREFIX = "admin/";
-    public static final String DISK_BASED_STATIC_RESOURCES_PATH_PREFIX = "disk/";
-    public static final Path STATIC_SITE_RESOURCES_PATH = Path.of("./site");
     public static final Path LOG_FILE_PATH = Path.of("observability/logs/logs.log");
     public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
     public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
@@ -134,24 +131,32 @@ public final class ApplicationProperties {
     );
 
     ///.
-    private final String serverHost;
-    private final int serverPort;
-    private final String sslCertificatePath;
+    private final Path sslCertificate;
     private final String sslKeyStorePassword;
-    private final boolean keepAliveByDefault;
 
     ///..
-    private final Set<String> allowedOrigins;
+    private final InetSocketAddress[] siteServers;
+    private final Path siteResources;
+    private final Set<String> siteAllowedOrigins;
+    private final String siteDiskBasedResourcesPathPrefix;
 
     ///..
+    private final InetSocketAddress[] dashboardServers;
+    private final Path dashboardResources;
+    private final Set<String> dashboardAllowedOrigins;
     private final String loginPassword;
     private final String cookieProperties;
+    private final Duration observabilityRetention;
 
     ///..
-    private final Duration observabilityDataRetention;
+    private final HttpProxyConfiguration[] httpProxyServers;
+
+    ///..
+    private final ProxyConfiguration[] tcpServers;
+
+    ///..
     private final int rateLimitAmount;
     private final String[] illegalPathContains;
-    private final boolean isDefenseEnabled;
 
     ///
     public ApplicationProperties(final String environment) throws IOException, IllegalArgumentException {
@@ -163,16 +168,22 @@ public final class ApplicationProperties {
         if(propertiesFile == null) throw new IllegalArgumentException("Properties file '" + fileName + "' not found");
         properties.load(propertiesFile);
 
-        this.serverHost = this.resolveProperty(properties, "serverHost", String.class, false);
-
-        this.serverPort = this.resolveProperty(properties, "serverPort", Integer.class, false);
-        if(this.serverPort < 0 || this.serverPort > 65535) throw new IllegalArgumentException("'serverPort' must be between 0 and 65535");
-
-        this.sslCertificatePath = this.resolveProperty(properties, "sslCertificatePath", String.class, false);
+        this.sslCertificate = Path.of(this.resolveProperty(properties, "sslCertificatePath", String.class, false));
         this.sslKeyStorePassword = this.resolveProperty(properties, "sslKeyStorePassword", String.class, false);
-        this.keepAliveByDefault = this.resolveProperty(properties, "keepAliveByDefault", Boolean.class, false);
+        this.siteServers = this.parseAddresses(this.resolveProperty(properties, "siteServers", String.class, false));
+        this.siteResources = Path.of(this.resolveProperty(properties, "siteResourcesPath", String.class, false));
 
-        this.allowedOrigins = GenericUtils.fastSplit(this.resolveProperty(properties, "allowedOrigins", String.class, false), ARRAY_SEPARATOR)
+        this.siteAllowedOrigins = GenericUtils.fastSplit(this.resolveProperty(properties, "siteAllowedOrigins", String.class, false), ARRAY_SEPARATOR)
+
+            .stream()
+            .collect(Collectors.toSet())
+        ;
+
+        this.siteDiskBasedResourcesPathPrefix = this.resolveProperty(properties, "siteDiskBasedResourcesPathPrefix", String.class, true);
+        this.dashboardServers = this.parseAddresses(this.resolveProperty(properties, "dashboardServers", String.class, false));
+        this.dashboardResources = Path.of(this.resolveProperty(properties, "dashboardResourcesPath", String.class, false));
+
+        this.dashboardAllowedOrigins = GenericUtils.fastSplit(this.resolveProperty(properties, "dashboardAllowedOrigins", String.class, false), ARRAY_SEPARATOR)
 
             .stream()
             .collect(Collectors.toSet())
@@ -181,15 +192,17 @@ public final class ApplicationProperties {
         this.loginPassword = this.resolveProperty(properties, "loginPassword", String.class, false);
         this.cookieProperties = this.resolveProperty(properties, "cookieProperties", String.class, false);
 
-        final int observabilityDataRetentionDays = this.resolveProperty(properties, "observabilityDataRetentionDays", Integer.class, false);
-        if(observabilityDataRetentionDays <= 0) throw new IllegalArgumentException("Observability retention days must be greater than 0");
-        this.observabilityDataRetention = Duration.ofDays(observabilityDataRetentionDays);
+        final int observabilityRetentionDays = this.resolveProperty(properties, "observabilityRetentionDays", Integer.class, false);
+        if(observabilityRetentionDays <= 0) throw new IllegalArgumentException("Observability retention days must be greater than 0");
+        this.observabilityRetention = Duration.ofDays(observabilityRetentionDays);
+
+        this.httpProxyServers = this.parseHttpProxies(this.resolveProperty(properties, "httpProxyServers", String.class, true));
+        this.tcpServers = this.parseProxies(this.resolveProperty(properties, "tcpServers", String.class, true));
 
         this.rateLimitAmount = this.resolveProperty(properties, "rateLimitAmount", Integer.class, false);
         if(this.rateLimitAmount <= 0) throw new IllegalArgumentException("Rate limit amount must be greater than 0");
 
         this.illegalPathContains = this.parseList(this.resolveProperty(properties, "illegalPathContains", String.class, true));
-        this.isDefenseEnabled = this.resolveProperty(properties, "isDefenseEnabled", Boolean.class, false);
     }
 
     ///
@@ -206,13 +219,7 @@ public final class ApplicationProperties {
 
         if(propertyValue == null) throw new IllegalArgumentException("The property '" + propertyName + "' must be defined");
         if(!isEmptyAllowed && propertyValue.isEmpty()) throw new IllegalArgumentException("The property '" + propertyName + "' cannot be empty");
-
-        if(propertyValue.isEmpty()) {
-
-            if(clazz == String.class) return clazz.cast("");
-            if(clazz == Integer.class) return clazz.cast(0);
-            if(clazz == Boolean.class) return clazz.cast(false);
-        }
+        if(propertyValue.isEmpty()) this.cast(null, clazz, true);
 
         if(propertyValue.charAt(0) == '$') {
 
@@ -223,11 +230,76 @@ public final class ApplicationProperties {
             if(!isEmptyAllowed && propertyValue.isEmpty()) throw new IllegalArgumentException("The property '" + propertyName + "' cannot be empty");
         }
 
-        if(clazz == String.class) return clazz.cast(propertyValue);
-        if(clazz == Integer.class) return clazz.cast(Integer.parseInt(propertyValue));
-        if(clazz == Boolean.class) return clazz.cast(Boolean.parseBoolean(propertyValue));
+        return this.cast(propertyValue, clazz, false);
+    }
 
-        throw new IllegalArgumentException("Unsupported class '" + clazz + "'");
+    ///..
+    private InetSocketAddress[] parseAddresses(final String data) {
+
+        if(data == null || data.isEmpty()) return new InetSocketAddress[0];
+
+        final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
+        final int length = splits.size();
+        final InetSocketAddress[] addresses = new InetSocketAddress[length];
+
+        for(int i = 0; i < length; i++) {
+
+            final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
+            if(components.size() != 2) throw new IllegalArgumentException("Addresses must be composed of ip and port");
+
+            addresses[i] = InetSocketAddress.createUnresolved(components.get(0), Integer.parseInt(components.get(1)));
+        }
+
+        return addresses;
+    }
+
+    ///..
+    private HttpProxyConfiguration[] parseHttpProxies(final String data) {
+
+        if(data == null || data.isEmpty()) return new HttpProxyConfiguration[0];
+
+        final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
+        final int length = splits.size();
+        final HttpProxyConfiguration[] proxies = new HttpProxyConfiguration[length];
+
+        for(int i = 0; i < length; i++) {
+
+            final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
+            if(components.size() != 4) throw new IllegalArgumentException("Proxies must be composed of 2 ip and port couples");
+
+            proxies[i] = new HttpProxyConfiguration(
+
+                components.get(0),
+                InetSocketAddress.createUnresolved(components.get(1), Integer.parseInt(components.get(2))),
+                Boolean.parseBoolean(components.get(3))
+            );
+        }
+
+        return proxies;
+    }
+
+    ///..
+    private ProxyConfiguration[] parseProxies(final String data) {
+
+        if(data == null || data.isEmpty()) return new ProxyConfiguration[0];
+
+        final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
+        final int length = splits.size();
+        final ProxyConfiguration[] proxies = new ProxyConfiguration[length];
+
+        for(int i = 0; i < length; i++) {
+
+            final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
+            if(components.size() != 4) throw new IllegalArgumentException("Proxies must be composed of 2 ip and port couples");
+
+            proxies[i] = new ProxyConfiguration(
+
+                InetSocketAddress.createUnresolved(components.get(0), Integer.parseInt(components.get(1))),
+                InetSocketAddress.createUnresolved(components.get(2), Integer.parseInt(components.get(3)))
+            );
+        }
+
+        return proxies;
     }
 
     ///..
@@ -235,6 +307,23 @@ public final class ApplicationProperties {
 
         if(data == null || data.isEmpty()) return new String[0];
         return GenericUtils.fastSplit(data, ARRAY_SEPARATOR).stream().toArray(String[]::new);
+    }
+
+    ///..
+    private <T> T cast(final String value, final Class<T> clazz, final boolean isDefault) {
+
+        if(isDefault) {
+
+            if(clazz == String.class) return clazz.cast("");
+            if(clazz == Integer.class) return clazz.cast(0);
+            if(clazz == Boolean.class) return clazz.cast(false);
+        }
+
+        if(clazz == String.class) return clazz.cast(value);
+        if(clazz == Integer.class) return clazz.cast(Integer.parseInt(value));
+        if(clazz == Boolean.class) return clazz.cast(Boolean.parseBoolean(value));
+
+        throw new IllegalArgumentException("Unsupported class '" + clazz + "'");
     }
 
     ///

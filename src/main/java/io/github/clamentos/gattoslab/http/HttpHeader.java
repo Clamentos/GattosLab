@@ -28,6 +28,7 @@ public enum HttpHeader {
     CONTENT_TYPE("Content-Type: ".getBytes()),
     CONNECTION("Connection: ".getBytes()),
     DATE("Date: ".getBytes()),
+    HOST("Host: ".getBytes()),
     KEEP_ALIVE("Keep-Alive: ".getBytes()),
     LOCATION("Location: ".getBytes()),
     RETRY_AFTER("Retry-After: ".getBytes()),
@@ -54,6 +55,7 @@ public enum HttpHeader {
             case "cookie": return HttpHeader.COOKIE;
             case "connection": return HttpHeader.CONNECTION;
             case "filter": return HttpHeader.FILTER;
+            case "host": return HttpHeader.HOST;
             case "transfer-encoding": return HttpHeader.TRANSFER_ENCODING;
             case "user-agent": return HttpHeader.USER_AGENT;
 

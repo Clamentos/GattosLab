@@ -16,11 +16,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 
@@ -35,38 +32,36 @@ public final class ResourceMappings {
 
     ///
     private final Map<String, Api> apiMappings;
-    private final Map<String, StaticResource> staticResourcesMappings;
+
+    ///..
+    private final Map<String, StaticResource> siteResourcesMappings;
+    private final Map<String, StaticResource> dashboardResourcesMappings;
 
     ///
     public ResourceMappings() throws IOException {
 
         this.apiMappings = this.populateApis();
-        this.staticResourcesMappings = this.populateResources();
+
+        this.siteResourcesMappings = this.populateResources();
+        this.dashboardResourcesMappings = null; // TODO
     }
 
     ///
-    public Resource get(final String path) {
+    public Resource getSite(final String path) {
 
-        final Resource resource = this.staticResourcesMappings.get(path);
+        final Resource resource = this.siteResourcesMappings.get(path);
         if(resource != null) return resource;
 
         return this.apiMappings.get(path);
     }
 
     ///..
-    public List<StaticResource> getDefenses() {
+    public Resource getDashboard(final String path) {
 
-        final List<StaticResource> defenses = new ArrayList<>();
+        final Resource resource = this.dashboardResourcesMappings.get(path);
+        if(resource != null) return resource;
 
-        for(final Entry<String, StaticResource> staticResourceEntry : this.staticResourcesMappings.entrySet()) {
-
-            if(staticResourceEntry.getKey().contains(ApplicationProperties.DEFENSES_PATH_PREFIX)) {
-
-                defenses.add(staticResourceEntry.getValue());
-            }
-        }
-
-        return defenses;
+        return this.apiMappings.get(path);
     }
 
     ///.
@@ -137,11 +132,6 @@ public final class ResourceMappings {
         try(final InputStream resourceStream = Files.newInputStream(resourcePath)) {
 
             if(resourceStream == null) throw new IOException("Resource '" + resourcePath + "' not found");
-
-            if(resourcePath.toString().contains(ApplicationProperties.BLACKHOLE_PATH)) {
-
-                return resourceStream.readAllBytes();
-            }
 
             final ByteArrayOutputStream resourceBytes = new ByteArrayOutputStream();
             final GZIPOutputStream compressor = new GZIPOutputStream(resourceBytes);

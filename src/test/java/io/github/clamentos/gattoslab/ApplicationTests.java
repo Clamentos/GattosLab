@@ -108,7 +108,7 @@ class ApplicationTests {
     ///..
     private void checkContent(final byte[] received, final String path) throws IOException {
 
-        final StaticResource resource = (StaticResource)Application.exposeMappingsForTests().get(path);
+        final StaticResource resource = (StaticResource)Application.exposeMappingsForTests().getSite(path);
 
         if(resource.getDiskPath() == null) {
 

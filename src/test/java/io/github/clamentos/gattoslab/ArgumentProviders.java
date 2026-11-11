@@ -52,7 +52,7 @@ public class ArgumentProviders {
 
         return Application.exposeMappingsForTests()
 
-            .getStaticResourcesMappings()
+            .getSiteResourcesMappings()
             .entrySet()
             .stream()
             .map(entry -> Arguments.of(entry.getKey(), entry.getValue().getAuthorizationAction())

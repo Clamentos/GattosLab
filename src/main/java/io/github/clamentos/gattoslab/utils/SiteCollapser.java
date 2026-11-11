@@ -1,7 +1,6 @@
 package io.github.clamentos.gattoslab.utils;
 
 ///
-import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 
 ///..
@@ -10,7 +9,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -18,7 +16,6 @@ import java.util.Base64.Encoder;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
-import java.util.zip.GZIPOutputStream;
 
 ///..
 import org.jsoup.Jsoup;
@@ -36,10 +33,6 @@ public class SiteCollapser {
     ///..
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
-    ///..
-    private static final int BLACKHOLE_CHUNK_SIZE = 1000;
-    private static final int BLACKHOLE_NUM_CHUNKS = 10_000_000;
-
     ///
     public static void main(final String[] args) throws IOException, InterruptedException {
 
@@ -53,7 +46,6 @@ public class SiteCollapser {
             final Path[] paths = stream
 
                 .filter(Files::isRegularFile)
-                .filter(p -> !p.toString().contains(ApplicationProperties.BLACKHOLE_PATH))
                 .toArray(Path[]::new)
             ;
 
@@ -93,9 +85,6 @@ public class SiteCollapser {
 
             deleteDirectory(INTERMEDIATE);
         }
-
-        simpleLog("SiteCollapser :: blackhole");
-        createBlackhole();
 
         simpleLog("SiteCollapser END");
         if(exitCode != 0) System.exit(1);
@@ -237,30 +226,6 @@ public class SiteCollapser {
         catch(final NoSuchFileException _) {
 
             System.out.println("SiteCollapser: Directory was already not present: " + root);
-        }
-    }
-
-    ///..
-    private static void createBlackhole() throws IOException {
-
-        final String alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        final int index = (int)Math.abs(System.currentTimeMillis() % alphabet.length());
-        final byte[] chunk = Character.toString(alphabet.charAt(index)).repeat(BLACKHOLE_CHUNK_SIZE).getBytes();
-        final Path path = Path.of(DESTINATION.toString() + '/' + ApplicationProperties.BLACKHOLE_PATH);
-
-        Files.createDirectories(path.getParent());
-
-        try(final GZIPOutputStream compressor = new GZIPOutputStream(Files.newOutputStream(path, StandardOpenOption.CREATE))) {
-
-            compressor.write("<!DOCTYPE html><html lang = \"en\">".getBytes());
-
-            for(int i = 0; i < BLACKHOLE_NUM_CHUNKS; i++) {
-
-                compressor.write(chunk);
-            }
-
-            compressor.write("</html>".getBytes());
-            compressor.finish();
         }
     }
 
