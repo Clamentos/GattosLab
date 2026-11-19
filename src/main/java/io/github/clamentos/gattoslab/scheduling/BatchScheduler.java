@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.scheduling;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
+import io.github.clamentos.gattoslab.scheduling.components.SimpleCron;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..

@@ -15,12 +15,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 ///
-import lombok.EqualsAndHashCode;
-
-///
-@EqualsAndHashCode(callSuper = true)
-
-///
 public final class Siphon<T extends Resettable> extends AbstractList<T> {
 
     ///
@@ -112,6 +106,20 @@ public final class Siphon<T extends Resettable> extends AbstractList<T> {
     public T get(final int index) {
 
         return this.elements.get(index);
+    }
+
+    ///..
+    @Override
+    public boolean equals(final Object other) {
+
+        return super.equals(other);
+    }
+
+    ///..
+    @Override
+    public int hashCode() {
+
+        return super.hashCode();
     }
 
     ///.

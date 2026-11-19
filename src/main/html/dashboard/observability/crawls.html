@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang = "en">
+    
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
+        <meta name = "description" content = "Admin site crawls page."/>
+
+        <link rel = "stylesheet" href = "../../site/css/base.css"/>
+        <link rel = "stylesheet" href = "../../site/css/form.css"/>
+        <link rel = "stylesheet" href = "../../site/css/table.css"/>
+        <link rel = "stylesheet" href = "../../site/css/loader.css"/>
+        <link rel = "stylesheet" href = "../../site/css/logout.css"/>
+
+        <link rel = "icon" type = "image/x-icon" href = "../favicon.ico"/>
+
+        <title>Gatto's Lab - Crawls</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-container">
+
+                <div class = "nav-item"></div>
+
+                <div class = "nav-item">
+
+                    <button class = "logout-button" onclick = "logout('../login.html')">
+                        <img src = "../images/logout-img.svg" alt = ""/>
+                        <div id = "logout-text">Logout</div>
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Invocations
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "default-container">
+
+                <form class = "form-container" onsubmit = "onSubmitEvent(event)">
+
+                    <div class = "form-input-group">
+
+                        <input
+
+                            class = "form-input"
+                            id = "start-timestamp"
+                            type = "datetime-local"
+                            name = "startTimestamp"
+                            aria-label = "start-timestamp-input"
+                        >
+
+                        <p class = "form-field-description">
+                            <strong>Start time</strong>: specifies the start time of the search window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input
+
+                            class = "form-input"
+                            id = "end-timestamp"
+                            type = "datetime-local"
+                            name = "endTimestamp"
+                            aria-label = "end-timestamp-input"
+                        >
+
+                        <p class = "form-field-description">
+                            <strong>End time:</strong> specifies the end time of the search window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <select class = "form-input" name = "isUnknown" aria-label = "is-unknown-input">
+                            <option value = "">-</option>
+                            <option value = "false">Known only</option>
+                            <option value = "true">Unknown only</option>
+                        </select>
+
+                        <p class = "form-field-description">
+                            <strong>Is known:</strong> specifies if bogus paths (non existent / unknown) should be included or not in the search filter. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "pathPattern" aria-label = "path-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Path pattern:</strong> specifies the path pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "remoteIpAddressPattern" aria-label = "remote-ip-address-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Remote IP address pattern:</strong> specifies the remote IP address pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "userAgentPattern" aria-label = "user-agent-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>User agent pattern:</strong> specifies the user agent's pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <button class = "form-button" type = "submit">Filter</button>
+                    <div class = "loader" id = "submit-loader" style = "display: none"></div>
+
+                </form>
+
+                <div class = "table-container">
+
+                    <button class = "icon-button" onclick = "toggleVisibility('invocations-table')">
+                        <img id = "invocations-table-icon-down" src = "../images/caret-down.svg" alt = ""/>
+                        <img class = "hidden-element" id = "invocations-table-icon-up" src = "../images/caret-up.svg" alt = ""/>
+                    </button>
+
+                    <strong id = "invocations-count" style = "padding-left: 10px"></strong>
+
+                    <div class = "narrow-table" id = "invocations-table">
+
+                        <div class = "table-header-row">
+                            <div style = "width: 70%; border-left: none">Path</div>
+                            <div style = "width: 5%">Count</div>
+                            <div style = "width: 11%">Last invocation</div>
+                            <div style = "width: 14%">Statuses</div>
+                        </div>
+
+                        <div class = "table-data" id = "invocations-table-hook"></div>
+
+                    </div>
+
+                </div>
+
+                <div class = "table-container">
+
+                    <button class = "icon-button" onclick = "toggleVisibility('user-agents-table')">
+                        <img id = "user-agents-table-icon-down" src = "../images/caret-down.svg" alt = ""/>
+                        <img class = "hidden-element" id = "user-agents-table-icon-up" src = "../images/caret-up.svg" alt = ""/>
+                    </button>
+
+                    <strong id = "user-agents-count"></strong>
+
+                    <div class = "narrow-table" id = "user-agents-table">
+
+                        <div class = "table-header-row">
+                            <div style = "width: 84%; border-left: none">User agent</div>
+                            <div style = "width: 5%">Count</div>
+                            <div style = "width: 11%">Last invocation</div>
+                        </div>
+
+                        <div class = "table-data" id = "user-agents-table-hook"></div>
+
+                    </div>
+
+                </div>
+
+                <div class = "table-container">
+
+                    <button class = "icon-button" onclick = "toggleVisibility('remote-ips-table')">
+                        <img id = "remote-ips-table-icon-down" src = "../images/caret-down.svg" alt = ""/>
+                        <img class = "hidden-element" id = "remote-ips-table-icon-up" src = "../images/caret-up.svg" alt = ""/>
+                    </button>
+
+                    <strong id = "remote-ips-count"></strong>
+
+                    <div class = "narrow-table" id = "remote-ips-table">
+
+                        <div class = "table-header-row">
+                            <div style = "width: 84%; border-left: none">Remote IP address</div>
+                            <div style = "width: 5%">Count</div>
+                            <div style = "width: 11%">Last invocation</div>
+                        </div>
+
+                        <div class = "table-data" id = "remote-ips-table-hook"></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div id = "error-container"></div>
+
+        </main>
+
+    </body>
+
+    <script src = "../js/error.js" module></script>
+    <script src = "../js/logout.js" module></script>
+    <script src = "../js/utils.js" module></script>
+    <script src = "../js/crawls.js" module></script>
+
+</html>

@@ -5,6 +5,7 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
 import io.github.clamentos.gattoslab.datastructures.interfaces.Entity;
 import io.github.clamentos.gattoslab.datastructures.interfaces.Resettable;
+import io.github.clamentos.gattoslab.observability.logging.entities.components.LogSeverity;
 
 ///..
 import java.io.IOException;

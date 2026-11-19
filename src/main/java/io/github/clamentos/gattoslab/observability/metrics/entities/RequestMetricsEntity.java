@@ -3,7 +3,7 @@ package io.github.clamentos.gattoslab.observability.metrics.entities;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
-import io.github.clamentos.gattoslab.datastructures.address.IpAddress;
+import io.github.clamentos.gattoslab.datastructures.addresses.IpAddress;
 import io.github.clamentos.gattoslab.datastructures.interfaces.Entity;
 import io.github.clamentos.gattoslab.datastructures.interfaces.Resettable;
 

@@ -4,8 +4,8 @@ package io.github.clamentos.gattoslab.utils;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
-import io.github.clamentos.gattoslab.http.HttpHeader;
-import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpExchange;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpHeader;
 
 ///..
 import java.io.IOException;
@@ -35,8 +35,8 @@ public final class GenericUtils {
     public static final OfVirtual OF_VIRTUAL = Thread.ofVirtual();
     public static final String[] IPV4_LOOKUP_TABLE = new String[256];
     public static final String[] IPV6_LOOKUP_TABLE = new String[65536];
-    public static final long MIN_ISO_DATE_TIMESTAMP = -62167222196000L;
-    public static final long MAX_ISO_DATE_TIMESTAMP = 253402297199999L;
+    public static final long MIN_ISO_DATE_TIMESTAMP = -62_167_222_196_000L;
+    public static final long MAX_ISO_DATE_TIMESTAMP = 253_402_297_199_999L;
 
     ///..
     private static final String[] DATA_SIZE_UNITS = {"KiB", "MiB", "GiB", "TiB"};
@@ -61,6 +61,8 @@ public final class GenericUtils {
         return
 
             exchange.getRemoteAddress().toString() +
+            ApplicationProperties.FINGERPRINT_SEPARATOR +
+            exchange.getDomain() +
             ApplicationProperties.FINGERPRINT_SEPARATOR +
             normalizedForObservability(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT))
         ;

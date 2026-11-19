@@ -4,14 +4,14 @@ package io.github.clamentos.gattoslab.security;
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.Pair;
-import io.github.clamentos.gattoslab.http.HttpHeader;
-import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
-import io.github.clamentos.gattoslab.http.server.components.ResponseBodyCallback;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.security.components.SecurityFailure;
 import io.github.clamentos.gattoslab.security.components.Session;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpExchange;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpHeader;
+import io.github.clamentos.gattoslab.server.http.exchange.components.body.ChunkedResponseBodyCallback;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
@@ -162,7 +162,7 @@ public final class SessionService {
     }
 
     ///..
-    public ResponseBodyCallback getSessions() {
+    public ChunkedResponseBodyCallback getSessions() {
 
         return writer -> {
 

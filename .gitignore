@@ -6,6 +6,7 @@ target/
 pid.txt
 /observability
 /site
+/dashboard
 
 ### VS Code ###
 .vscode/

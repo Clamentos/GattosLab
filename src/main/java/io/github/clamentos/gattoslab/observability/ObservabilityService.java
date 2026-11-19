@@ -3,11 +3,6 @@ package io.github.clamentos.gattoslab.observability;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
-import io.github.clamentos.gattoslab.http.HttpHeader;
-import io.github.clamentos.gattoslab.http.HttpStatus;
-import io.github.clamentos.gattoslab.http.server.components.HttpExchange;
-import io.github.clamentos.gattoslab.http.server.components.ResponseBodyCallback;
-import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
 import io.github.clamentos.gattoslab.observability.database.ObservabilityDatabase;
 import io.github.clamentos.gattoslab.observability.database.ObservabilityDirectory;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -23,6 +18,11 @@ import io.github.clamentos.gattoslab.observability.metrics.entities.aggregations
 import io.github.clamentos.gattoslab.observability.metrics.entities.chart.LineChartEntity;
 import io.github.clamentos.gattoslab.observability.metrics.entities.chart.LineChartEntry;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.server.components.connection.ConnectionsTracker;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpExchange;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpHeader;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpStatus;
+import io.github.clamentos.gattoslab.server.http.exchange.components.body.ChunkedResponseBodyCallback;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
@@ -63,7 +63,7 @@ public final class ObservabilityService implements Closeable {
     public ObservabilityService(
         
         final ApplicationProperties applicationProperties,
-        final ConnectionsTracker connectionsTracker,
+        final ConnectionsTracker httpConnectionsTracker,
         final BatchScheduler batchScheduler
 
     ) throws IOException {
@@ -80,7 +80,7 @@ public final class ObservabilityService implements Closeable {
         this.secondarySiphon = new Siphon<>(type, ApplicationProperties.METRICS_SIPHON_CAPACITY, RequestMetricsEntity::new, this::drainSiphonTask);
         this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
 
-        this.systemMetricsService = new SystemMetricsService(connectionsTracker, batchScheduler.schedule(
+        this.systemMetricsService = new SystemMetricsService(httpConnectionsTracker, batchScheduler.schedule(
 
             this::pollSystemMetricsTask,
             "gattos-lab-system-metrics-poll-task",
@@ -103,7 +103,7 @@ public final class ObservabilityService implements Closeable {
 
         batchScheduler.schedule(
 
-            () -> this.retentionTask(applicationProperties.getObservabilityDataRetention()),
+            () -> this.retentionTask(applicationProperties.getObservabilityRetention()),
             "gattos-lab-observability-retention-task",
             ApplicationProperties.OBSERVABILITY_RETENTION_CRON
         );
@@ -130,7 +130,7 @@ public final class ObservabilityService implements Closeable {
     }
 
     ///..
-    public ResponseBodyCallback getLogs(final HttpExchange exchange) throws IOException, IllegalArgumentException {
+    public ChunkedResponseBodyCallback getLogs(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:
@@ -164,7 +164,7 @@ public final class ObservabilityService implements Closeable {
     }
 
     ///..
-    public ResponseBodyCallback getRequestMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
+    public ChunkedResponseBodyCallback getRequestMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:
@@ -269,7 +269,7 @@ public final class ObservabilityService implements Closeable {
     }
 
     ///..
-    public ResponseBodyCallback getSystemMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
+    public ChunkedResponseBodyCallback getSystemMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:
@@ -411,7 +411,7 @@ public final class ObservabilityService implements Closeable {
     }
 
     ///..
-    public ResponseBodyCallback getCrawlMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
+    public ChunkedResponseBodyCallback getCrawlMetrics(final HttpExchange exchange) throws IOException, IllegalArgumentException {
 
         /*
             filter:

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang = "en">
+    
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
+        <meta name = "description" content = "Admin site logs page."/>
+
+        <link rel = "stylesheet" href = "../../site/css/base.css"/>
+        <link rel = "stylesheet" href = "../../site/css/form.css"/>
+        <link rel = "stylesheet" href = "../../site/css/table.css"/>
+        <link rel = "stylesheet" href = "../../site/css/loader.css"/>
+        <link rel = "stylesheet" href = "../../site/css/logout.css"/>
+
+        <link rel = "icon" type = "image/x-icon" href = "../favicon.ico"/>
+
+        <title>Gatto's Lab - Logs</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-container">
+
+                <div class = "nav-item"></div>
+
+                <div class = "nav-item">
+
+                    <button class = "logout-button" onclick = "logout('../login.html')">
+                        <img src = "../images/logout-img.svg" alt = ""/>
+                        <div id = "logout-text">Logout</div>
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Logs
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "default-container">
+
+                <form class = "form-container" onsubmit = "onSubmitEvent(event)">
+
+                    <div class = "form-input-group">
+
+                        <input
+
+                            class = "form-input"
+                            id = "start-timestamp"
+                            type = "datetime-local"
+                            name = "startTimestamp"
+                            aria-label = "start-timestamp-input"
+                        >
+
+                        <p class = "form-field-description">
+                            <strong>Start time:</strong> specifies the start time of the search window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input
+
+                            class = "form-input"
+                            id = "end-timestamp"
+                            type = "datetime-local"
+                            name = "endTimestamp"
+                            aria-label = "end-timestamp-input"
+                        >
+
+                        <p class = "form-field-description">
+                            <strong>End time:</strong> specifies the end time of the search window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input
+
+                            class = "form-input"
+                            type = "text"
+                            name = "severities"
+                            placeholder = "INFO, ERROR, WARNING"
+                            aria-label = "severities-input"
+                        >
+
+                        <p class = "form-field-description">
+                            <strong>Severities:</strong> specifies the log severities to be included in the search. To include multiple, simply separate the names with a comma. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "threadPattern" aria-label = "thread-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Thread pattern:</strong> specifies the thread's name pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "loggerPattern" aria-label = "logger-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Logger pattern:</strong> specifies the logger's name pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "messagePattern" aria-label = "message-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Message pattern:</strong> specifies the message pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "text" name = "exceptionClassPattern" aria-label = "exception-class-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Exception class pattern:</strong> specifies the exception class pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <button class = "form-button" type = "submit">Filter</button>
+                    <div class = "loader" id = "submit-loader" style = "display: none"></div>
+
+                </form>
+
+                <div class = "table-container">
+
+                    <button class = "icon-button" onclick = "toggleVisibility('logs-table')">
+                        <img id = "logs-table-icon-down" src = "../images/caret-down.svg" alt = ""/>
+                        <img class = "hidden-element" id = "logs-table-icon-up" src = "../images/caret-up.svg" alt = ""/>
+                    </button>
+
+                    <strong id = "logs-count"></strong>
+
+                    <div class = "table" id = "logs-table">
+
+                        <div class = "table-header-row">
+                            <div style = "width: 7%; border-left: none">Timestamp</div>
+                            <div style = "width: 4%">Severity</div>
+                            <div style = "width: 44%">Message</div>
+                            <div style = "width: 15%">Logger</div>
+                            <div style = "width: 15%">Thread</div>
+                            <div style = "width: 15%">Exception</div>
+                        </div>
+
+                        <div class = "table-data" id = "table-data-hook"></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div id = "error-container"></div>
+
+        </main>
+
+    </body>
+
+    <script src = "../js/error.js" module></script>
+    <script src = "../js/logout.js" module></script>
+    <script src = "../js/utils.js" module></script>
+    <script src = "../js/logs.js" module></script>
+
+</html>

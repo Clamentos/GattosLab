@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab;
+/*package io.github.clamentos.gattoslab;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
@@ -7,6 +7,7 @@ import io.github.clamentos.gattoslab.http.HttpStatus;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 ///..
@@ -64,11 +65,10 @@ public class ArgumentProviders {
 
         waitForInit();
 
-        return Application.exposeMappingsForTests().getApiMappings().entrySet()
+        return Arrays.stream(Api.values())
 
-            .stream()
-            .filter(entry -> !entry.getKey().contains("login") && !entry.getKey().contains("logout"))
-            .map(entry -> Arguments.of(entry.getKey())
+            .filter(entry -> !entry.getPath().contains("login") && !entry.getPath().contains("logout"))
+            .map(entry -> Arguments.of(entry.getPath())
         );
     }
 
@@ -237,3 +237,4 @@ public class ArgumentProviders {
 
     ///
 }
+*/

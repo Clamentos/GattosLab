@@ -1,0 +1,70 @@
+package io.github.clamentos.gattoslab.server.http.exchange.components;
+
+///
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+///
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Getter
+
+///
+public enum HttpStatus { // TODO: add more to support proxy
+
+    ///
+    OK(200, "HTTP/1.1 200 OK\r\n".getBytes()),
+    NO_CONTENT(204, "HTTP/1.1 204 No Content\r\n".getBytes()),
+    SEE_OTHER(303, "HTTP/1.1 303 See Other\r\n".getBytes()),
+    BAD_REQUEST(400, "HTTP/1.1 400 Bad Request\r\n".getBytes()),
+    UNAUTHORIZED(401, "HTTP/1.1 401 Unauthorized\r\n".getBytes()),
+    FORBIDDEN(403, "HTTP/1.1 403 Forbidden\r\n".getBytes()),
+    NOT_FOUND(404, "HTTP/1.1 404 Not Found\r\n".getBytes()),
+    METHOD_NOT_ALLOWED(405, "HTTP/1.1 405 Method Not Allowed\r\n".getBytes()),
+    CONTENT_TOO_LARGE(413, "HTTP/1.1 413 Content Too Large\r\n".getBytes()),
+    UNPROCESSABLE(422, "HTTP/1.1 422 Unprocessable Content\r\n".getBytes()),
+    TOO_MANY_REQUESTS(429, "HTTP/1.1 429 Too Many Requests\r\n".getBytes()),
+    INTERNAL_SERVER_ERROR(500, "HTTP/1.1 500 Internal Server Error\r\n".getBytes()),
+    SERVICE_UNAVAILABLE(503, "HTTP/1.1 503 Service Unavailable\r\n".getBytes()),
+    HTTP_VERSION_NOT_SUPPORTED(505, "HTTP/1.1 505 HTTP Version Not Supported\r\n".getBytes()),
+
+    ///..
+    TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n".getBytes());
+
+    ///
+    private final int code;
+    private final byte[] responseValue;
+
+    ///
+    public static HttpStatus decode(final int code) {
+
+        switch(code) {
+
+            case 200: return HttpStatus.OK;
+            case 204: return HttpStatus.NO_CONTENT;
+            case 303: return HttpStatus.SEE_OTHER;
+            case 400: return HttpStatus.BAD_REQUEST;
+            case 401: return HttpStatus.UNAUTHORIZED;
+            case 403: return HttpStatus.FORBIDDEN;
+            case 404: return HttpStatus.NOT_FOUND;
+            case 405: return HttpStatus.METHOD_NOT_ALLOWED;
+            case 413: return HttpStatus.CONTENT_TOO_LARGE;
+            case 422: return HttpStatus.UNPROCESSABLE;
+            case 429: return HttpStatus.TOO_MANY_REQUESTS;
+            case 500: return HttpStatus.INTERNAL_SERVER_ERROR;
+            case 503: return HttpStatus.SERVICE_UNAVAILABLE;
+            case 505: return HttpStatus.HTTP_VERSION_NOT_SUPPORTED;
+            case 599: return HttpStatus.TRUNCATED;
+
+            default: return null;
+        }
+    }
+
+    ///
+    public boolean isSuccessfull() {
+
+        return (this.code >= 200 && this.code <= 299) || this.code == 303;
+    }
+
+    ///
+}

@@ -2,12 +2,6 @@ package io.github.clamentos.gattoslab;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
-import io.github.clamentos.gattoslab.exchange.filters.Filter;
-import io.github.clamentos.gattoslab.exchange.handling.ExceptionHandler;
-import io.github.clamentos.gattoslab.exchange.handling.Handler;
-import io.github.clamentos.gattoslab.exchange.handling.ResourceMappings;
-import io.github.clamentos.gattoslab.http.server.ServerContainer;
-import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
 import io.github.clamentos.gattoslab.lifecycle.ShutdownHook;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
@@ -15,6 +9,12 @@ import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
 import io.github.clamentos.gattoslab.security.SessionService;
+import io.github.clamentos.gattoslab.server.ServerContainer;
+import io.github.clamentos.gattoslab.server.components.connection.ConnectionsTracker;
+import io.github.clamentos.gattoslab.server.http.exchange.ExceptionHandler;
+import io.github.clamentos.gattoslab.server.http.exchange.Filter;
+import io.github.clamentos.gattoslab.server.http.exchange.Handler;
+import io.github.clamentos.gattoslab.server.http.exchange.ResourceMappings;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
@@ -22,20 +22,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
-import java.util.Arrays;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicReference;
 
 ///
 public class Application {
 
     ///
     private static final Logger logger = new Logger();
-
-    ///..
-    private static final AtomicReference<ResourceMappings> resourceMappingsForTests = new AtomicReference<>();
-    private static final AtomicReference<ApplicationProperties> applicationPropertiesForTests = new AtomicReference<>();
-    private static final AtomicReference<ShutdownHook> shutdownHookForTests = new AtomicReference<>();
 
     ///
     public static void main(final String[] args) {
@@ -65,9 +58,7 @@ public class Application {
         Runtime.getRuntime().addShutdownHook(GenericUtils.createVirtualThread("gattos-lab-shutdown-hook-task", shutdownHook));
 
         final ApplicationProperties applicationProperties = resolveProfile(args.length > 0 ? args[0] : null);
-        logger.info("Illegal user path contains: " + Arrays.stream(applicationProperties.getIllegalPathContains()).toList());
-
-        final ConnectionsTracker connectionsTracker = new ConnectionsTracker();
+        logger.info("Illegal user path contains: " + applicationProperties.getIllegalPathContains());
 
         final BatchScheduler batchScheduler = new BatchScheduler();
         shutdownHook.add(batchScheduler);
@@ -75,13 +66,16 @@ public class Application {
         final SquashingLogger squashingLogger = new SquashingLogger(batchScheduler);
         shutdownHook.add(squashingLogger);
 
+        final ConnectionsTracker connectionsTracker = new ConnectionsTracker(squashingLogger);
+        shutdownHook.add(connectionsTracker);
+
         final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, connectionsTracker, batchScheduler);
         shutdownHook.add(observabilityService);
 
-        final ResourceMappings resourceMappings = new ResourceMappings();
+        final ResourceMappings resourceMappings = new ResourceMappings(applicationProperties);
         final SessionService sessionService = new SessionService(squashingLogger, applicationProperties, batchScheduler);
         final ExceptionHandler exceptionHandler = new ExceptionHandler(observabilityService);
-        final Handler handler = new Handler(observabilityService, sessionService, exceptionHandler);
+        final Handler handler = new Handler(observabilityService, sessionService, exceptionHandler, connectionsTracker);
 
         final Filter filter = new Filter(
 
@@ -104,28 +98,6 @@ public class Application {
         );
 
         shutdownHook.add(requestExchanger);
-
-        resourceMappingsForTests.set(resourceMappings);
-        applicationPropertiesForTests.set(applicationProperties);
-        shutdownHookForTests.set(shutdownHook);
-    }
-
-    ///..
-    public static ResourceMappings exposeMappingsForTests() {
-
-        return resourceMappingsForTests.get();
-    }
-
-    ///..
-    public static ApplicationProperties exposePropertiesForTests() {
-
-        return applicationPropertiesForTests.get();
-    }
-
-    ///..
-    public static ShutdownHook exposeShutdownHookForTests() {
-
-        return  shutdownHookForTests.get();
     }
 
     ///.

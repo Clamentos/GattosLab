@@ -35,7 +35,7 @@ public final class StreamWriter extends OutputStream {
     }
 
     ///
-    public void write(final String data) throws IOException {
+    public void write(final CharSequence data) throws IOException {
 
         final int length = data.length();
         int dataIndex = 0;
@@ -122,18 +122,21 @@ public final class StreamWriter extends OutputStream {
     @Override
     public void write(final byte[] data, final int start, final int length) throws IOException {
 
-        int dataIndex = start;
+        if(length > 0) {
 
-        while(true) {
+            int dataIndex = 0;
 
-            final int amount = Math.min(this.buffer.length - this.position, length - dataIndex);
+            while(true) {
 
-            System.arraycopy(data, dataIndex, this.buffer, this.position, amount);
-            dataIndex += amount;
-            this.position += amount;
+                final int amount = Math.min(this.buffer.length - this.position, length - dataIndex);
 
-            if(dataIndex >= length) break;
-            else this.flush();
+                System.arraycopy(data, dataIndex + start, this.buffer, this.position, amount);
+                dataIndex += amount;
+                this.position += amount;
+
+                if(dataIndex >= length) break;
+                else this.flush();
+            }
         }
     }
 
@@ -144,13 +147,13 @@ public final class StreamWriter extends OutputStream {
         if(this.isChunkedMode) {
 
             this.outputStream.write((Integer.toHexString(this.position) + "\r\n").getBytes());
-            this.outputStream.write(buffer, 0, this.position);
+            this.outputStream.write(this.buffer, 0, this.position);
             this.outputStream.write(ApplicationProperties.NEW_LINE_BYTES);
         }
 
         else {
 
-            this.outputStream.write(buffer, 0, this.position);
+            this.outputStream.write(this.buffer, 0, this.position);
         }
 
         this.position = 0;

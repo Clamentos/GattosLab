@@ -5,7 +5,7 @@ import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.Siphon;
 import io.github.clamentos.gattoslab.observability.database.ObservabilityDirectory;
 import io.github.clamentos.gattoslab.observability.logging.entities.LogEvent;
-import io.github.clamentos.gattoslab.observability.logging.entities.LogSeverity;
+import io.github.clamentos.gattoslab.observability.logging.entities.components.LogSeverity;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..

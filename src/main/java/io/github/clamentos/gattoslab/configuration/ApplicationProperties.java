@@ -1,17 +1,21 @@
 package io.github.clamentos.gattoslab.configuration;
 
+import io.github.clamentos.gattoslab.configuration.components.HttpProxy;
+import io.github.clamentos.gattoslab.configuration.components.RawProxy;
 ///
-import io.github.clamentos.gattoslab.http.HttpHeader;
-import io.github.clamentos.gattoslab.http.HttpMethod;
+import io.github.clamentos.gattoslab.datastructures.Pair;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpHeader;
+import io.github.clamentos.gattoslab.server.http.exchange.components.HttpMethod;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -50,7 +54,8 @@ public final class ApplicationProperties {
     public static final String BLOCKLIST_GENERATION_CRON = "h4";
 
     ///..
-    public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(6);
+    public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration CONNECTIONS_TRACKER_CLOSE_TIMEOUT = Duration.ofSeconds(2);
     public static final Duration LOG_CLOSE_TIMEOUT = Duration.ofSeconds(2);
     public static final Duration SCHEDULER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(4);
     public static final Duration CORS_DURATION = Duration.ofDays(1);
@@ -64,11 +69,12 @@ public final class ApplicationProperties {
     public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofSeconds(5);
     public static final Duration SOCKET_LINGER = Duration.ofSeconds(1);
     public static final Duration SOCKET_PRELIMINARY_READ_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration PROXY_CONNECTION_POOL_AQUIRE_TIMEOUT = Duration.ofMinutes(1);
     public static final String SESSION_COOKIE_NAME = "GattosLabSessionId=";
     public static final String UNKNOWN_LOGGER_PLACEHOLDER = "UNKNOWN_LOGGER";
     public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
     public static final String HOMEPAGE_PATH = "/index.html";
-    public static final String REDIRECT_PATH = "/login.html";
+    public static final String LOGIN_PATH = "/login.html";
     public static final Path LOG_FILE_PATH = Path.of("observability/logs/logs.log");
     public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
     public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
@@ -85,12 +91,15 @@ public final class ApplicationProperties {
     public static final int MAX_OBSERVABILITY_CHART_LENGTH = 4096;
     public static final int SERVER_INPUT_BUFFERS_SIZE = 4096;
     public static final int SERVER_OUTPUT_BUFFERS_SIZE = 65536;
+    public static final int HTTP_PROXY_INPUT_BUFFERS_SIZE = 4096;
+    public static final int HTTP_PROXY_OUTPUT_BUFFERS_SIZE = 8192;
     public static final int DEFAULT_STREAM_WRITER_BUFFER_SIZE = 8192;
-    public static final int MAX_REQUEST_SIZE = 65536;
+    public static final int MAX_REQUEST_SIZE = 262_144;
+    public static final int PROXY_CONNECTION_POOL_SIZE = 32;
     public static final boolean SOCKET_TCP_NO_DELAY = true;
 
     ///..
-    public static final Map<HttpHeader, String> LOGIN_REDIRECT_HEADERS = Map.of(HttpHeader.LOCATION, REDIRECT_PATH);
+    public static final Map<HttpHeader, String> LOGIN_REDIRECT_HEADERS = Map.of(HttpHeader.LOCATION, LOGIN_PATH);
     public static final Map<HttpHeader, String> CLEAR_SITE_DATA_HEADERS = Map.of(HttpHeader.CLEAR_SITE_DATA, "cookies");
     public static final Map<HttpHeader, String> GZIP_HEADER = Map.of(HttpHeader.CONTENT_ENCODING, "gzip");
     public static final Map<HttpHeader, String> TRANSFER_CHUNKED_HEADER = Map.of(HttpHeader.TRANSFER_ENCODING, "chunked");
@@ -131,17 +140,17 @@ public final class ApplicationProperties {
     );
 
     ///.
-    private final Path sslCertificate;
+    private final Path sslKeyStore;
     private final String sslKeyStorePassword;
 
     ///..
-    private final InetSocketAddress[] siteServers;
-    private final Path siteResources;
+    private final Map<String, Integer> siteServers;
+    private final Map<Path, Set<String>> siteResources;
     private final Set<String> siteAllowedOrigins;
     private final String siteDiskBasedResourcesPathPrefix;
 
     ///..
-    private final InetSocketAddress[] dashboardServers;
+    private final Map<String, Integer> dashboardServers;
     private final Path dashboardResources;
     private final Set<String> dashboardAllowedOrigins;
     private final String loginPassword;
@@ -149,14 +158,17 @@ public final class ApplicationProperties {
     private final Duration observabilityRetention;
 
     ///..
-    private final HttpProxyConfiguration[] httpProxyServers;
+    private final Set<HttpProxy> httpProxyServers;
+    private final Set<String> httpProxyAuthExclusions;
+    private final Set<String> httpProxyCustomHeaders;
 
     ///..
-    private final ProxyConfiguration[] tcpServers;
+    private final Set<RawProxy> tcpServers;
 
     ///..
+    private final boolean keepAliveByDefault;
     private final int rateLimitAmount;
-    private final String[] illegalPathContains;
+    private final Set<String> illegalPathContains;
 
     ///
     public ApplicationProperties(final String environment) throws IOException, IllegalArgumentException {
@@ -168,27 +180,15 @@ public final class ApplicationProperties {
         if(propertiesFile == null) throw new IllegalArgumentException("Properties file '" + fileName + "' not found");
         properties.load(propertiesFile);
 
-        this.sslCertificate = Path.of(this.resolveProperty(properties, "sslCertificatePath", String.class, false));
+        this.sslKeyStore = Path.of(this.resolveProperty(properties, "sslKeyStorePath", String.class, false));
         this.sslKeyStorePassword = this.resolveProperty(properties, "sslKeyStorePassword", String.class, false);
-        this.siteServers = this.parseAddresses(this.resolveProperty(properties, "siteServers", String.class, false));
-        this.siteResources = Path.of(this.resolveProperty(properties, "siteResourcesPath", String.class, false));
-
-        this.siteAllowedOrigins = GenericUtils.fastSplit(this.resolveProperty(properties, "siteAllowedOrigins", String.class, false), ARRAY_SEPARATOR)
-
-            .stream()
-            .collect(Collectors.toSet())
-        ;
-
+        this.siteServers = this.parseServers(this.resolveProperty(properties, "siteServers", String.class, false));
+        this.siteResources = this.parseResources(this.resolveProperty(properties, "siteResources", String.class, false));
+        this.siteAllowedOrigins = this.parseSet(this.resolveProperty(properties, "siteAllowedOrigins", String.class, false), false);
         this.siteDiskBasedResourcesPathPrefix = this.resolveProperty(properties, "siteDiskBasedResourcesPathPrefix", String.class, true);
-        this.dashboardServers = this.parseAddresses(this.resolveProperty(properties, "dashboardServers", String.class, false));
+        this.dashboardServers = this.parseServers(this.resolveProperty(properties, "dashboardServers", String.class, false));
         this.dashboardResources = Path.of(this.resolveProperty(properties, "dashboardResourcesPath", String.class, false));
-
-        this.dashboardAllowedOrigins = GenericUtils.fastSplit(this.resolveProperty(properties, "dashboardAllowedOrigins", String.class, false), ARRAY_SEPARATOR)
-
-            .stream()
-            .collect(Collectors.toSet())
-        ;
-
+        this.dashboardAllowedOrigins = this.parseSet(this.resolveProperty(properties, "dashboardAllowedOrigins", String.class, false), false);
         this.loginPassword = this.resolveProperty(properties, "loginPassword", String.class, false);
         this.cookieProperties = this.resolveProperty(properties, "cookieProperties", String.class, false);
 
@@ -197,12 +197,15 @@ public final class ApplicationProperties {
         this.observabilityRetention = Duration.ofDays(observabilityRetentionDays);
 
         this.httpProxyServers = this.parseHttpProxies(this.resolveProperty(properties, "httpProxyServers", String.class, true));
+        this.httpProxyAuthExclusions = this.parseSet(this.resolveProperty(properties, "httpProxyAuthExclusions", String.class, true), false);
+        this.httpProxyCustomHeaders = this.parseSet(this.resolveProperty(properties, "httpProxyCustomHeaders", String.class, true), true);
         this.tcpServers = this.parseProxies(this.resolveProperty(properties, "tcpServers", String.class, true));
 
+        this.keepAliveByDefault = this.resolveProperty(properties, "keepAliveByDefault", Boolean.class, false);
         this.rateLimitAmount = this.resolveProperty(properties, "rateLimitAmount", Integer.class, false);
         if(this.rateLimitAmount <= 0) throw new IllegalArgumentException("Rate limit amount must be greater than 0");
 
-        this.illegalPathContains = this.parseList(this.resolveProperty(properties, "illegalPathContains", String.class, true));
+        this.illegalPathContains = this.parseSet(this.resolveProperty(properties, "illegalPathContains", String.class, true), false);
     }
 
     ///
@@ -219,7 +222,7 @@ public final class ApplicationProperties {
 
         if(propertyValue == null) throw new IllegalArgumentException("The property '" + propertyName + "' must be defined");
         if(!isEmptyAllowed && propertyValue.isEmpty()) throw new IllegalArgumentException("The property '" + propertyName + "' cannot be empty");
-        if(propertyValue.isEmpty()) this.cast(null, clazz, true);
+        if(propertyValue.isEmpty()) return this.cast(null, clazz, true);
 
         if(propertyValue.charAt(0) == '$') {
 
@@ -234,79 +237,109 @@ public final class ApplicationProperties {
     }
 
     ///..
-    private InetSocketAddress[] parseAddresses(final String data) {
+    private Map<String, Integer> parseServers(final String data) {
 
-        if(data == null || data.isEmpty()) return new InetSocketAddress[0];
+        if(data == null || data.isEmpty()) throw new IllegalArgumentException("Defined servers must be at least 1 site and 1 dashboard");
 
         final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
         final int length = splits.size();
-        final InetSocketAddress[] addresses = new InetSocketAddress[length];
+        final Map<String, Integer> addresses = HashMap.newHashMap(length);
 
         for(int i = 0; i < length; i++) {
 
             final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
-            if(components.size() != 2) throw new IllegalArgumentException("Addresses must be composed of ip and port");
+            if(components.size() != 2) throw new IllegalArgumentException("Servers must be composed of an IP and port");
 
-            addresses[i] = InetSocketAddress.createUnresolved(components.get(0), Integer.parseInt(components.get(1)));
+            addresses.put(components.get(0), Integer.parseInt(components.get(1)));
         }
 
         return addresses;
     }
 
     ///..
-    private HttpProxyConfiguration[] parseHttpProxies(final String data) {
+    private Set<HttpProxy> parseHttpProxies(final String data) {
 
-        if(data == null || data.isEmpty()) return new HttpProxyConfiguration[0];
+        if(data == null || data.isEmpty()) return Set.of();
 
         final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
         final int length = splits.size();
-        final HttpProxyConfiguration[] proxies = new HttpProxyConfiguration[length];
+        final Set<HttpProxy> proxies = HashSet.newHashSet(length);
 
         for(int i = 0; i < length; i++) {
 
             final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
-            if(components.size() != 4) throw new IllegalArgumentException("Proxies must be composed of 2 ip and port couples");
+            if(components.size() != 4) throw new IllegalArgumentException("HTTP proxies must be composed of 2 IP and port pairs");
 
-            proxies[i] = new HttpProxyConfiguration(
+            proxies.add(new HttpProxy(
 
                 components.get(0),
-                InetSocketAddress.createUnresolved(components.get(1), Integer.parseInt(components.get(2))),
+                new Pair<>(components.get(1), Integer.parseInt(components.get(2))),
                 Boolean.parseBoolean(components.get(3))
-            );
+            ));
         }
 
         return proxies;
     }
 
     ///..
-    private ProxyConfiguration[] parseProxies(final String data) {
+    private Set<RawProxy> parseProxies(final String data) {
 
-        if(data == null || data.isEmpty()) return new ProxyConfiguration[0];
+        if(data == null || data.isEmpty()) return Set.of();
 
         final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
         final int length = splits.size();
-        final ProxyConfiguration[] proxies = new ProxyConfiguration[length];
+        final Set<RawProxy> proxies = HashSet.newHashSet(length);
 
         for(int i = 0; i < length; i++) {
 
             final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
-            if(components.size() != 4) throw new IllegalArgumentException("Proxies must be composed of 2 ip and port couples");
+            if(components.size() != 4) throw new IllegalArgumentException("Raw proxies must be composed of 2 IP and port pairs");
 
-            proxies[i] = new ProxyConfiguration(
+            proxies.add(new RawProxy(
 
-                InetSocketAddress.createUnresolved(components.get(0), Integer.parseInt(components.get(1))),
-                InetSocketAddress.createUnresolved(components.get(2), Integer.parseInt(components.get(3)))
-            );
+                new Pair<>(components.get(0), Integer.parseInt(components.get(1))),
+                new Pair<>(components.get(2), Integer.parseInt(components.get(3)))
+            ));
         }
 
         return proxies;
     }
 
     ///..
-    private String[] parseList(final String data) {
+    private Set<String> parseSet(final String data, final boolean toLowerCase) {
 
-        if(data == null || data.isEmpty()) return new String[0];
-        return GenericUtils.fastSplit(data, ARRAY_SEPARATOR).stream().toArray(String[]::new);
+        if(data == null || data.isEmpty()) return Set.of();
+
+        return GenericUtils.fastSplit(data, ARRAY_SEPARATOR)
+
+            .stream()
+            .map(e -> {
+
+                if(toLowerCase) return e.toLowerCase(Locale.US);
+                return e;
+            })
+            .collect(Collectors.toSet())
+        ;
+    }
+
+    ///..
+    private Map<Path, Set<String>> parseResources(final String data) {
+
+        if(data == null || data.isEmpty()) throw new IllegalArgumentException("Must define at least 1 site resource");
+
+        final List<String> splits = GenericUtils.fastSplit(data, ARRAY_SEPARATOR);
+        final int length = splits.size();
+        final Map<Path, Set<String>> map = HashMap.newHashMap(length);
+
+        for(int i = 0; i < length; i++) {
+
+            final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
+            if(components.size() != 2) throw new IllegalArgumentException("Site resources must be composed of domain and path pairs");
+
+            map.computeIfAbsent(Path.of(components.get(0)), _ -> new HashSet<>()).add(components.get(1));
+        }
+
+        return map;
     }
 
     ///..

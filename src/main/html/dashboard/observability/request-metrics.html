@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang = "en">
+
+    <head>
+
+        <meta charset = "utf-8"/>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1"/>
+        <meta name = "description" content = "Admin site request performance metrics page."/>
+
+        <link rel = "stylesheet" href = "../../site/css/base.css"/>
+        <link rel = "stylesheet" href = "../../site/css/form.css"/>
+        <link rel = "stylesheet" href = "../../site/css/chart.css"/>
+        <link rel = "stylesheet" href = "../../site/css/loader.css"/>
+        <link rel = "stylesheet" href = "../../site/css/logout.css"/>
+
+        <link rel = "icon" type = "image/x-icon" href = "../favicon.ico"/>
+
+        <title>Gatto's Lab - Request metrics</title>
+
+    </head>
+
+    <body class = "background">
+
+        <nav class = "navbar">
+
+            <div class = "nav-container">
+
+                <div class = "nav-item"></div>
+
+                <div class = "nav-item">
+
+                    <button class = "logout-button" onclick = "logout('../login.html')">
+                        <img src = "../images/logout-img.svg" alt = ""/>
+                        <div id = "logout-text">Logout</div>
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class = "nav-crumb">
+                <a href = "../index.html">Home</a> > Request metrics
+            </div>
+
+        </nav>
+
+        <main>
+
+            <div class = "default-container">
+
+                <form class = "form-container" onsubmit = "onSubmitEvent(event)">
+
+                    <div class = "form-input-group">
+
+                        <input
+
+                            class = "form-input"
+                            id = "start-timestamp"
+                            type = "datetime-local"
+                            name = "startTimestamp"
+                            aria-label = "start-timestamp-input"
+                        >
+
+                        <p class = "form-field-description">
+                            <strong>Start time:</strong> specifies the start time of the search window. On page load, it's automatically set to the start of the current day. Clearing this field will cause the search to fetch 24h behind <i>End time</i>.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input
+
+                            class = "form-input"
+                            id = "end-timestamp"
+                            type = "datetime-local"
+                            name = "endTimestamp"
+                            aria-label = "end-timestamp-input"
+                        >
+
+                        <p class = "form-field-description">
+                            <strong>End time:</strong> specifies the end time of the search window. On page load, it's automatically set to the end of the current day. Clearing this field will cause the search to fetch 24h past <i>Start time</i>.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
+                        <input class = "form-input" type = "number" name = "resolution" placeholder = "1,2,3,..." aria-label = "resolution-input">
+
+                        <p class = "form-field-description">
+                            <strong>Resolution:</strong> specifies the resolution of the charts in seconds. Clearing this field will cause the charts to default to 10 minutes (600 seconds).
+                        </p>
+
+                    </div>
+
+                    <button class = "form-button" type = "submit">Filter</button>
+                    <div class = "loader" id = "submit-loader" style = "display: none"></div>
+
+                </form>
+
+                <div style = "width: 100%;">
+                    <button class = "icon-button" onclick = "toggleVisibility('RequestsRateChart')">
+                        <img id = "RequestsRateChart-icon-down" src = "../images/caret-down.svg" alt = ""/>
+                        <img class = "hidden-element" id = "RequestsRateChart-icon-up" src = "../images/caret-up.svg" alt = ""/>
+                    </button>
+
+                    <canvas class = "chartjs-canvas" id = "RequestsRateChart"></canvas>
+                </div>
+
+                <div style = "width: 100%;">
+                    <button class = "icon-button" onclick = "toggleVisibility('RequestLatencyChart')">
+                        <img id = "RequestLatencyChart-icon-down" src = "../images/caret-down.svg" alt = ""/>
+                        <img class = "hidden-element" id = "RequestLatencyChart-icon-up" src = "../images/caret-up.svg" alt = ""/>
+                    </button>
+
+                    <canvas class = "chartjs-canvas" id = "RequestLatencyChart"></canvas>
+                </div>
+
+            </div>
+
+            <div id = "error-container"></div>
+
+        </main>
+
+    </body>
+
+    <script src = "../js/error.js" module></script>
+    <script src = "../js/logout.js" module></script>
+    <script src = "../js/utils.js" module></script>
+    <script src = "../js/chartjsMin.js" module></script>
+    <script src = "../js/chart-rendering.js" module></script>
+    <script src = "../js/request-metrics.js" module></script>
+
+</html>

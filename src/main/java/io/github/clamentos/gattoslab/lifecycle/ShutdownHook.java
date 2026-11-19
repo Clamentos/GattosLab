@@ -1,12 +1,12 @@
 package io.github.clamentos.gattoslab.lifecycle;
 
-///
-import io.github.clamentos.gattoslab.http.server.ServerContainer;
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.scheduling.BatchScheduler;
+import io.github.clamentos.gattoslab.server.ServerContainer;
+import io.github.clamentos.gattoslab.server.components.connection.ConnectionsTracker;
 
 ///..
 import java.io.Closeable;
@@ -37,8 +37,9 @@ public class ShutdownHook implements Runnable {
         this.priorities.put(BatchScheduler.class, 0);
         this.priorities.put(ServerContainer.class, 1);
         this.priorities.put(ObservabilityService.class, 2);
-        this.priorities.put(SquashingLogger.class, 3);
-        this.priorities.put(LoggerRoot.class, 4);
+        this.priorities.put(ConnectionsTracker.class, 3);
+        this.priorities.put(SquashingLogger.class, 4);
+        this.priorities.put(LoggerRoot.class, 5);
     }
 
     ///

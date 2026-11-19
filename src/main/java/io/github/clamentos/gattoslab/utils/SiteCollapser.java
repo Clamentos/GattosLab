@@ -26,11 +26,7 @@ import org.jsoup.nodes.Element;
 public class SiteCollapser {
 
     ///
-    private static final Path SOURCE = Path.of("./src/main/html");
     private static final Path INTERMEDIATE = Path.of("./merged_site");
-    private static final Path DESTINATION = Path.of("./site");
-
-    ///..
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     ///
@@ -38,10 +34,22 @@ public class SiteCollapser {
 
         simpleLog("SiteCollapser BEGIN");
 
-        deleteDirectory(DESTINATION);
+        int exitCode = collapse(Path.of("./src/main/html/site"), Path.of("./site"));
+        if(exitCode != 0) System.exit(1);
+
+        exitCode = collapse(Path.of("./src/main/html/dashboard"), Path.of("./dashboard"));
+        if(exitCode != 0) System.exit(1);
+
+        simpleLog("SiteCollapser END");
+    }
+
+    ///.
+    private static int collapse(final Path source, final Path destination) throws IOException, InterruptedException {
+
+        deleteDirectory(destination);
         deleteDirectory(INTERMEDIATE);
 
-        try(final Stream<Path> stream = Files.walk(SOURCE)) {
+        try(final Stream<Path> stream = Files.walk(source)) {
 
             final Path[] paths = stream
 
@@ -59,7 +67,7 @@ public class SiteCollapser {
 
             "html-minifier-next",
             "--input-dir", INTERMEDIATE.toString(),
-            "--output-dir", DESTINATION.toString(),
+            "--output-dir", destination.toString(),
             "--config-file=./resources/minifier-config.json"
         );
 
@@ -79,18 +87,17 @@ public class SiteCollapser {
 
                 for(final Path path : paths) {
 
-                    finalPass(path);
+                    finalPass(path, destination);
                 }
             }
 
             deleteDirectory(INTERMEDIATE);
         }
 
-        simpleLog("SiteCollapser END");
-        if(exitCode != 0) System.exit(1);
+        return exitCode;
     }
 
-    ///.
+    ///..
     private static void processFile(final Path path) throws IOException {
 
         final byte[] data = Files.readAllBytes(path);
@@ -100,11 +107,11 @@ public class SiteCollapser {
     }
 
     ///..
-    private static void finalPass(final Path path) throws IOException {
+    private static void finalPass(final Path path, final Path destination) throws IOException {
 
         if(!hasExtension(path, ".html")) {
 
-            final Path destinationPath = Path.of(DESTINATION + "/" + path.subpath(2, path.getNameCount()).toString());
+            final Path destinationPath = Path.of(destination + "/" + path.subpath(2, path.getNameCount()).toString());
 
             Files.createDirectories(destinationPath.getParent());
             Files.copy(path, destinationPath);
@@ -127,7 +134,7 @@ public class SiteCollapser {
     ///..
     private static void placeFile(final Path sourcePath, final byte[] content) throws IOException {
 
-        final Path destinationPath = Path.of(INTERMEDIATE.toString() + "/" + sourcePath.subpath(4, sourcePath.getNameCount()).toString());
+        final Path destinationPath = Path.of(INTERMEDIATE.toString() + "/" + sourcePath.subpath(5, sourcePath.getNameCount()).toString());
 
         Files.createDirectories(destinationPath.getParent());
         Files.createFile(destinationPath);

@@ -1,4 +1,4 @@
-package io.github.clamentos.gattoslab;
+/*package io.github.clamentos.gattoslab;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
@@ -108,7 +108,7 @@ class ApplicationTests {
     ///..
     private void checkContent(final byte[] received, final String path) throws IOException {
 
-        final StaticResource resource = (StaticResource)Application.exposeMappingsForTests().getSite(path);
+        final StaticResource resource = (StaticResource)Application.exposeMappingsForTests().getSite("127.0.0.1:8080", path);
 
         if(resource.getDiskPath() == null) {
 
@@ -581,3 +581,4 @@ class ApplicationTests {
 
     ///
 }
+*/

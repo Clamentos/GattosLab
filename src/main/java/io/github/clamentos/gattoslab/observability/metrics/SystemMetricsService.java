@@ -1,9 +1,8 @@
 package io.github.clamentos.gattoslab.observability.metrics;
 
-///
-import io.github.clamentos.gattoslab.http.server.components.connection.ConnectionsTracker;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.metrics.entities.SystemMetricsEntity;
+import io.github.clamentos.gattoslab.server.components.connection.ConnectionsTracker;
 
 ///..
 import java.io.Closeable;
@@ -36,7 +35,7 @@ public final class SystemMetricsService implements Closeable {
     private final ClassLoadingMXBean classLoadingMXBean;
     private final RecordingStream recordingStream;
     private final FileStore fileStore;
-    private final ConnectionsTracker connectionsTracker;
+    private final ConnectionsTracker httpConnectionsTracker;
 
     ///..
     private final AtomicLong fileReads;
@@ -61,7 +60,7 @@ public final class SystemMetricsService implements Closeable {
     private final AtomicLong dumpCounter;
 
     ///
-    public SystemMetricsService(final ConnectionsTracker connectionsTracker, final long samplingPeriod) throws IOException {
+    public SystemMetricsService(final ConnectionsTracker httpConnectionsTracker, final long samplingPeriod) throws IOException {
 
         this.logger = new Logger();
 
@@ -70,7 +69,7 @@ public final class SystemMetricsService implements Closeable {
         this.classLoadingMXBean = ManagementFactory.getClassLoadingMXBean();
         this.recordingStream = new RecordingStream();
         this.fileStore = Files.getFileStore(Paths.get("/"));
-        this.connectionsTracker = connectionsTracker;
+        this.httpConnectionsTracker = httpConnectionsTracker;
 
         this.fileReads = new AtomicLong();
         this.fileWrites = new AtomicLong();
@@ -153,9 +152,9 @@ public final class SystemMetricsService implements Closeable {
                 System.currentTimeMillis(),
                 this.threadMXBean.getThreadCount(),
                 this.classLoadingMXBean.getLoadedClassCount(),
-                this.connectionsTracker.getConnectionCount(),
-                this.connectionsTracker.getConnectionOpenedEventCount(),
-                this.connectionsTracker.getConnectionClosedEventCount(),
+                this.httpConnectionsTracker.getConnectionCount(),
+                this.httpConnectionsTracker.getConnectionOpenedEventCount(),
+                this.httpConnectionsTracker.getConnectionClosedEventCount(),
                 this.fileReads.getAndSet(0),
                 this.fileWrites.getAndSet(0),
                 this.socketReads.getAndSet(0),
