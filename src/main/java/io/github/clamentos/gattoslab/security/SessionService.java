@@ -15,10 +15,12 @@ import io.github.clamentos.gattoslab.server.http.exchange.components.body.Chunke
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
@@ -40,6 +42,7 @@ public final class SessionService {
     ///..
     private final byte[] loginPassword;
     private final String cookieProperties;
+    private final Map<SecurityFailure, Pair<SecurityFailure, Long>> failuresCache;
 
     ///..
     public SessionService(
@@ -47,31 +50,22 @@ public final class SessionService {
         final SquashingLogger squashingLogger,
         final ApplicationProperties applicationProperties,
         final BatchScheduler batchScheduler
-    ) {
+
+    ) throws NoSuchAlgorithmException {
 
         this.logger = new Logger();
         this.squashingLogger = squashingLogger;
 
         this.sessions = new ConcurrentHashMap<>();
         this.sessionCounter = new AtomicInteger();
+        this.randomness = SecureRandom.getInstanceStrong();
 
-        SecureRandom secureRandom;
-
-        try {
-
-            secureRandom = SecureRandom.getInstanceStrong();
-        }
-
-        catch(final NoSuchAlgorithmException exc) {
-            
-            this.logger.warning("Could not instantiate strong PRNG", exc);
-            secureRandom = new SecureRandom();
-        }
-
-        this.randomness = secureRandom;
-
-        this.loginPassword = applicationProperties.getLoginPassword().getBytes();
+        this.loginPassword = applicationProperties.getLoginPassword().getBytes(StandardCharsets.ISO_8859_1);
         this.cookieProperties = applicationProperties.getCookieProperties();
+
+        this.failuresCache = new EnumMap<>(SecurityFailure.class);
+        this.failuresCache.put(SecurityFailure.INCORRECT_PASSWORD, new Pair<>(SecurityFailure.INCORRECT_PASSWORD, null));
+        this.failuresCache.put(SecurityFailure.TOO_MANY_SESSIONS, new Pair<>(SecurityFailure.TOO_MANY_SESSIONS, null));
 
         batchScheduler.schedule(
 
@@ -86,12 +80,12 @@ public final class SessionService {
 
         final String authorizationHeader = exchange.getRequestHeaders().get(HttpHeader.AUTHORIZATION);
 
-        if(authorizationHeader == null || !MessageDigest.isEqual(authorizationHeader.getBytes(), this.loginPassword)) {
+        if(authorizationHeader == null || !MessageDigest.isEqual(authorizationHeader.getBytes(StandardCharsets.ISO_8859_1), this.loginPassword)) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Login failed for", exchange));
             GenericUtils.silentSleep(ApplicationProperties.LOGIN_FAILURE_PAUSE_DURATION.toMillis());
 
-            return new Pair<>(SecurityFailure.INCORRECT_PASSWORD, null);
+            return this.failuresCache.get(SecurityFailure.INCORRECT_PASSWORD);
         }
 
         final int currentSessionCount = this.sessionCounter.getAndUpdate((currentValue -> Math.min(
@@ -103,7 +97,7 @@ public final class SessionService {
         if(currentSessionCount >= ApplicationProperties.MAX_SESSIONS) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash("Too many sessions tripped"));
-            return new Pair<>(SecurityFailure.TOO_MANY_SESSIONS, null);
+            return this.failuresCache.get(SecurityFailure.TOO_MANY_SESSIONS);
         }
 
         final long sessionDuration = ApplicationProperties.SESSION_DURATION.toMillis();
@@ -187,7 +181,7 @@ public final class SessionService {
 
             final char currentChar = cookies.charAt(i);
 
-            if(currentChar == ';') return buffer;
+            if(currentChar == ';') break;
             else buffer.append(currentChar);
         }
 

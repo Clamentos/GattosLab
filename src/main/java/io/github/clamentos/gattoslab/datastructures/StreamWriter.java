@@ -2,10 +2,12 @@ package io.github.clamentos.gattoslab.datastructures;
 
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
+import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 ///
 public final class StreamWriter extends OutputStream {
@@ -16,7 +18,7 @@ public final class StreamWriter extends OutputStream {
 
     ///..
     private int position;
-    private boolean isChunkedMode;
+    private boolean isHttpChunkedMode;
 
     ///
     public StreamWriter(final OutputStream outputStream, final int bufferSize) {
@@ -25,13 +27,7 @@ public final class StreamWriter extends OutputStream {
         this.outputStream = outputStream;
 
         this.position = 0;
-        this.isChunkedMode = false;
-    }
-
-    ///..
-    public StreamWriter(final OutputStream outputStream) {
-
-        this(outputStream, ApplicationProperties.DEFAULT_STREAM_WRITER_BUFFER_SIZE);
+        this.isHttpChunkedMode = false;
     }
 
     ///
@@ -44,7 +40,7 @@ public final class StreamWriter extends OutputStream {
 
             int amountPossible = this.buffer.length - this.position;
 
-            while(amountPossible >= 1 && dataIndex < length) {
+            while(amountPossible > 0 && dataIndex < length) {
 
                 this.buffer[this.position++] = (byte)data.charAt(dataIndex++);
                 amountPossible--;
@@ -56,7 +52,7 @@ public final class StreamWriter extends OutputStream {
     }
 
     ///..
-    public void writeForObservability(final String data) throws IOException {
+    public void writeForObservability(final CharSequence data) throws IOException {
 
         final int length = data.length();
         int dataIndex = 0;
@@ -65,7 +61,7 @@ public final class StreamWriter extends OutputStream {
 
             int amountPossible = this.buffer.length - this.position;
 
-            while(amountPossible >= 1 && dataIndex < length) {
+            while(amountPossible > 0 && dataIndex < length) {
 
                 final char currentChar = data.charAt(dataIndex++);
 
@@ -98,7 +94,7 @@ public final class StreamWriter extends OutputStream {
     public void startChunked() throws IOException {
 
         this.flush();
-        this.isChunkedMode = true;
+        this.isHttpChunkedMode = true;
     }
 
     ///..
@@ -107,7 +103,7 @@ public final class StreamWriter extends OutputStream {
         if(this.position > 0) this.flush();
 
         this.flush();
-        this.isChunkedMode = false;
+        this.isHttpChunkedMode = false;
     }
 
     ///..
@@ -115,28 +111,25 @@ public final class StreamWriter extends OutputStream {
     public void write(final int data) throws IOException {
 
         if(this.position >= this.buffer.length) this.flush();
-        this.buffer[this.position++] = (byte)(data & 0x000000FF);
+        this.buffer[this.position++] = (byte)(data & 0x00_00_00_FF);
     }
 
     ///..
     @Override
     public void write(final byte[] data, final int start, final int length) throws IOException {
 
-        if(length > 0) {
+        int dataIndex = 0;
 
-            int dataIndex = 0;
+        while(true) {
 
-            while(true) {
+            final int amount = Math.min(this.buffer.length - this.position, length - dataIndex);
 
-                final int amount = Math.min(this.buffer.length - this.position, length - dataIndex);
+            System.arraycopy(data, dataIndex + start, this.buffer, this.position, amount);
+            dataIndex += amount;
+            this.position += amount;
 
-                System.arraycopy(data, dataIndex + start, this.buffer, this.position, amount);
-                dataIndex += amount;
-                this.position += amount;
-
-                if(dataIndex >= length) break;
-                else this.flush();
-            }
+            if(dataIndex >= length) break;
+            else this.flush();
         }
     }
 
@@ -144,11 +137,23 @@ public final class StreamWriter extends OutputStream {
     @Override
     public void flush() throws IOException {
 
-        if(this.isChunkedMode) {
+        if(this.isHttpChunkedMode) {
 
-            this.outputStream.write((Integer.toHexString(this.position) + "\r\n").getBytes());
+            final byte[] chunkSize;
+
+            if(this.position < GenericUtils.CHUNKED_LOOKUP_TABLE.length) {
+
+                chunkSize = GenericUtils.CHUNKED_LOOKUP_TABLE[this.position];
+            }
+
+            else {
+
+                chunkSize = (Integer.toHexString(this.position) + "\r\n").getBytes(StandardCharsets.ISO_8859_1);
+            }
+
+            this.outputStream.write(chunkSize);
             this.outputStream.write(this.buffer, 0, this.position);
-            this.outputStream.write(ApplicationProperties.NEW_LINE_BYTES);
+            this.outputStream.write(GenericUtils.NEW_LINE_BYTES);
         }
 
         else {

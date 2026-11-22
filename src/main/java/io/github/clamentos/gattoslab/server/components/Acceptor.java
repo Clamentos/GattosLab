@@ -12,7 +12,7 @@ import lombok.Getter;
 @Getter
 
 ///
-public sealed class Acceptor permits Tunnel {
+public final class Acceptor {
 
     ///
     private final ServerSocket serverSocket;

@@ -61,6 +61,7 @@ public final class MutableString implements CharSequence {
 
         this.grow(length);
         System.arraycopy(characters, 0, this.characters, this.index, length);
+        this.index += length;
     }
 
     ///..
@@ -70,7 +71,7 @@ public final class MutableString implements CharSequence {
     }
 
     ///..
-    public void deleteLastChar() {
+    public void deleteLastCharUnsafe() {
 
         this.index--;
     }
@@ -86,7 +87,7 @@ public final class MutableString implements CharSequence {
     @Override
     public char charAt(final int index) {
 
-        return (char)(this.characters[index] & 0xFF);
+        return (char)(this.characters[index] & 0x00_00_00_FF);
     }
 
     ///..
@@ -122,7 +123,7 @@ public final class MutableString implements CharSequence {
 
         for(int i = 0; i < this.index; i++) {
 
-            result = 31 * result + this.characters[i];
+            result = (31 * result) + this.characters[i];
         }
 
         return result;

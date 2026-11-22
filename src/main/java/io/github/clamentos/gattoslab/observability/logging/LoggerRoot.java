@@ -21,6 +21,7 @@ import lombok.Getter;
 public final class LoggerRoot implements Closeable {
 
     ///
+    private static final int SLEEP_NANOS = 100_000;
     private static final LoggerRoot INSTANCE = new LoggerRoot();
 
     ///.
@@ -37,7 +38,7 @@ public final class LoggerRoot implements Closeable {
     ///
     private LoggerRoot() {
 
-        this.logsDirectory = new ObservabilityDirectory<>(null, ApplicationProperties.LOG_FILE_PATH);
+        this.logsDirectory = new ObservabilityDirectory<>(null, ApplicationProperties.LOGS_FILE_PATH_TEMPLATE);
 
         this.primarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
         this.secondarySiphon = new Siphon<>(LogEvent.class, ApplicationProperties.LOG_SIPHON_CAPACITY, LogEvent::new, this::drainSiphonTask);
@@ -77,7 +78,7 @@ public final class LoggerRoot implements Closeable {
         try {
 
             this.drainWorker.interrupt();
-            if(!this.drainWorker.join(ApplicationProperties.LOG_CLOSE_TIMEOUT)) System.err.println("Timed-out while joining the 'drainWorker'");
+            if(!this.drainWorker.join(ApplicationProperties.LOGGER_SHUTDOWN_TIMEOUT)) System.err.println("Timed-out while joining the 'drainWorker'");
         }
 
         catch(final InterruptedException _) {
@@ -91,7 +92,7 @@ public final class LoggerRoot implements Closeable {
 
         while(!(this.currentSiphonReference.get().update(entity -> this.updateLogEvent(entity, severity, logger, message, exception)))) {
 
-            GenericUtils.silentSleepNanos(100_000);
+            GenericUtils.silentSleepNanos(SLEEP_NANOS);
         }
     }
 
@@ -133,7 +134,7 @@ public final class LoggerRoot implements Closeable {
 
             while(previousSiphon.isUpdating()) {
 
-                GenericUtils.silentSleepNanos(100_000);
+                GenericUtils.silentSleepNanos(SLEEP_NANOS);
             }
 
             try {

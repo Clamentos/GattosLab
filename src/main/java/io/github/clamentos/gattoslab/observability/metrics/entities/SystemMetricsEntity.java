@@ -26,6 +26,10 @@ public final class SystemMetricsEntity implements Entity {
     private final long sockets;
     private final long socketsOpened;
     private final long socketsClosed;
+    private final long tcpPoolIdle;
+    private final long tcpPoolBusy;
+    private final long httpPoolIdle;
+    private final long httpPoolBusy;
     private final long fileReads;
     private final long fileWrites;
     private final long socketReads;
@@ -56,6 +60,14 @@ public final class SystemMetricsEntity implements Entity {
         writer.write(Long.toString(this.socketsOpened));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.socketsClosed));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.tcpPoolIdle));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.tcpPoolBusy));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.httpPoolIdle));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(Long.toString(this.httpPoolBusy));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Long.toString(this.fileReads));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

@@ -3,6 +3,7 @@ package io.github.clamentos.gattoslab.server.http.exchange.components;
 ///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.components.HttpProxy;
+import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
 import io.github.clamentos.gattoslab.datastructures.addresses.IpAddress;
 import io.github.clamentos.gattoslab.server.components.SocketReader;
@@ -17,7 +18,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -34,30 +35,32 @@ public final class HttpExchange {
     ///
     private final long startTime;
 
-    private final IpAddress remoteAddress;
+    ///..
+    private final IpAddress clientRemoteAddress;
     private final HttpMethod method;
     private final String uri;
 
+    ///..
     private final Map<HttpHeader, String> requestHeaders;
     private final Map<HttpHeader, String> responseHeaders;
 
+    ///..
     private final SocketReader reader;
     private final StreamWriter writer;
 
-    private final boolean isKeepAlive;
-
     ///..
-    @Setter
-    private Resource resource;
-
     @Setter
     private String domain;
 
     @Setter
     private HttpProxy proxy;
 
+    @Setter
+    private Resource resource;
+
     ///..
     private HttpStatus responseStatus;
+    private long endTime;
 
     ///..
     @Setter
@@ -72,7 +75,7 @@ public final class HttpExchange {
     ///
     public HttpExchange(
 
-        final IpAddress remoteAddress,
+        final IpAddress clientRemoteAddress,
         final HttpMethod method,
         final String uri,
         final Map<HttpHeader, String> requestHeaders,
@@ -82,7 +85,7 @@ public final class HttpExchange {
 
         this.startTime = System.currentTimeMillis();
 
-        this.remoteAddress = remoteAddress;
+        this.clientRemoteAddress = clientRemoteAddress;
         this.method = method;
         this.uri = uri;
 
@@ -92,25 +95,12 @@ public final class HttpExchange {
         this.reader = reader;
         this.writer = writer;
 
-        final String connectionHeader = this.requestHeaders.get(HttpHeader.CONNECTION);
-
-        if(connectionHeader != null && connectionHeader.toLowerCase(Locale.US).contains("close")) {
-
-            this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
-            this.isKeepAlive = false;
-        }
-
-        else {
-
-            this.responseHeaders.putAll(ApplicationProperties.KEEP_ALIVE_HEADERS);
-            this.isKeepAlive = true;
-        }
-
-        this.resource = null;
         this.domain = null;
         this.proxy = null;
+        this.resource = null;
 
         this.responseStatus = null;
+        this.endTime = this.startTime;
 
         this.isUriBad = false;
         this.isTracked = false;
@@ -123,16 +113,20 @@ public final class HttpExchange {
     throws IOException {
 
         this.responseHeaders.putAll(ApplicationProperties.EXTRA_HEADERS);
-        this.responseHeaders.putAll(headers);
-        this.responseHeaders.put(HttpHeader.DATE, this.getDate());
-
-        if(mimeType != null) this.responseHeaders.putAll(mimeType.getResponseValue());
+        if(mimeType != null) this.responseHeaders.put(HttpHeader.CONTENT_TYPE, mimeType.getResponseValue());
 
         if(this.doForceClose) {
 
-            this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
             this.responseHeaders.remove(HttpHeader.KEEP_ALIVE);
+            this.responseHeaders.putAll(ApplicationProperties.CLOSE_CONNECTION_HEADER);
         }
+
+        else {
+
+            this.responseHeaders.putAll(ApplicationProperties.KEEP_ALIVE_HEADERS);
+        }
+
+        this.responseHeaders.putAll(headers);
 
         if(body != null) {
 
@@ -152,17 +146,20 @@ public final class HttpExchange {
             this.responseHeaders.putAll(ApplicationProperties.NO_LENGTH_HEADER);
         }
 
+        this.endTime = System.currentTimeMillis();
+        this.responseHeaders.put(HttpHeader.DATE, this.formatEndTime());
         this.responseStatus = status;
+
         this.writer.write(status.getResponseValue());
 
         for(final Entry<HttpHeader, String> header : this.responseHeaders.entrySet()) {
 
             this.writer.write(header.getKey().getResponseValue());
             this.writer.write(header.getValue());
-            this.writer.write(ApplicationProperties.NEW_LINE_BYTES);
+            this.writer.write(GenericUtils.NEW_LINE_BYTES);
         }
 
-        this.writer.write(ApplicationProperties.NEW_LINE_BYTES);
+        this.writer.write(GenericUtils.NEW_LINE_BYTES);
 
         if(body != null) {
 
@@ -178,13 +175,6 @@ public final class HttpExchange {
                 bodyCallback.writeBody(this.writer);
                 this.writer.endChunked();
             }
-
-            else if(body instanceof final ResponseBodyCallback bodyCallback) {
-
-                this.writer.flush();
-                bodyCallback.writeBody(this.writer);
-                this.writer.flush();
-            }
         }
 
         else {
@@ -196,16 +186,99 @@ public final class HttpExchange {
     }
 
     ///..
-    public void requestClose() {
+    public void respondForProxy(final CharSequence responseLine, final List<CharSequence> headers, final ResponseBodyCallback body)
+    throws IOException {
+
+        this.endTime = System.currentTimeMillis();
+        this.responseStatus = HttpStatus.decode(Integer.parseInt(GenericUtils.fastSplit(responseLine, ' ').get(1)));
+
+        this.writer.write(responseLine);
+        this.writer.write(GenericUtils.NEW_LINE_BYTES);
+
+        final int length = headers.size();
+
+        int contentLength = 0;
+        boolean flag = false;
+
+        for(int i = 0; i < length; i++) {
+
+            final CharSequence header = headers.get(i);
+            final List<String> headerSplits = GenericUtils.fastSplit(header, ':');
+
+            if(!flag && "Content-Length".equalsIgnoreCase(headerSplits.get(0))) {
+
+                contentLength = Integer.parseInt(headerSplits.get(1).trim());
+                flag = true;
+            }
+
+            this.writer.write(header);
+            this.writer.write(GenericUtils.NEW_LINE_BYTES);
+        }
+
+        this.writer.write(GenericUtils.NEW_LINE_BYTES);
+        body.writeBody(writer, contentLength);
+
+        this.isHandled = true;
+    }
+
+    ///..
+    public void flagForClose() {
 
         this.doForceClose = true;
     }
 
-    ///.
-    private String getDate() {
+    ///..
+    @Override
+    public String toString() {
 
-        final OffsetDateTime startTimeDate = OffsetDateTime.ofInstant(Instant.ofEpochMilli(this.startTime), GenericUtils.DEFAULT_ZONE_ID);
-        return DateTimeFormatter.RFC_1123_DATE_TIME.format(startTimeDate);
+        return
+
+            String.valueOf(this.method) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
+            GenericUtils.normalizedForObservability(String.valueOf(this.uri)) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
+            "Request headers " + this.redactSensitiveHeaders(this.requestHeaders) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
+            "Response headers " + this.redactSensitiveHeaders(this.responseHeaders)
+        ;
+    }
+
+    ///.
+    private String formatEndTime() {
+
+        return DateTimeFormatter.RFC_1123_DATE_TIME.format(OffsetDateTime.ofInstant(
+
+            Instant.ofEpochMilli(this.endTime),
+            GenericUtils.DEFAULT_ZONE_ID
+        ));
+    }
+
+    ///..
+    private String redactSensitiveHeaders(final Map<HttpHeader, String> headers) {
+
+        if(headers == null) return "null";
+        final MutableString mutableString = new MutableString(128);
+
+        mutableString.append('{');
+
+        for(final Entry<HttpHeader, String> header : headers.entrySet()) {
+
+            final HttpHeader key = header.getKey();
+
+            mutableString.append(key.name());
+            mutableString.append('=');
+
+            if(key.isSensitive()) mutableString.append(ApplicationProperties.EXCHANGE_LOG_REDACTED_VALUE);
+            else mutableString.append(GenericUtils.normalizedForObservability(header.getValue()));
+
+            mutableString.append(", ");
+        }
+
+        if(!headers.isEmpty()) {
+
+            mutableString.deleteLastCharUnsafe();
+            mutableString.deleteLastCharUnsafe();
+        }
+
+        mutableString.append('}');
+        return mutableString.toString();
     }
 
     ///

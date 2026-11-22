@@ -48,7 +48,7 @@ public final class SimpleCron {
             final long id = idReference[0];
             this.nextTriggerTimestamp += this.period;
 
-            final Thread worker = GenericUtils.createVirtualThread(this.name + "-" + id, () -> {
+            final Thread worker = GenericUtils.createVirtualThread(this.name + '-' + id, () -> {
 
                 try {
 

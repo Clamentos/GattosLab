@@ -21,6 +21,7 @@ import io.github.clamentos.gattoslab.server.http.exchange.components.resources.R
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
+import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -32,10 +33,9 @@ public final class Filter extends Responder {
     ///
     private static final String RATE_LIMITED_MESSAGE = "Rate limited";
     private static final String ILLEGAL_HOST_MESSAGE = "Unknown or blank Host header";
-
-    private static final byte[] RATE_LIMITED_MESSAGE_BYTES = RATE_LIMITED_MESSAGE.getBytes();
-    private static final byte[] ILLEGAL_HOST_MESSAGE_BYTES = ILLEGAL_HOST_MESSAGE.getBytes();
-    private static final byte[] NOT_FOUND_MESSAGE_BYTES = "Not found".getBytes();
+    private static final byte[] RATE_LIMITED_MESSAGE_BYTES = RATE_LIMITED_MESSAGE.getBytes(StandardCharsets.ISO_8859_1);
+    private static final byte[] ILLEGAL_HOST_MESSAGE_BYTES = ILLEGAL_HOST_MESSAGE.getBytes(StandardCharsets.ISO_8859_1);
+    private static final byte[] NOT_FOUND_MESSAGE_BYTES = "Not found".getBytes(StandardCharsets.ISO_8859_1);
 
     ///.
     private final SquashingLogger squashingLogger;
@@ -111,7 +111,16 @@ public final class Filter extends Responder {
         super.observabilityService.requestStarted();
 
         if(!this.doRateLimitFilter(exchange)) return false;
-        if(!this.doIngressFilter(exchange)) return false;
+        final String uri = exchange.getUri();
+
+        for(final String illegalElement : this.illegalPathContains) {
+
+            if(uri.contains(illegalElement)) {
+
+                exchange.setUriBad(true);
+                break;
+            }
+        }
 
         if(isDashboard) return this.authForDashboard(exchange);
         return this.authForPublic(exchange);
@@ -122,14 +131,14 @@ public final class Filter extends Responder {
 
         final RateLimitEntry rateLimitEntry = this.rateLimitTracker.computeIfAbsent(
 
-            exchange.getRemoteAddress(),
+            exchange.getClientRemoteAddress(),
             _ -> new RateLimitEntry(this.rateLimitAmount, this.entryCounterStart)
         );
 
         if(rateLimitEntry.isRateLimited()) {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash(RATE_LIMITED_MESSAGE, exchange));
-            exchange.requestClose();
+            exchange.flagForClose();
 
             super.respond(
 
@@ -147,29 +156,6 @@ public final class Filter extends Responder {
     }
 
     ///..
-    private boolean doIngressFilter(final HttpExchange exchange) {
-
-        final String uri = exchange.getUri();
-
-        for(final String illegalElement : this.illegalPathContains) {
-
-            if(uri.contains(illegalElement)) {
-
-                exchange.setUriBad(true);
-                break;
-            }
-        }
-
-        if(exchange.getMethod() == HttpMethod.OPTIONS) {
-
-            super.respond(exchange, HttpStatus.NO_CONTENT, this.siteCorsHeaders);
-            return false;
-        }
-
-        return true;
-    }
-
-    ///..
     private boolean authForDashboard(final HttpExchange exchange) {
 
         final Resource resource = this.resourceMappings.getDashboard(exchange.getUri());
@@ -177,7 +163,7 @@ public final class Filter extends Responder {
 
         exchange.setDomain(domain);
 
-        if(!this.checkFound(exchange, resource)) return false;
+        if(!this.checkFound(exchange, resource, true)) return false;
         if(resource.getAuthorizationAction() != AuthorizationAction.ALLOW) return this.doAuth(exchange);
 
         return true;
@@ -193,7 +179,7 @@ public final class Filter extends Responder {
 
             this.squashingLogger.warning(GenericUtils.composeMessageForSquash(ILLEGAL_HOST_MESSAGE, exchange));
 
-            exchange.requestClose();
+            exchange.flagForClose();
             super.respond(exchange, HttpStatus.BAD_REQUEST, MimeType.TEXT, ILLEGAL_HOST_MESSAGE_BYTES);
 
             return false;
@@ -215,7 +201,7 @@ public final class Filter extends Responder {
             return true;
         }
 
-        return this.checkFound(exchange, this.resourceMappings.getSite(domain, uri));
+        return this.checkFound(exchange, this.resourceMappings.getSite(domain, uri), false);
     }
 
     ///..
@@ -233,11 +219,17 @@ public final class Filter extends Responder {
     }
 
     ///..
-    private boolean checkFound(final HttpExchange exchange, final Resource resource) {
+    private boolean checkFound(final HttpExchange exchange, final Resource resource, final boolean isDashboard) {
 
         if(resource == null) {
 
             super.respond(exchange, HttpStatus.NOT_FOUND, MimeType.TEXT, NOT_FOUND_MESSAGE_BYTES);
+            return false;
+        }
+
+        if(exchange.getMethod() == HttpMethod.OPTIONS) {
+
+            super.respond(exchange, HttpStatus.NO_CONTENT, isDashboard ? this.dashboardCorsHeaders : this.siteCorsHeaders);
             return false;
         }
 

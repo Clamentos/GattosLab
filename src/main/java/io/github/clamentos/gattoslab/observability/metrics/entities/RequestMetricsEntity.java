@@ -24,6 +24,7 @@ public final class RequestMetricsEntity implements Resettable, Entity {
     ///
     private long timestamp;
     private int latency;
+    private String domain;
     private String uri;
     private String userAgent;
     private boolean isUnknown;
@@ -35,6 +36,7 @@ public final class RequestMetricsEntity implements Resettable, Entity {
     @Override
     public void reset() {
 
+        this.domain = null;
         this.uri = null;
         this.userAgent = null;
         this.remoteIpAddress = null;
@@ -47,6 +49,8 @@ public final class RequestMetricsEntity implements Resettable, Entity {
         writer.write(Long.toString(this.timestamp));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(Integer.toString(this.latency));
+        writer.write(ApplicationProperties.FIELD_SEPARATOR);
+        writer.write(String.valueOf(this.domain));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.writeForObservability(this.uri);
         writer.write(ApplicationProperties.FIELD_SEPARATOR);

@@ -1,5 +1,6 @@
 package io.github.clamentos.gattoslab.server.http.exchange.components.resources;
 
+///
 import io.github.clamentos.gattoslab.security.components.AuthorizationAction;
 import io.github.clamentos.gattoslab.server.http.exchange.components.MimeType;
 

@@ -16,7 +16,7 @@ public final class FastAtomicCounter {
         final int cacheLineSize = 64;
         final int length = Runtime.getRuntime().availableProcessors() * cacheLineSize;
 
-        this.dwordsPerCacheLine = cacheLineSize / 8;
+        this.dwordsPerCacheLine = cacheLineSize / Long.BYTES;
         this.paddedCounters = new AtomicLongArray(length);
     }
 

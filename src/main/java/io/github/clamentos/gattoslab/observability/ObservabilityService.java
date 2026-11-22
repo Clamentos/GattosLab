@@ -71,13 +71,27 @@ public final class ObservabilityService implements Closeable {
         this.logger = new Logger();
         final Logger fileLogger = new Logger(ObservabilityDirectory.class.getSimpleName());
 
-        this.requestMetricsDirectory = new ObservabilityDirectory<>(fileLogger, ApplicationProperties.REQUEST_METRICS_FILE_PATH);
-        this.systemMetricsDirectory = new ObservabilityDirectory<>(fileLogger, ApplicationProperties.SYSTEM_METRICS_FILE_PATH);
+        this.requestMetricsDirectory = new ObservabilityDirectory<>(fileLogger, ApplicationProperties.REQUEST_METRICS_FILE_PATH_TEMPLATE);
+        this.systemMetricsDirectory = new ObservabilityDirectory<>(fileLogger, ApplicationProperties.SYSTEM_METRICS_FILE_PATH_TEMPLATE);
 
         final Class<RequestMetricsEntity> type = RequestMetricsEntity.class;
 
-        this.primarySiphon = new Siphon<>(type, ApplicationProperties.METRICS_SIPHON_CAPACITY, RequestMetricsEntity::new, this::drainSiphonTask);
-        this.secondarySiphon = new Siphon<>(type, ApplicationProperties.METRICS_SIPHON_CAPACITY, RequestMetricsEntity::new, this::drainSiphonTask);
+        this.primarySiphon = new Siphon<>(
+
+            type,
+            ApplicationProperties.REQUEST_METRICS_SIPHON_CAPACITY,
+            RequestMetricsEntity::new,
+            this::drainSiphonTask
+        );
+
+        this.secondarySiphon = new Siphon<>(
+
+            type,
+            ApplicationProperties.REQUEST_METRICS_SIPHON_CAPACITY,
+            RequestMetricsEntity::new,
+            this::drainSiphonTask
+        );
+
         this.currentSiphonReference = new AtomicReference<>(this.primarySiphon);
 
         this.systemMetricsService = new SystemMetricsService(httpConnectionsTracker, batchScheduler.schedule(
@@ -98,7 +112,7 @@ public final class ObservabilityService implements Closeable {
 
             () -> this.currentSiphonReference.get().drain(),
             "gattos-lab-metrics-drain-task",
-            ApplicationProperties.METRICS_DRAIN_CRON
+            ApplicationProperties.REQUEST_METRICS_DRAIN_CRON
         );
 
         batchScheduler.schedule(
@@ -180,7 +194,7 @@ public final class ObservabilityService implements Closeable {
 
         if(bucketSize <= 0) throw new IllegalArgumentException("Filter field 'bucketSize' must be > 0");
 
-        final List<String> requests = this.observabilityDatabase.readRequests(startTimestamp, endTimestamp, "", "", "", "");
+        final List<String> requests = this.observabilityDatabase.readRequests(startTimestamp, endTimestamp, "", "", "", "", "");
         final int length = requests.size();
 
         final Map<Long, Map<String, RequestMetricsAggregationEntity>> aggregationMap = new HashMap<>();
@@ -190,7 +204,7 @@ public final class ObservabilityService implements Closeable {
 
             final List<String> splits = GenericUtils.fastSplit(requests.get(i), ApplicationProperties.FIELD_SEPARATOR);
             final long bucket = (Long.parseLong(splits.get(0)) / bucketSize) * bucketSize;
-            final String status = HttpStatus.decode(Integer.parseInt(splits.get(5))).toString();
+            final String status = HttpStatus.decode(Integer.parseInt(splits.get(6))).toString();
 
             final RequestMetricsAggregationEntity aggregation = aggregationMap
 
@@ -302,20 +316,24 @@ public final class ObservabilityService implements Closeable {
             aggregation.setSockets(aggregation.getSockets() + Long.parseLong(splits.get(3)));
             aggregation.setSocketsOpened(Math.max(aggregation.getSocketsOpened(), Long.parseLong(splits.get(4))));
             aggregation.setSocketsClosed(Math.max(aggregation.getSocketsClosed(), Long.parseLong(splits.get(5))));
-            aggregation.setFileReads(aggregation.getFileReads() + Long.parseLong(splits.get(6)));
-            aggregation.setFileWrites(aggregation.getFileWrites() + Long.parseLong(splits.get(7)));
-            aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(8)));
-            aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(9)));
-            aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(10)));
-            aggregation.setGcPauseMilliseconds(aggregation.getGcPauseMilliseconds() + Long.parseLong(splits.get(11)));
-            aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(12)));
-            aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(13)));
-            aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(14)));
-            aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(15)));
-            aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(16)));
-            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(17)));
-            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(18)));
-            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(19)));
+            aggregation.setTcpPoolIdle(aggregation.getTcpPoolIdle() + Long.parseLong(splits.get(6)));
+            aggregation.setTcpPoolBusy(aggregation.getTcpPoolBusy() + Long.parseLong(splits.get(7)));
+            aggregation.setHttpPoolIdle(aggregation.getHttpPoolIdle() + Long.parseLong(splits.get(8)));
+            aggregation.setHttpPoolBusy(aggregation.getHttpPoolBusy() + Long.parseLong(splits.get(9)));
+            aggregation.setFileReads(aggregation.getFileReads() + Long.parseLong(splits.get(10)));
+            aggregation.setFileWrites(aggregation.getFileWrites() + Long.parseLong(splits.get(11)));
+            aggregation.setSocketReads(aggregation.getSocketReads() + Long.parseLong(splits.get(12)));
+            aggregation.setSocketWrites(aggregation.getSocketWrites() + Long.parseLong(splits.get(13)));
+            aggregation.setGcCounts(aggregation.getGcCounts() + Long.parseLong(splits.get(14)));
+            aggregation.setGcPauseMilliseconds(aggregation.getGcPauseMilliseconds() + Long.parseLong(splits.get(15)));
+            aggregation.setCpuLoadJvmUser(aggregation.getCpuLoadJvmUser() + Long.parseLong(splits.get(16)));
+            aggregation.setCpuLoadJvmSystem(aggregation.getCpuLoadJvmSystem() + Long.parseLong(splits.get(17)));
+            aggregation.setCpuLoadMachineTotal(aggregation.getCpuLoadMachineTotal() + Long.parseLong(splits.get(18)));
+            aggregation.setSystemMemoryUsed(aggregation.getSystemMemoryUsed() + Long.parseLong(splits.get(19)));
+            aggregation.setMetaSpaceUsed(aggregation.getMetaSpaceUsed() + Long.parseLong(splits.get(20)));
+            aggregation.setHeapUsed(aggregation.getHeapUsed() + Long.parseLong(splits.get(21)));
+            aggregation.setStorageUsed(aggregation.getStorageUsed() + Long.parseLong(splits.get(22)));
+            aggregation.setRequestMetricsEquilibrium(aggregation.getRequestMetricsEquilibrium() + Long.parseLong(splits.get(23)));
             aggregation.setCount(aggregation.getCount() + 1);
         }
 
@@ -358,20 +376,24 @@ public final class ObservabilityService implements Closeable {
                 datasets[2].getData()[i] = Math.ceilDiv(aggregation.getSockets(), count);
                 datasets[3].getData()[i] = aggregation.getSocketsOpened();
                 datasets[4].getData()[i] = aggregation.getSocketsClosed();
-                datasets[5].getData()[i] = aggregation.getFileReads();
-                datasets[6].getData()[i] = aggregation.getFileWrites();
-                datasets[7].getData()[i] = aggregation.getSocketReads();
-                datasets[8].getData()[i] = aggregation.getSocketWrites();
-                datasets[9].getData()[i] = aggregation.getGcCounts();
-                datasets[10].getData()[i] = aggregation.getGcPauseMilliseconds();
-                datasets[11].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), count);
-                datasets[12].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), count);
-                datasets[13].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), count);
-                datasets[14].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), count);
-                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), count);
-                datasets[16].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), count);
-                datasets[17].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), count);
-                datasets[18].getData()[i] = aggregation.getRequestMetricsEquilibrium();
+                datasets[5].getData()[i] = Math.ceilDiv(aggregation.getTcpPoolIdle(), count);
+                datasets[6].getData()[i] = Math.ceilDiv(aggregation.getTcpPoolBusy(), count);
+                datasets[7].getData()[i] = Math.ceilDiv(aggregation.getHttpPoolIdle(), count);
+                datasets[8].getData()[i] = Math.ceilDiv(aggregation.getHttpPoolBusy(), count);
+                datasets[9].getData()[i] = aggregation.getFileReads();
+                datasets[10].getData()[i] = aggregation.getFileWrites();
+                datasets[11].getData()[i] = aggregation.getSocketReads();
+                datasets[12].getData()[i] = aggregation.getSocketWrites();
+                datasets[13].getData()[i] = aggregation.getGcCounts();
+                datasets[14].getData()[i] = aggregation.getGcPauseMilliseconds();
+                datasets[15].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmUser(), count);
+                datasets[16].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadJvmSystem(), count);
+                datasets[17].getData()[i] = Math.ceilDiv(aggregation.getCpuLoadMachineTotal(), count);
+                datasets[18].getData()[i] = Math.ceilDiv(aggregation.getSystemMemoryUsed(), count);
+                datasets[19].getData()[i] = Math.ceilDiv(aggregation.getMetaSpaceUsed(), count);
+                datasets[20].getData()[i] = Math.ceilDiv(aggregation.getHeapUsed(), count);
+                datasets[21].getData()[i] = Math.ceilDiv(aggregation.getStorageUsed(), count);
+                datasets[22].getData()[i] = aggregation.getRequestMetricsEquilibrium();
             }
         }
 
@@ -380,13 +402,24 @@ public final class ObservabilityService implements Closeable {
 
         charts[0] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[0]});
         charts[1] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[1]});
-        charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[2], datasets[3], datasets[4]});
-        charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[5], datasets[6], datasets[7], datasets[8]});
-        charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[9], datasets[10]});
-        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[11], datasets[12], datasets[13]});
-        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[14], datasets[15], datasets[16]});
-        charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[17]});
-        charts[8] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[18]});
+
+        charts[2] = new LineChartEntity(timeline, new LineChartEntry[]{
+
+            datasets[2],
+            datasets[3],
+            datasets[4],
+            datasets[5],
+            datasets[6],
+            datasets[7],
+            datasets[8]
+        });
+
+        charts[3] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[9], datasets[10], datasets[11], datasets[12]});
+        charts[4] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[13], datasets[14]});
+        charts[5] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[15], datasets[16], datasets[17]});
+        charts[6] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[18], datasets[19], datasets[20]});
+        charts[7] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[21]});
+        charts[8] = new LineChartEntity(timeline, new LineChartEntry[]{datasets[22]});
 
         return writer -> {
 
@@ -415,11 +448,11 @@ public final class ObservabilityService implements Closeable {
 
         /*
             filter:
-                startTime|endTime|isUnknown|userAgentPattern|pathPattern|remoteIpAddressPattern
-                reqd     |reqd   | ok or ""| ok or ""       | ok or ""  | ok or ""
+                startTime|endTime|isUnknown|userAgentPattern|uriPattern|domainPattern|remoteIpAddressPattern
+                reqd     |reqd   | ok or ""| ok or ""       | ok or "" | ok or ""    | ok or ""
         */
 
-        final List<String> filter = this.validateAndExtractFilter(exchange, 6);
+        final List<String> filter = this.validateAndExtractFilter(exchange, 7);
 
         final List<String> requests = this.observabilityDatabase.readRequests(
 
@@ -428,7 +461,8 @@ public final class ObservabilityService implements Closeable {
             filter.get(2),
             filter.get(3),
             filter.get(4),
-            filter.get(5)
+            filter.get(5),
+            filter.get(6)
         );
 
         final int length = requests.size();
@@ -441,16 +475,16 @@ public final class ObservabilityService implements Closeable {
 
             final List<String> splits = GenericUtils.fastSplit(requests.get(i), ApplicationProperties.FIELD_SEPARATOR);
 
-            final String path = splits.get(2);
-            final String userAgent = splits.get(3);
-            final String remoteAddress = splits.get(7);
+            final String uri = splits.get(3);
+            final String userAgent = splits.get(4);
+            final String remoteAddress = splits.get(8);
             final long timestamp = Long.parseLong(splits.get(0));
 
-            final CrawlAggregationEntity crawl = crawlAggregation.computeIfAbsent(path, _ -> new CrawlAggregationEntity(path));
+            final CrawlAggregationEntity crawl = crawlAggregation.computeIfAbsent(uri, _ -> new CrawlAggregationEntity(splits.get(2), uri));
 
             if(timestamp > crawl.getLastCalled()) crawl.setLastCalled(timestamp);
             crawl.setNumberOfCalls(crawl.getNumberOfCalls() + 1);
-            crawl.getStatuses().add(splits.get(5));
+            crawl.getStatuses().add(splits.get(6));
 
             final UserAgentAggregationEntity agent = userAgentAggregation.computeIfAbsent(userAgent, _ -> new UserAgentAggregationEntity(userAgent));
 
@@ -540,13 +574,14 @@ public final class ObservabilityService implements Closeable {
         final long startTime = exchange.getStartTime();
 
         requestMetricsEntity.setTimestamp(startTime);
-        requestMetricsEntity.setLatency((int)(System.currentTimeMillis() - startTime));
+        requestMetricsEntity.setLatency((int)(exchange.getEndTime() - startTime));
+        requestMetricsEntity.setDomain(exchange.getDomain());
         requestMetricsEntity.setUri(exchange.getUri());
         requestMetricsEntity.setUserAgent(exchange.getRequestHeaders().get(HttpHeader.USER_AGENT));
         requestMetricsEntity.setUnknown(exchange.getResource() == null);
         requestMetricsEntity.setHttpStatus((short)status.getCode());
         requestMetricsEntity.setUriBad(exchange.isUriBad());
-        requestMetricsEntity.setRemoteIpAddress(exchange.getRemoteAddress());
+        requestMetricsEntity.setRemoteIpAddress(exchange.getClientRemoteAddress());
     }
 
     ///..
@@ -652,17 +687,17 @@ public final class ObservabilityService implements Closeable {
 
                 GenericUtils.MIN_ISO_DATE_TIMESTAMP,
                 GenericUtils.MAX_ISO_DATE_TIMESTAMP,
-                "", "", "", ""
+                "", "", "", "", ""
             );
 
             final int length = requests.size();
 
             for(int i = 0; i < length; i++) {
 
-                final List<String> entry = GenericUtils.fastSplit(requests.get(i), ApplicationProperties.FIELD_SEPARATOR);
-                final String ipAddress = entry.get(7);
+                final List<String> splits = GenericUtils.fastSplit(requests.get(i), ApplicationProperties.FIELD_SEPARATOR);
+                final String ipAddress = splits.get(8);
 
-                if("true".equals(entry.get(6)) && !ipAddress.isEmpty()) {
+                if("true".equals(splits.get(7)) && !ipAddress.isEmpty()) {
 
                     if(ipAddress.contains(".")) ipv4s.add(ipAddress);
                     else ipv6s.add(ipAddress);
@@ -691,7 +726,7 @@ public final class ObservabilityService implements Closeable {
 
         catch(final IOException exc) {
 
-            this.logger.error("Could not delete old files from '" + observabilityFile.toString() + "'", exc);
+            this.logger.error("Could not delete old files from '" + observabilityFile.getDirectory() + "'", exc);
             return 0;
         }
     }

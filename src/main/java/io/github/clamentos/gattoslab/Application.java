@@ -19,6 +19,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
@@ -50,7 +51,7 @@ public class Application {
         final String pid = Long.toString(ProcessHandle.current().pid());
 
         logger.info("Starting Gatto's Lab with pid '" + pid + "'");
-        Files.write(ApplicationProperties.PID_FILE_PATH, pid.getBytes(), StandardOpenOption.CREATE);
+        Files.write(ApplicationProperties.PID_FILE_PATH, pid.getBytes(StandardCharsets.ISO_8859_1), StandardOpenOption.CREATE);
 
         final ShutdownHook shutdownHook = new ShutdownHook();
 
@@ -66,7 +67,7 @@ public class Application {
         final SquashingLogger squashingLogger = new SquashingLogger(batchScheduler);
         shutdownHook.add(squashingLogger);
 
-        final ConnectionsTracker connectionsTracker = new ConnectionsTracker(squashingLogger);
+        final ConnectionsTracker connectionsTracker = new ConnectionsTracker(squashingLogger, applicationProperties);
         shutdownHook.add(connectionsTracker);
 
         final ObservabilityService observabilityService = new ObservabilityService(applicationProperties, connectionsTracker, batchScheduler);

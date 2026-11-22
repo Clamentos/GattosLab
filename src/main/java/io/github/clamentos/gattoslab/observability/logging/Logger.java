@@ -33,7 +33,7 @@ public final class Logger {
     public Logger(final String name) {
 
         this.loggerRoot = LoggerRoot.getInstance();
-        this.name = name + ".";
+        this.name = name + '.';
     }
 
     ///

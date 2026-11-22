@@ -10,8 +10,8 @@ import lombok.Getter;
 
 ///
 @AllArgsConstructor
-@Getter
 @EqualsAndHashCode(of = {"listeningAddress"})
+@Getter
 
 ///
 public class RawProxy {
@@ -19,6 +19,7 @@ public class RawProxy {
     ///
     private final Pair<String, Integer> listeningAddress;
     private final Pair<String, Integer> destinationAddress;
+    private final int keepAliveDuration;
 
     ///
 }

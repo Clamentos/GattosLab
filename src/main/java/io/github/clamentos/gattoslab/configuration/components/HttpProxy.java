@@ -10,8 +10,8 @@ import lombok.Getter;
 
 ///
 @AllArgsConstructor
-@Getter
 @EqualsAndHashCode(of = {"domain"})
+@Getter
 
 ///
 public final class HttpProxy {
@@ -20,6 +20,7 @@ public final class HttpProxy {
     private final String domain;
     private final Pair<String, Integer> destinationAddress;
     private final boolean authenticated;
+    private final int keepAliveDuration;
 
     ///
 }

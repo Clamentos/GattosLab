@@ -1,7 +1,6 @@
 package io.github.clamentos.gattoslab.server.components.connection;
 
 ///
-import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
 import io.github.clamentos.gattoslab.server.components.SocketReader;
 
@@ -12,39 +11,37 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 ///..
 import lombok.Getter;
-import lombok.Setter;
+
+///
+@Getter
 
 ///
 public final class ProxyConnection extends Connection {
 
     ///
-    @Getter
     private final int index;
-
-    @Getter
-    private final SocketReader proxyReader;
-    
-    @Getter
-    private final StreamWriter proxyWriter;
-
-    ///..
+    private final SocketReader reader;
+    private final StreamWriter writer;
     private final AtomicBoolean isBusy;
 
-    ///..
-    @Getter @Setter
-    private int keepAliveDuration;
-
     ///
-    public ProxyConnection(final int index, final Socket socket) throws IOException {
+    public ProxyConnection(
 
-        super(socket, null);
+        final int index,
+        final Socket socket,
+        final int inputBufferSize,
+        final int outputBufferSize,
+        final long maxTransfer,
+        final int keepAliveDuration
+
+    ) throws IOException {
+
+        super(socket, null, keepAliveDuration);
 
         this.index = index;
-        this.proxyReader = new SocketReader(socket.getInputStream(), ApplicationProperties.HTTP_PROXY_INPUT_BUFFERS_SIZE);
-        this.proxyWriter = new StreamWriter(socket.getOutputStream(), ApplicationProperties.HTTP_PROXY_OUTPUT_BUFFERS_SIZE);
-
+        this.reader = new SocketReader(socket.getInputStream(), inputBufferSize, maxTransfer);
+        this.writer = new StreamWriter(socket.getOutputStream(), outputBufferSize);
         this.isBusy = new AtomicBoolean();
-        this.keepAliveDuration = 0;
     }
 
     ///
@@ -56,7 +53,16 @@ public final class ProxyConnection extends Connection {
     ///..
     public void release() {
 
+        this.reader.resetAllowed();
         this.isBusy.set(false);
+    }
+
+    ///..
+    @Override
+    public void close() throws IOException {
+
+        this.writer.close();
+        super.close();
     }
 
     ///

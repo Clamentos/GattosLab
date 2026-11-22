@@ -26,16 +26,13 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.GZIPOutputStream;
 
 ///
@@ -46,7 +43,7 @@ public final class Handler extends Responder {
     private final ExceptionHandler exceptionHandler;
 
     ///..
-    private final AtomicReferenceArray<Pair<ReentrantLock, ProxyConnection>> proxyConnectionPool;
+    private final ConnectionsTracker connectionsTracker;
 
     ///
     public Handler(
@@ -54,7 +51,7 @@ public final class Handler extends Responder {
         final ObservabilityService observabilityService,
         final SessionService sessionService,
         final ExceptionHandler exceptionHandler,
-        final ConnectionsTracker httpConnectionsTracker
+        final ConnectionsTracker connectionsTracker
     ) {
 
         super(observabilityService);
@@ -62,7 +59,7 @@ public final class Handler extends Responder {
         this.sessionService = sessionService;
         this.exceptionHandler = exceptionHandler;
 
-        this.proxyConnectionPool = httpConnectionsTracker.getProxyConnectionPool();
+        this.connectionsTracker = connectionsTracker;
     }
 
     ///
@@ -104,95 +101,60 @@ public final class Handler extends Responder {
     ///
     private void handleProxy(final HttpExchange exchange, final HttpProxy proxy) {
 
+        boolean requestSent = false;
+        ProxyConnection connection = null;
+
         try {
 
-            final ProxyConnection connection = this.getConnection(proxy);
-            final SocketReader proxyReader = connection.getProxyReader();
-            final StreamWriter proxyWriter = connection.getProxyWriter();
+            connection = this.connectionsTracker.getPooledHttpConnection(proxy);
+
+            final SocketReader proxyReader = connection.getReader();
+            final StreamWriter proxyWriter = connection.getWriter();
             final Map<HttpHeader, String> requestHeaders = exchange.getRequestHeaders();
 
-            if(connection.getKeepAliveDuration() == 0) {
-
-                requestHeaders.put(HttpHeader.CONNECTION, "keep-alive");
-            }
-
+            requestHeaders.put(HttpHeader.CONNECTION, "keep-alive");
             proxyWriter.write((exchange.getMethod().name() + " " + exchange.getUri() + " HTTP/1.1\r\n"));
 
             for(final Entry<HttpHeader, String> header : requestHeaders.entrySet()) {
 
                 proxyWriter.write(header.getKey().getResponseValue());
-                proxyWriter.write(header.getValue().getBytes());
-                proxyWriter.write(ApplicationProperties.NEW_LINE_BYTES);
+                proxyWriter.write(header.getValue().getBytes(StandardCharsets.ISO_8859_1));
+                proxyWriter.write(GenericUtils.NEW_LINE_BYTES);
             }
 
-            proxyWriter.write(ApplicationProperties.NEW_LINE_BYTES);
+            proxyWriter.write(GenericUtils.NEW_LINE_BYTES);
 
             final String requestBodyLength = requestHeaders.get(HttpHeader.CONTENT_LENGTH);
             final int requestLength = requestBodyLength != null && !requestBodyLength.isEmpty() ? Integer.parseInt(requestBodyLength) : 0;
 
             exchange.getReader().transferTo(proxyWriter, requestLength);
+            requestSent = true;
 
-            final List<String> splits = GenericUtils.fastSplit(proxyReader.readLine(), ' ');
-            final Map<HttpHeader, String> responseHeaders = new EnumMap<>(HttpHeader.class);
+            final CharSequence responseLine = proxyReader.readLine();
+            final List<CharSequence> responseHeaders = new ArrayList<>();
             CharSequence line;
 
             while((line = proxyReader.readLine()) != null && !line.isEmpty()) {
 
-                final List<String> headerSplits = GenericUtils.fastSplit(line, ':');
-                final HttpHeader header = HttpHeader.decode(headerSplits.get(0).toLowerCase(Locale.US));
-
-                if(header != null) responseHeaders.put(header, headerSplits.get(1).trim());
+                responseHeaders.add(line);
             }
 
-            final String connectionResponseHeader = responseHeaders.get(HttpHeader.CONNECTION);
-
-            if(connectionResponseHeader != null && connectionResponseHeader.toLowerCase(Locale.US).contains("close")) {
-
-                exchange.requestClose();
-                this.proxyConnectionPool.get(connection.getIndex()).setB(null);
-            }
-
-            else if(connection.getKeepAliveDuration() == 0) {
-
-                final String keepAliveDuration = responseHeaders.get(HttpHeader.KEEP_ALIVE);
-
-                if(keepAliveDuration != null && !keepAliveDuration.isBlank())  {
-
-                    connection.setKeepAliveDuration(Integer.parseInt(keepAliveDuration));
-                }
-
-                else {
-
-                    exchange.requestClose();
-                    this.proxyConnectionPool.get(connection.getIndex()).setB(null);
-                }
-            }
-
-            super.respond(
+            super.respondForProxy(
 
                 exchange,
-                HttpStatus.decode(Integer.parseInt(splits.get(1))),
+                responseLine,
                 responseHeaders,
-                null,
-
-                (ResponseBodyCallback)writer -> {
-
-                    final String responseBodyLength = responseHeaders.get(HttpHeader.CONTENT_LENGTH);
-                    final int responseLength = responseBodyLength != null && !responseBodyLength.isEmpty() ? Integer.parseInt(responseBodyLength) : 0;
-
-                    proxyReader.transferTo(writer, responseLength);
-                }
+                (ResponseBodyCallback)proxyReader::transferTo
             );
-
-            proxyReader.resetAllowed();
-            connection.release();
         }
 
-        catch(final IOException | InterruptedException | RuntimeException exc) {
+        catch(final IOException exc) {
 
-            Thread.currentThread().interrupt();
-            this.exceptionHandler.handleUncaught(exchange, exc);
+            if(requestSent) this.exceptionHandler.handleUncaught(exchange, exc);
+            else super.respond(exchange, HttpStatus.SERVICE_UNAVAILABLE);
         }
+
+        if(connection != null) connection.release();
     }
 
     ///..
@@ -228,7 +190,7 @@ public final class Handler extends Responder {
 
             catch(final IOException exc) {
 
-                super.respond(exchange, HttpStatus.UNPROCESSABLE, MimeType.TEXT, exc.toString().getBytes());
+                super.respond(exchange, HttpStatus.UNPROCESSABLE, MimeType.TEXT, exc.toString().getBytes(StandardCharsets.ISO_8859_1));
             }
         }
 
@@ -252,12 +214,12 @@ public final class Handler extends Responder {
 
                 if(securityFailure == null) {
 
-                    super.respond(exchange, HttpStatus.OK, MimeType.TEXT, Long.toString(loginResult.getB()).getBytes());
+                    super.respond(exchange, HttpStatus.OK, MimeType.TEXT, Long.toString(loginResult.getB()).getBytes(StandardCharsets.ISO_8859_1));
                 }
 
                 else {
 
-                    exchange.requestClose();
+                    exchange.flagForClose();
                     super.respond(exchange, HttpStatus.UNAUTHORIZED, MimeType.TEXT, securityFailure.getMessage());
                 }
 
@@ -269,7 +231,7 @@ public final class Handler extends Responder {
 
                 this.sessionService.logout(exchange);
 
-                exchange.requestClose();
+                exchange.flagForClose();
                 super.respond(exchange, HttpStatus.OK, ApplicationProperties.CLEAR_SITE_DATA_HEADERS);
 
             return;
@@ -320,10 +282,10 @@ public final class Handler extends Responder {
 
         catch(final IOException | IllegalArgumentException exc) {
 
-            exchange.requestClose();
+            exchange.flagForClose();
 
             final HttpStatus status = exc instanceof IOException ? HttpStatus.UNPROCESSABLE : HttpStatus.BAD_REQUEST;
-            super.respond(exchange, status, MimeType.TEXT, exc.toString().getBytes());
+            super.respond(exchange, status, MimeType.TEXT, exc.toString().getBytes(StandardCharsets.ISO_8859_1));
         }
     }
 
@@ -332,76 +294,13 @@ public final class Handler extends Responder {
 
         if(exchange.getMethod() != method) {
 
-            exchange.requestClose();
+            exchange.flagForClose();
             super.respond(exchange, HttpStatus.METHOD_NOT_ALLOWED, MimeType.TEXT, method.getMessage());
 
             return true;
         }
 
         return false;
-    }
-
-    ///..
-    private ProxyConnection getConnection(final HttpProxy proxy) throws IOException, InterruptedException {
-
-        final int sleepAmount = 100;
-        final int length = this.proxyConnectionPool.length();
-
-        int index = (int)Thread.currentThread().threadId() % length;
-        long timer = ApplicationProperties.PROXY_CONNECTION_POOL_AQUIRE_TIMEOUT.toMillis();
-
-        while(timer > 0) {
-
-            for(int i = 0; i < length; i++) {
-
-                final ProxyConnection connection = this.createConnectionMaybe(index, proxy.getDestinationAddress());
-                if(connection != null) return connection;
-            }
-
-            Thread.sleep(sleepAmount);
-            timer -= sleepAmount;
-        }
-
-        throw new IOException("Connection pool timeout");
-    }
-
-    ///..
-    private ProxyConnection createConnectionMaybe(final int index, final Pair<String, Integer> destination) throws IOException {
-
-        final Pair<ReentrantLock, ProxyConnection> entry = this.proxyConnectionPool.get(index);
-        final ProxyConnection connection = entry.getB();
-
-        if(connection == null) {
-
-            final ReentrantLock lock = entry.getA();
-            lock.lock();
-
-            if(entry.getB() == null) {
-
-                try {
-
-                    final ProxyConnection newConnection = new ProxyConnection(index, new Socket(destination.getA(), destination.getB()));
-
-                    newConnection.aquire();
-                    entry.setB(newConnection);
-                    lock.unlock();
-
-                    return newConnection;
-                }
-
-                catch(final IOException exc) {
-
-                    lock.unlock();
-                    throw exc;
-                }
-            }
-
-            lock.unlock();
-            return null;
-        }
-
-        if(connection.aquire()) return connection;
-        return null;
     }
 
     ///

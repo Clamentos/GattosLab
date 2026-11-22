@@ -126,7 +126,7 @@ public final class Siphon<T extends Resettable> extends AbstractList<T> {
     private T getNext() {
 
         final int length = this.elements.length();
-        final int indexValue = this.index.getAndUpdate(val -> val < length ? (val + 1) : val);
+        final int indexValue = this.index.getAndUpdate(val -> Math.min(val + 1, length));
 
         if(indexValue < length) return this.get(indexValue);
 

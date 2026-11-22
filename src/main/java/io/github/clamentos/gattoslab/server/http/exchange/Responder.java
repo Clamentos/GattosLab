@@ -1,5 +1,6 @@
 package io.github.clamentos.gattoslab.server.http.exchange;
 
+///
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.server.http.exchange.components.HttpExchange;
@@ -12,6 +13,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 ///
@@ -81,16 +83,27 @@ public abstract class Responder {
     }
 
     ///..
-    protected void respond(
+    protected void respondForProxy(
 
         final HttpExchange exchange,
-        final HttpStatus status,
-        final Map<HttpHeader, String> headers,
-        final MimeType mimeType,
+        final CharSequence responseLine,
+        final List<CharSequence> headers,
         final ResponseBodyCallback body
     ) {
 
-        this.respond(exchange, status, headers, mimeType, (Object)body);
+        try {
+
+            exchange.respondForProxy(responseLine, headers, body);
+            this.observabilityService.requestEnded(exchange);
+        }
+
+        catch(final IOException exc) {
+
+            if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Could not respond", exc);
+
+            this.observabilityService.requestPartiallyEnded(exchange);
+            exchange.flagForClose();
+        }
     }
 
     ///..
@@ -114,7 +127,7 @@ public abstract class Responder {
             if(GenericUtils.isExceptionNotable(exc)) this.logger.error("Could not respond", exc);
 
             this.observabilityService.requestPartiallyEnded(exchange);
-            exchange.requestClose();
+            exchange.flagForClose();
         }
     }
 

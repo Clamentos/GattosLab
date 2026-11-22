@@ -61,11 +61,11 @@ public final class BatchScheduler implements Closeable {
 
         this.logger.info("Begin shutdown...");
 
+        this.isClosed.set(true);
+        final Duration timeout = ApplicationProperties.SCHEDULER_SHUTDOWN_TIMEOUT.multipliedBy(Math.max(this.workers.size(), 1));
+
         try {
 
-            this.isClosed.set(true);
-
-            final Duration timeout = ApplicationProperties.SCHEDULER_SHUTDOWN_TIMEOUT.multipliedBy(Math.max(this.workers.size(), 1));
             if(!this.scheduler.join(timeout)) this.logger.warning("Timed-out while joining");
         }
 
@@ -101,11 +101,11 @@ public final class BatchScheduler implements Closeable {
 
         for(final Thread worker : this.workers.values()) {
 
+            final String name = worker.getName();
+            this.logger.info("Joining '" + name + "'");
+
             try {
 
-                final String name = worker.getName();
-
-                this.logger.info("Joining '" + name + "'");
                 if(!worker.join(ApplicationProperties.SCHEDULER_SHUTDOWN_TIMEOUT)) this.logger.warning("Timed-out while joining '" + name + "'");
             }
 

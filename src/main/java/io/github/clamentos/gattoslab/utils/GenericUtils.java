@@ -10,6 +10,7 @@ import io.github.clamentos.gattoslab.server.http.exchange.components.HttpHeader;
 ///..
 import java.io.IOException;
 import java.lang.Thread.Builder.OfVirtual;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,27 +32,40 @@ import lombok.NoArgsConstructor;
 public final class GenericUtils {
 
     ///
+    public static final byte[] NEW_LINE_BYTES = "\r\n".getBytes(StandardCharsets.ISO_8859_1);
+
+    ///..
     public static final ZoneId DEFAULT_ZONE_ID = ZoneId.systemDefault();
     public static final OfVirtual OF_VIRTUAL = Thread.ofVirtual();
-    public static final String[] IPV4_LOOKUP_TABLE = new String[256];
-    public static final String[] IPV6_LOOKUP_TABLE = new String[65536];
+
+    ///..
+    public static final byte[][] IPV4_LOOKUP_TABLE = new byte[256][];
+    public static final byte[][] IPV6_LOOKUP_TABLE = new byte[65536][];
+    public static final byte[][] CHUNKED_LOOKUP_TABLE = new byte[65536][];
+
+    ///..
     public static final long MIN_ISO_DATE_TIMESTAMP = -62_167_222_196_000L;
     public static final long MAX_ISO_DATE_TIMESTAMP = 253_402_297_199_999L;
 
     ///..
-    private static final String[] DATA_SIZE_UNITS = {"KiB", "MiB", "GiB", "TiB"};
+    private static final String[] DATA_SIZE_UNITS = {"KiB", "MiB"};
 
     ///
     static {
 
         for(int i = 0; i < IPV4_LOOKUP_TABLE.length; i++) {
 
-            IPV4_LOOKUP_TABLE[i] = Integer.toString(i);
+            IPV4_LOOKUP_TABLE[i] = Integer.toString(i).getBytes(StandardCharsets.ISO_8859_1);
         }
 
         for(int i = 0; i < IPV6_LOOKUP_TABLE.length; i++) {
 
-            IPV6_LOOKUP_TABLE[i] = Integer.toHexString(i);
+            IPV6_LOOKUP_TABLE[i] = Integer.toHexString(i).getBytes(StandardCharsets.ISO_8859_1);
+        }
+
+        for(int i = 0; i < CHUNKED_LOOKUP_TABLE.length; i++) {
+
+            CHUNKED_LOOKUP_TABLE[i] = (Integer.toHexString(i) + "\r\n").getBytes(StandardCharsets.ISO_8859_1);
         }
     }
 
@@ -60,7 +74,7 @@ public final class GenericUtils {
 
         return
 
-            exchange.getRemoteAddress().toString() +
+            exchange.getClientRemoteAddress().toString() +
             ApplicationProperties.FINGERPRINT_SEPARATOR +
             exchange.getDomain() +
             ApplicationProperties.FINGERPRINT_SEPARATOR +
@@ -69,15 +83,15 @@ public final class GenericUtils {
     }
 
     ///..
-    public static void silentSleep(final long millis) {
+    public static boolean silentSleep(final long millis) {
 
-        silentSleepInternal(millis, 0);
+        return silentSleepInternal(millis, 0);
     }
 
     ///..
-    public static void silentSleepNanos(final int nanos) {
+    public static boolean silentSleepNanos(final int nanos) {
 
-        silentSleepInternal(0, nanos);
+        return silentSleepInternal(0, nanos);
     }
 
     ///..
@@ -124,8 +138,7 @@ public final class GenericUtils {
     ///..
     public static CharSequence normalizedForObservability(final String input) {
 
-        if(input == null) return null;
-        if(input.isEmpty()) return "";
+        if(input == null || input.isEmpty()) return input;
 
         final int length = input.length();
         final MutableString mutableString = new MutableString(length);
@@ -167,18 +180,6 @@ public final class GenericUtils {
     }
 
     ///..
-    public static String exchangeToString(final HttpExchange exchange) {
-
-        return
-
-            String.valueOf(exchange.getMethod()) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
-            normalizedForObservability(String.valueOf(exchange.getUri())) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
-            normalizedForObservability(String.valueOf(exchange.getRequestHeaders())) + ApplicationProperties.EXCHANGE_STRING_SEPARATOR +
-            normalizedForObservability(String.valueOf(exchange.getResponseHeaders()))
-        ;
-    }
-
-    ///..
     public static String composeMessageForSquash(final String prefix, final HttpExchange exchange) {
 
         return
@@ -204,7 +205,7 @@ public final class GenericUtils {
     }
 
     ///..
-    public static String headerToString(final Map<HttpHeader, String> headers) {
+    public static String headersToString(final Map<HttpHeader, String> headers) {
 
         final MutableString mutableString = new MutableString(128);
 
@@ -212,7 +213,7 @@ public final class GenericUtils {
 
             mutableString.append(header.getKey().getResponseValue());
             mutableString.append(header.getValue());
-            mutableString.append(ApplicationProperties.NEW_LINE_BYTES);
+            mutableString.append(NEW_LINE_BYTES);
         }
 
         return mutableString.toString();
@@ -247,16 +248,18 @@ public final class GenericUtils {
     }
 
     ///.
-    private static void silentSleepInternal(final long millis, final int nanos) {
+    private static boolean silentSleepInternal(final long millis, final int nanos) {
 
         try {
 
             Thread.sleep(millis, nanos);
+            return true;
         }
 
         catch(final InterruptedException _) {
 
             Thread.currentThread().interrupt();
+            return false;
         }
     }
 

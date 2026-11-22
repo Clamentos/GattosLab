@@ -70,9 +70,9 @@ public final class LogEvent implements Resettable, Entity {
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
         writer.write(String.valueOf(this.logger));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.writeForObservability(this.message);
+        writer.writeForObservability(String.valueOf(this.message));
         writer.write(ApplicationProperties.FIELD_SEPARATOR);
-        writer.writeForObservability(exceptionString);
+        writer.writeForObservability(String.valueOf(exceptionString));
     }
 
     ///

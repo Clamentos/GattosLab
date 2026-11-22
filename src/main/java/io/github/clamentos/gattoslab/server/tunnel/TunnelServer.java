@@ -1,34 +1,36 @@
 package io.github.clamentos.gattoslab.server.tunnel;
 
+///
 import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.configuration.components.RawProxy;
 import io.github.clamentos.gattoslab.datastructures.Pair;
-import io.github.clamentos.gattoslab.datastructures.addresses.IpAddress;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.SquashingLogger;
 import io.github.clamentos.gattoslab.server.Server;
-import io.github.clamentos.gattoslab.server.components.Tunnel;
+import io.github.clamentos.gattoslab.server.components.Acceptor;
 import io.github.clamentos.gattoslab.server.components.connection.Connection;
 import io.github.clamentos.gattoslab.server.components.connection.ConnectionsTracker;
+import io.github.clamentos.gattoslab.server.components.connection.ProxyConnection;
 import io.github.clamentos.gattoslab.utils.GenericUtils;
 
+///..
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
+///..
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.SSLContext;
 
+///
 public final class TunnelServer extends Server {
 
-    private final Tunnel[] tunnels;
-    private final AtomicBoolean isClosed;
+    ///
+    private final Acceptor[] acceptors;
 
+    ///
     public TunnelServer(
 
         final SquashingLogger squashingLogger,
@@ -39,113 +41,113 @@ public final class TunnelServer extends Server {
     ) throws IOException {
 
         super(new Logger(), squashingLogger, connectionsTracker);
-
-        this.tunnels = this.createTunnels(sslContext, applicationProperties.getTcpServers());
-        this.isClosed = new AtomicBoolean();
+        this.acceptors = this.createAcceptors(sslContext, applicationProperties.getTcpServers());
     }
 
+    ///
     @Override
-    public void close() throws IOException {
-
-        this.logger.info("Begin shutdown...");
-        this.isClosed.set(true);
+    protected void doClose() throws IOException {
 
         try {
 
-            this.stopAcceptors(this.tunnels, ApplicationProperties.SERVER_CLOSE_TIMEOUT);
+            super.stopAcceptors(this.acceptors, ApplicationProperties.ACCEPTORS_SHUTDOWN_TIMEOUT);
         }
 
         catch(final InterruptedException _) {
 
             Thread.currentThread().interrupt();
-            this.logger.error("Interrupted while closing, force quitting");
+            super.logger.error("Interrupted while closing, force quitting");
         }
-
-        this.logger.info("End shutdown");
     }
 
-    private void acceptTunnel(final ServerSocket serverSocket, final Pair<String, Integer> destination) {
+    ///.
+    private void accept(final ServerSocket serverSocket, final Pair<String, Integer> destination, final int keepAliveDuration) {
 
-        while(!this.isClosed.get()) {
+        while(!super.isClosed.get()) {
 
             try {
 
                 final Socket client = serverSocket.accept();
-                GenericUtils.spawnVirtualThread("gattos-lab-tcp-receiver", () -> this.handleTunnelReceive(client, destination));
+                GenericUtils.spawnVirtualThread("gattos-lab-tcp-receiver", () -> this.handleReceive(client, destination, keepAliveDuration));
             }
 
             catch(final IOException | RuntimeException exc) {
 
-                this.connectionsTracker.logException(exc);
+                super.connectionsTracker.logException(exc);
             }
         }
     }
 
-    // Receive from client, transmit to destination
-    private void handleTunnelReceive(final Socket client, final Pair<String, Integer> destination) {
+    ///..
+    private void handleReceive(final Socket client, final Pair<String, Integer> destination, final int keepAliveDuration) {
 
-        final Connection connection = this.connectionsTracker.createConnection(client);
-        final IpAddress remoteAddress = connection.getClientRemoteAddress();
+        final Connection connection = super.connectionsTracker.createConnection(client);
+        if(connection == null) return;
 
-        final int lingerAmount = (int)ApplicationProperties.SOCKET_LINGER.toSeconds();
-        final Socket[] target = new Socket[1];
+        final int lingerAmount = (int)ApplicationProperties.SOCKET_LINGER_DURATION.toSeconds();
+        final ProxyConnection[] proxyConnection = new ProxyConnection[1];
+
+        Thread tcpTransmitter = null;
 
         try {
-
-            target[0] = new Socket(destination.getA(), destination.getB());
-            GenericUtils.spawnVirtualThread("gattos-lab-tcp-transmitter", () -> this.handleTunnelTransmit(connection, target[0]));
-
-            final InputStream inputStream = client.getInputStream();
-            final OutputStream outputStream = target[0].getOutputStream();
-            final byte[] buffer = new byte[ApplicationProperties.DEFAULT_STREAM_WRITER_BUFFER_SIZE];
 
             client.setSoLinger(lingerAmount > 0, lingerAmount);
             client.setTcpNoDelay(ApplicationProperties.SOCKET_TCP_NO_DELAY);
-            client.setSoTimeout((int)ApplicationProperties.SERVER_MAX_KEEP_ALIVE_DURATION.toMillis());
+            client.setSoTimeout(keepAliveDuration);
 
-            while(connection.isValid()) {
+            proxyConnection[0] = super.connectionsTracker.getPooledTcpConnection(destination, keepAliveDuration);
 
-                if(inputStream.read(buffer) != -1) outputStream.write(buffer);
-                else break;
-            }
+            tcpTransmitter = GenericUtils.spawnVirtualThread(
+
+                "gattos-lab-tcp-transmitter",
+                () -> this.handleTunnelTransmit(connection, proxyConnection[0])
+            );
+
+            client.getInputStream().transferTo(proxyConnection[0].getWriter());
         }
 
         catch(final IOException | RuntimeException exc) {
 
-            if(!connection.isSwept()) this.connectionsTracker.logException(exc);
+            if(connection.getAge() > 0) this.connectionsTracker.logException(exc);
         }
 
-        connection.getSwept().set(true);
-        this.connectionsTracker.closeOrLog(client);
-        this.connectionsTracker.closeOrLog(target[0]);
-        this.connectionsTracker.removeConnection(Thread.currentThread(), remoteAddress);
-    }
-
-    // Receive from destination, transmit to client
-    private void handleTunnelTransmit(final Connection client, final Socket destination) {
+        super.connectionsTracker.removeConnection(connection);
 
         try {
 
-            final InputStream inputStream = destination.getInputStream();
-            final OutputStream outputStream = client.getSocket().getOutputStream();
-            final byte[] buffer = new byte[ApplicationProperties.DEFAULT_STREAM_WRITER_BUFFER_SIZE];
+            if(tcpTransmitter != null && !tcpTransmitter.join(ApplicationProperties.ACCEPTORS_SHUTDOWN_TIMEOUT)) {
 
-            while(client.isValid()) {
-
-                if(inputStream.read(buffer) != -1) outputStream.write(buffer);
-                else break;
+                this.logger.warning("Timed-out while joining '" + tcpTransmitter.getName() + "'");
             }
+        }
+
+        catch(final InterruptedException _) {
+
+            Thread.currentThread().interrupt();
+            super.logger.error("Interrupted while joining, force quitting");
+        }
+
+        proxyConnection[0].release();
+    }
+
+    ///..
+    private void handleTunnelTransmit(final Connection client, final ProxyConnection proxyConnection) {
+
+        try {
+
+            proxyConnection.getReader().transferTo(client.getSocket().getOutputStream(), Long.MAX_VALUE);
         }
 
         catch(final IOException | RuntimeException exc) {
 
-            if(!client.isSwept()) this.connectionsTracker.logException(exc);
+            if(client.getAge() > 0) this.connectionsTracker.logException(exc);
         }
     }
 
-    private Tunnel[] createTunnels(final SSLContext sslContext, final Set<RawProxy> proxies) throws IOException {
+    ///..
+    private Acceptor[] createAcceptors(final SSLContext sslContext, final Set<RawProxy> proxies) throws IOException {
 
-        final Tunnel[] newTunnels = new Tunnel[proxies.size()];
+        final Acceptor[] newTunnels = new Acceptor[proxies.size()];
         int i = 0;
 
         for(final RawProxy proxy : proxies) {
@@ -158,7 +160,7 @@ public final class TunnelServer extends Server {
             final boolean isSsl = listeningPort == 443 || listeningPort == 8443;
             final ServerSocketFactory serverSocketFactory = isSsl ? sslContext.getServerSocketFactory() : ServerSocketFactory.getDefault();
 
-            this.logger.info("SSL for " + listening + ":" + listeningPort + " is " + isSsl);
+            super.logger.info("SSL for " + listening + ":" + listeningPort + " is " + isSsl);
 
             final ServerSocket serverSocket = serverSocketFactory.createServerSocket(
 
@@ -170,12 +172,14 @@ public final class TunnelServer extends Server {
             final Thread acceptorThread = GenericUtils.spawnVirtualThread(
 
                 "gattos-lab-tcp-acceptor-task-" + i,
-                () -> this.acceptTunnel(serverSocket, destinationAddress)
+                () -> this.accept(serverSocket, destinationAddress, proxy.getKeepAliveDuration())
             );
 
-            newTunnels[i] = new Tunnel(serverSocket, acceptorThread, destinationAddress);
+            newTunnels[i] = new Acceptor(serverSocket, acceptorThread);
         }
 
         return newTunnels;
     }
+
+    ///
 }

@@ -1,7 +1,6 @@
 package io.github.clamentos.gattoslab.server.components;
 
 ///
-import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.MutableString;
 import io.github.clamentos.gattoslab.exceptions.RequestTooBigException;
 
@@ -14,24 +13,28 @@ import java.io.OutputStream;
 public final class SocketReader {
 
     ///
-    private static final String REQUEST_TOO_BIG_MESSAGE = "Request too big, maximum is " + ApplicationProperties.MAX_REQUEST_SIZE + " bytes";
-
-    ///.
     private final byte[] buffer;
     private final InputStream inputStream;
 
     ///..
-    private int maxAllowedBytes;
+    private final long maximumTransferSize;
+    private final String transferTooBigMessage;
+
+    ///..
+    private long maxAllowedBytes;
     private int usableBytes;
     private int position;
 
     ///
-    public SocketReader(final InputStream inputStream, final int size) {
+    public SocketReader(final InputStream inputStream, final int size, final long maximumTransferSize) {
 
         this.buffer = new byte[size];
         this.inputStream = inputStream;
 
-        this.maxAllowedBytes = ApplicationProperties.MAX_REQUEST_SIZE;
+        this.maximumTransferSize = maximumTransferSize;
+        this.transferTooBigMessage = "Transfer too big, maximum is " + maximumTransferSize + " bytes";
+
+        this.maxAllowedBytes = maximumTransferSize;
         this.usableBytes = 0;
         this.position = 0;
     }
@@ -58,7 +61,7 @@ public final class SocketReader {
 
                 else if(currentByte == '\n' && crFound) {
 
-                    mutableString.deleteLastChar();
+                    mutableString.deleteLastCharUnsafe();
                     return mutableString;
                 }
 
@@ -68,10 +71,9 @@ public final class SocketReader {
     }
 
     ///..
-    public void transferTo(final OutputStream outputStream, final int amount) throws IOException {
+    public void transferTo(final OutputStream outputStream, final long amount) throws IOException {
 
-
-        int remaining = amount - this.usableBytes;
+        long remaining = amount - this.usableBytes;
         outputStream.write(this.buffer, this.position, this.usableBytes);
 
         this.position = this.buffer.length;
@@ -92,13 +94,13 @@ public final class SocketReader {
     ///..
     public void resetAllowed() {
 
-        this.maxAllowedBytes = ApplicationProperties.MAX_REQUEST_SIZE;
+        this.maxAllowedBytes = this.maximumTransferSize;
     }
 
     ///.
     private boolean fill() throws IOException {
 
-        if(this.maxAllowedBytes <= 0) throw new RequestTooBigException(REQUEST_TOO_BIG_MESSAGE);
+        if(this.maxAllowedBytes <= 0) throw new RequestTooBigException(this.transferTooBigMessage);
 
         final int bytesRead = this.inputStream.read(this.buffer, 0, this.buffer.length);
         if(bytesRead == -1) return false;

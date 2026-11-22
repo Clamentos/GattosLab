@@ -1,5 +1,6 @@
 package io.github.clamentos.gattoslab.server.http.exchange;
 
+///
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.server.http.exchange.components.HttpExchange;
@@ -9,6 +10,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 ///
@@ -30,7 +32,7 @@ public final class ExceptionHandler {
     ///
     public void handleUncaught(final HttpExchange exchange, final Throwable exception) {
 
-        exchange.requestClose();
+        exchange.flagForClose();
 
         if(exchange.isHandled()) {
 
@@ -46,11 +48,7 @@ public final class ExceptionHandler {
             case final IllegalArgumentException _ -> HttpStatus.BAD_REQUEST;
             case final InterruptedException _ -> HttpStatus.SERVICE_UNAVAILABLE;
 
-            default -> {
-
-                logger.error("No switch case for exception", exception);
-                yield HttpStatus.INTERNAL_SERVER_ERROR;
-            }
+            default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
 
         if(status == HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -60,7 +58,7 @@ public final class ExceptionHandler {
 
         try {
 
-            exchange.respond(status, Map.of(), MimeType.TEXT, exception.toString().getBytes());
+            exchange.respond(status, Map.of(), MimeType.TEXT, exception.toString().getBytes(StandardCharsets.ISO_8859_1));
         }
 
         catch(final IOException | RuntimeException exc) {
@@ -79,7 +77,7 @@ public final class ExceptionHandler {
     ///.
     private String composeMessage(final HttpExchange exchange, final String postfix) {
 
-        return "Unhandled exception, " + postfix + ". Exchange was: " + GenericUtils.exchangeToString(exchange);
+        return "Unhandled exception, " + postfix + ". Exchange was: " + exchange.toString();
     }
 
     ///

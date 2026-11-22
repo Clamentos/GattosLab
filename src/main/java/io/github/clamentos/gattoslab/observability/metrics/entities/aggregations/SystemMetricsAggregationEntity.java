@@ -21,6 +21,10 @@ public final class SystemMetricsAggregationEntity {
         "Sockets active",
         "Sockets opened",
         "Sockets closed",
+        "TCP proxy pool idle",
+        "TCP proxy pool busy",
+        "HTTP proxy pool idle",
+        "HTTP proxy pool busy",
 
         "File reads",
         "File writes",
@@ -63,6 +67,10 @@ public final class SystemMetricsAggregationEntity {
     private long sockets;                       // spot               (+-)  -> avg [count]
     private long socketsOpened;                 // spot               (+)   -> max [count]
     private long socketsClosed;                 // spot               (+)   -> max [count]
+    private long tcpPoolIdle;                   // spot               (+-)  -> avg [bytes]
+    private long tcpPoolBusy;                   // spot               (+-)  -> avg [bytes]
+    private long httpPoolIdle;                  // spot               (+-)  -> avg [bytes]
+    private long httpPoolBusy;                  // spot               (+-)  -> avg [bytes]
     private long fileReads;                     // accumulate & reset (+-)  -> sum [count]
     private long fileWrites;                    // accumulate & reset (+-)  -> sum [count]
     private long socketReads;                   // accumulate & reset (+-)  -> sum [count]

@@ -14,6 +14,7 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 
 ///..
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -64,7 +65,7 @@ public final class ResourceMappings {
             }
         }
 
-        this.dashboardResourcesMappings = this.generateDashboardMappings(logger, applicationProperties.getDashboardResources());
+        this.dashboardResourcesMappings = this.generateDashboardMappings(logger, applicationProperties.getDashboardResourcesPath());
         this.knownDomains = this.generateKnownDomains(applicationProperties.getSiteResources(), applicationProperties.getHttpProxyServers());
         this.httpProxyAuthExclusions = applicationProperties.getHttpProxyAuthExclusions();
     }
@@ -116,19 +117,19 @@ public final class ResourceMappings {
 
         for(final Path prefixedPath : sitePaths) {
 
-            final String uri = "/" + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
-            final Path diskPath = uri.contains(siteDiskBasedResourcesPathPrefix) ? Path.of(uri) : null;
+            final String path = File.separatorChar + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
+            final Path diskPath = path.contains(siteDiskBasedResourcesPathPrefix) ? Path.of(path) : null;
             final byte[] compressedContent = diskPath == null ? this.compress(prefixedPath) : null;
 
-            MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(uri, '.').getLast());
+            MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
 
             if(mimeType == null) {
 
-                logger.warning("Could not decode the mime type for '" + uri + "', defaulting to TEXT");
+                logger.warning("Could not decode the mime type for '" + path + "', defaulting to TEXT");
                 mimeType = MimeType.TEXT;
             }
 
-            mappings.put(uri, new StaticResource(AuthorizationAction.ALLOW, mimeType, true, diskPath, compressedContent));
+            mappings.put(path.replace('\\', '/'), new StaticResource(AuthorizationAction.ALLOW, mimeType, true, diskPath, compressedContent));
             if(compressedContent != null) compressedSiteSize += compressedContent.length;
         }
 
@@ -151,24 +152,24 @@ public final class ResourceMappings {
 
         for(final Path prefixedPath : dashboardPaths) {
 
-            final String uri = "/" + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
+            final String path = File.separatorChar + prefixedPath.subpath(2, prefixedPath.getNameCount()).toString();
             final byte[] compressedContent = this.compress(prefixedPath);
 
-            final AuthorizationAction authorizationAction = uri.contains(ApplicationProperties.LOGIN_PATH) ?
+            final AuthorizationAction authorizationAction = path.contains(ApplicationProperties.LOGIN_PATH) ?
 
                 AuthorizationAction.ALLOW :
                 AuthorizationAction.REDIRECT
             ;
 
-            MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(uri, '.').getLast());
+            MimeType mimeType = MimeType.decode(GenericUtils.fastSplit(path, '.').getLast());
 
             if(mimeType == null) {
 
-                logger.warning("Could not decode the mime type for '" + uri + "', defaulting to TEXT");
+                logger.warning("Could not decode the mime type for '" + path + "', defaulting to TEXT");
                 mimeType = MimeType.TEXT;
             }
 
-            mappings.put(uri, new StaticResource(authorizationAction, mimeType, false, null, compressedContent));
+            mappings.put(path.replace('\\', '/'), new StaticResource(authorizationAction, mimeType, false, null, compressedContent));
             compressedSiteSize += compressedContent.length;
         }
 

@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.server.http.exchange.components;
 
 ///
+import java.nio.charset.StandardCharsets;
+
+///..
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,10 +16,12 @@ import lombok.Getter;
 public enum HttpMethod {
 
     ///
-    GET("Allowed method: GET".getBytes()),
-    OPTIONS("Allowed method: OPTIONS".getBytes()),
-    POST("Allowed method: POST".getBytes()),
-    DELETE("Allowed method: DELETE".getBytes());
+    GET("Allowed method: GET".getBytes(StandardCharsets.ISO_8859_1)),
+    QUERY("Allowed method: QUERY".getBytes(StandardCharsets.ISO_8859_1)),
+    HEAD("Allowed method: HEAD".getBytes(StandardCharsets.ISO_8859_1)),
+    OPTIONS("Allowed method: OPTIONS".getBytes(StandardCharsets.ISO_8859_1)),
+    POST("Allowed method: POST".getBytes(StandardCharsets.ISO_8859_1)),
+    DELETE("Allowed method: DELETE".getBytes(StandardCharsets.ISO_8859_1));
 
     ///
     private final byte[] message;
@@ -27,6 +32,8 @@ public enum HttpMethod {
         switch(method) {
 
             case "GET": return HttpMethod.GET;
+            case "QUERY": return HttpMethod.QUERY;
+            case "HEAD": return HttpMethod.HEAD;
             case "OPTIONS": return HttpMethod.OPTIONS;
             case "POST": return HttpMethod.POST;
             case "DELETE": return HttpMethod.DELETE;

@@ -13,7 +13,7 @@ import java.io.IOException;
 public interface ResponseBodyCallback {
 
     ///
-    public void writeBody(final StreamWriter writer) throws IOException;
+    public void writeBody(final StreamWriter writer, final int length) throws IOException;
 
     ///
 }

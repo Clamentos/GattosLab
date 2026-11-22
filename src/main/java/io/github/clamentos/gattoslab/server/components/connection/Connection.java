@@ -1,51 +1,67 @@
 package io.github.clamentos.gattoslab.server.components.connection;
 
+///
 import io.github.clamentos.gattoslab.datastructures.addresses.IpAddress;
 
-///
+///..
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.Socket;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 ///..
 import lombok.Getter;
 
 ///
-@Getter
-
-///
-public sealed class Connection permits ProxyConnection {
+public sealed class Connection implements Closeable permits ProxyConnection {
 
     ///
+    @Getter
     private final Socket socket;
+
+    @Getter
     private final IpAddress clientRemoteAddress;
-    private final long createdAt;
-    private final AtomicBoolean swept;
+
+    private final AtomicInteger age;
 
     ///
-    public Connection(final Socket socket, final IpAddress clientRemoteAddress) {
+    public Connection(final Socket socket, final IpAddress clientRemoteAddress, final int age) {
 
         this.socket = socket;
         this.clientRemoteAddress = clientRemoteAddress;
-        this.createdAt = System.currentTimeMillis();
-        this.swept = new AtomicBoolean();
+        this.age = new AtomicInteger(age);
     }
 
     ///
-    public boolean isSwept() {
-
-        return this.swept.get();
-    }
-
-    ///..
-    public void sweep() {
-
-        this.swept.set(true);
-    }
-
-    ///..
     public boolean isValid() {
 
-        return !this.socket.isClosed() && !this.socket.isInputShutdown() && !this.socket.isOutputShutdown();
+        return
+
+            !this.socket.isClosed() &&
+            !this.socket.isInputShutdown() &&
+            !this.socket.isOutputShutdown() &&
+            this.age.get() > 0
+        ;
+    }
+
+    ///..
+    public int getAge() {
+
+        return this.age.get();
+    }
+
+    ///..
+    public void advanceAge() {
+
+        this.age.decrementAndGet();
+    }
+
+    ///..
+    @Override
+    public void close() throws IOException {
+
+        this.age.set(0);
+        this.socket.close();
     }
 
     ///

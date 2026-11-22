@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 ///
@@ -57,14 +58,14 @@ public final class ObservabilityDatabase {
 
     ) throws IOException, IllegalArgumentException {
 
-        return this.fetch(startTime, endTime, logsDirectory, (line, start, end) -> {
+        return this.fetch(startTime, endTime, logsDirectory, line -> {
 
             final List<String> log = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long logTimestamp = Long.parseLong(log.get(0));
 
             final boolean isExcluded =
 
-                (logTimestamp < start || logTimestamp > end) ||
+                (logTimestamp < startTime || logTimestamp > endTime) ||
                 (!severity.isEmpty() && !log.get(1).equals(severity)) ||
                 (!threadPattern.isEmpty() && !log.get(2).contains(threadPattern)) ||
                 (!loggerPattern.isEmpty() && !log.get(3).contains(loggerPattern)) ||
@@ -83,23 +84,25 @@ public final class ObservabilityDatabase {
         final long endTime,
         final String isUnknown,
         final String userAgentPattern,
-        final String pathPattern,
+        final String uriPattern,
+        final String domainPattern,
         final String remoteAddressPattern
 
     ) throws IOException, IllegalArgumentException {
 
-        return this.fetch(startTime, endTime, requestMetricsDirectory, (line, start, end) -> {
+        return this.fetch(startTime, endTime, requestMetricsDirectory, line -> {
 
             final List<String> request = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long requestTimestamp = Long.parseLong(request.get(0));
 
             final boolean isExcluded =
 
-                (requestTimestamp < start || requestTimestamp > end) ||
-                (!isUnknown.isEmpty() && !isUnknown.equals(request.get(4))) ||
-                (!userAgentPattern.isEmpty() && !request.get(3).contains(userAgentPattern)) ||
-                (!pathPattern.isEmpty() && !request.get(2).contains(pathPattern)) ||
-                (!remoteAddressPattern.isEmpty() && !request.get(7).contains(remoteAddressPattern))
+                (requestTimestamp < startTime || requestTimestamp > endTime) ||
+                (!isUnknown.isEmpty() && !isUnknown.equals(request.get(5))) ||
+                (!userAgentPattern.isEmpty() && !request.get(4).contains(userAgentPattern)) ||
+                (!uriPattern.isEmpty() && !request.get(3).contains(uriPattern)) ||
+                (!domainPattern.isEmpty() && !request.get(2).contains(domainPattern)) ||
+                (!remoteAddressPattern.isEmpty() && !request.get(8).contains(remoteAddressPattern))
             ;
 
             return !isExcluded;
@@ -109,12 +112,12 @@ public final class ObservabilityDatabase {
     ///..
     public List<String> readSystemMetrics(final long startTime, final long endTime) throws IOException, IllegalArgumentException {
 
-        return this.fetch(startTime, endTime, systemMetricsDirectory, (line, start, end) -> {
+        return this.fetch(startTime, endTime, systemMetricsDirectory, line -> {
 
             final List<String> metrics = GenericUtils.fastSplit(line, ApplicationProperties.FIELD_SEPARATOR);
             final long requestTimestamp = Long.parseLong(metrics.get(0));
 
-            return requestTimestamp >= start && requestTimestamp <= end;
+            return requestTimestamp >= startTime && requestTimestamp <= endTime;
         });
     }
 
@@ -124,7 +127,7 @@ public final class ObservabilityDatabase {
         final long startTime,
         final long endTime,
         final ObservabilityDirectory<?> observabilityDirectory,
-        final RecordFilter filter
+        final Predicate<String> filter
 
     ) throws IOException, IllegalArgumentException {
 
@@ -138,9 +141,9 @@ public final class ObservabilityDatabase {
             .onUnmappableCharacter(CodingErrorAction.REPLACE)
         ;
 
-        try(final Stream<Path> files = Files.list(Path.of(observabilityDirectory.toString()))) {
+        try(final Stream<Path> files = Files.list(observabilityDirectory.getDirectory())) {
 
-            final List<Path> filteredFiles = this.filterFiles(files, startTime, endTime);
+            final List<Path> filteredFiles = this.filterFiles(observabilityDirectory, files, startTime, endTime);
             final int length = filteredFiles.size();
 
             for(int i = 0; i < length; i++) {
@@ -151,7 +154,7 @@ public final class ObservabilityDatabase {
 
                     while((line = reader.readLine()) != null) {
 
-                        if(filter.apply(line, startTime, endTime)) filteredRecords.add(line);
+                        if(filter.test(line)) filteredRecords.add(line);
                     }
                 }
 
@@ -161,39 +164,42 @@ public final class ObservabilityDatabase {
 
         catch(final NoSuchFileException _) {
 
-            return filteredRecords;
+            return new ArrayList<>(1);
         }
 
         return filteredRecords;
     }
 
     ///..
-    private List<Path> filterFiles(final Stream<Path> files, final long startTimeFilter, final long endTimeFilter) {
+    private List<Path> filterFiles(
+
+        final ObservabilityDirectory<?> observabilityDirectory,
+        final Stream<Path> files,
+        final long startTimeFilter,
+        final long endTimeFilter
+    ) {
 
         final long startTimeFilterClamped = Math.max(startTimeFilter, GenericUtils.MIN_ISO_DATE_TIMESTAMP);
         final long endTimeFilterClamped = Math.min(endTimeFilter, GenericUtils.MAX_ISO_DATE_TIMESTAMP);
 
-        final String fileStartTimeSegment = LocalDateTime
+        final String fileStart = observabilityDirectory.composePath(LocalDateTime.ofInstant(
 
-            .ofInstant(Instant.ofEpochMilli(startTimeFilterClamped), GenericUtils.DEFAULT_ZONE_ID)
-            .toString()
-            .substring(0, 13)
-        ;
+            Instant.ofEpochMilli(startTimeFilterClamped),
+            GenericUtils.DEFAULT_ZONE_ID
 
-        final String fileEndTimeSegment = LocalDateTime
+        )).getFileName().toString();
 
-            .ofInstant(Instant.ofEpochMilli(endTimeFilterClamped), GenericUtils.DEFAULT_ZONE_ID)
-            .toString()
-            .substring(0, 13)
-        ;
+        final String fileEnd = observabilityDirectory.composePath(LocalDateTime.ofInstant(
+
+            Instant.ofEpochMilli(endTimeFilterClamped),
+            GenericUtils.DEFAULT_ZONE_ID
+
+        )).getFileName().toString();
 
         return files.filter(path -> {
 
-            String fileNameWithoutExtension = GenericUtils.fastSplit(path.getFileName().toString(), '.').get(0);
-            final int length = fileNameWithoutExtension.length();
-
-            fileNameWithoutExtension = fileNameWithoutExtension.substring(length - 13, length);
-            return fileNameWithoutExtension.compareTo(fileStartTimeSegment) >= 0 && fileNameWithoutExtension.compareTo(fileEndTimeSegment) <= 0;
+            final String pathString = path.getFileName().toString();
+            return pathString.compareTo(fileStart) >= 0 && pathString.compareTo(fileEnd) <= 0;
         })
         .sorted()
         .toList();

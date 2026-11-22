@@ -101,7 +101,7 @@ public final class ServerContainer implements Closeable {
 
         try {
 
-            final FileTime fileTime = Files.getLastModifiedTime(applicationProperties.getSslKeyStore());
+            final FileTime fileTime = Files.getLastModifiedTime(applicationProperties.getSslKeyStorePath());
             final long fileTimeMillis = fileTime.toMillis();
 
             if(fileTimeMillis > this.keystoreTimestamp.get()) {
@@ -138,7 +138,7 @@ public final class ServerContainer implements Closeable {
 
         final SSLContext sslContext = this.createSSLContext(
 
-            applicationProperties.getSslKeyStore(),
+            applicationProperties.getSslKeyStorePath(),
             applicationProperties.getSslKeyStorePassword()
         );
 

@@ -1,6 +1,7 @@
 package io.github.clamentos.gattoslab.observability.database;
 
 ///
+import io.github.clamentos.gattoslab.configuration.ApplicationProperties;
 import io.github.clamentos.gattoslab.datastructures.SortedList;
 import io.github.clamentos.gattoslab.datastructures.StreamWriter;
 import io.github.clamentos.gattoslab.datastructures.interfaces.Entity;
@@ -22,6 +23,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Stream;
 
+///..
+import lombok.Getter;
+
 ///
 public final class ObservabilityDirectory<T extends Entity> {
 
@@ -29,16 +33,38 @@ public final class ObservabilityDirectory<T extends Entity> {
     private final Logger logger;
 
     ///..
+    @Getter
     private final Path directory;
-    private final List<String> fileNameComponents;
+
+    private final String name;
+    private final String extension;
 
     ///
     public ObservabilityDirectory(final Logger logger, final Path fullPath) {
 
         this.logger = logger;
-
         this.directory = fullPath.getParent();
-        this.fileNameComponents = GenericUtils.fastSplit(fullPath.toString(), '.');
+
+        final String fileName = fullPath.getFileName().toString();
+        final int index = fileName.indexOf('.');
+
+        if(index != -1) {
+
+            this.name = fileName.substring(0, index) + "_";
+            this.extension = fileName.substring(index, fileName.length());
+        }
+
+        else if(!fileName.isEmpty()) {
+
+            this.name = fileName;
+            this.extension = "";
+        }
+
+        else {
+
+            this.name = "";
+            this.extension = "";
+        }
     }
 
     ///
@@ -85,10 +111,10 @@ public final class ObservabilityDirectory<T extends Entity> {
 
         try(final Stream<Path> files = Files.list(Path.of(this.toString()))) {
 
-            final String boundaryFileName = this.composeName(boundaryDate);
+            final String boundaryFilePath = this.composePath(boundaryDate).toString();
             final int[] counterReference = new int[]{0};
 
-            files.filter(path -> path.toString().compareTo(boundaryFileName) < 0).forEach(path -> {
+            files.filter(path -> path.toString().compareTo(boundaryFilePath) < 0).forEach(path -> {
 
                 try {
 
@@ -113,23 +139,21 @@ public final class ObservabilityDirectory<T extends Entity> {
     }
 
     ///..
-    @Override
-    public String toString() {
+    public Path composePath(final LocalDateTime dateTime) {
 
-        return this.directory.toString();
+        return Path.of(this.directory.toString(), this.name + dateTime.toString().substring(0, 13) + this.extension);
     }
 
     ///.
-    private String composeName(final LocalDateTime dateTime) {
-
-        return fileNameComponents.get(0) + "_" + dateTime.toString().substring(0, 13) + "." + fileNameComponents.get(1);
-    }
-
-    ///..
     private StreamWriter openForWrite(final LocalDateTime window) throws IOException {
 
         Files.createDirectories(this.directory);
-        return new StreamWriter(Files.newOutputStream(Path.of(this.composeName(window)), StandardOpenOption.CREATE, StandardOpenOption.APPEND));
+
+        return new StreamWriter(
+
+            Files.newOutputStream(this.composePath(window), StandardOpenOption.CREATE, StandardOpenOption.APPEND),
+            ApplicationProperties.DEFAULT_STREAM_WRITER_BUFFER_SIZE
+        );
     }
 
     ///

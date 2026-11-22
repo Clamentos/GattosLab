@@ -97,7 +97,7 @@ public class SquashingLogger implements Closeable {
 
             mutableString.append(" (original date: ");
             mutableString.append(this.dateTimeFormatter.format(firstEventDate));
-            mutableString.append(")");
+            mutableString.append(')');
 
             this.logger.warning(mutableString.toString(), eventKey.getB());
             mutableString.clear();

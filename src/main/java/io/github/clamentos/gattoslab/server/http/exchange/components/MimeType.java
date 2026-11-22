@@ -2,7 +2,6 @@ package io.github.clamentos.gattoslab.server.http.exchange.components;
 
 ///
 import java.util.Locale;
-import java.util.Map;
 
 ///..
 import lombok.AccessLevel;
@@ -17,21 +16,21 @@ import lombok.Getter;
 public enum MimeType {
 
     ///
-    CSS(Map.of(HttpHeader.CONTENT_TYPE, "text/css")),
-    GIF(Map.of(HttpHeader.CONTENT_TYPE, "image/gif")),
-    HTML(Map.of(HttpHeader.CONTENT_TYPE, "text/html")),
-    ICO(Map.of(HttpHeader.CONTENT_TYPE, "image/x-icon")),
-    JPEG(Map.of(HttpHeader.CONTENT_TYPE, "image/jpeg")),
-    JPG(Map.of(HttpHeader.CONTENT_TYPE, "image/jpg")),
-    JS(Map.of(HttpHeader.CONTENT_TYPE, "application/javascript")),
-    JSON(Map.of(HttpHeader.CONTENT_TYPE, "application/json")),
-    PNG(Map.of(HttpHeader.CONTENT_TYPE, "image/png")),
-    SVG(Map.of(HttpHeader.CONTENT_TYPE, "image/svg+xml")),
-    TEXT(Map.of(HttpHeader.CONTENT_TYPE, "text/plain")),
-    XML(Map.of(HttpHeader.CONTENT_TYPE, "application/xml"));
+    CSS("text/css"),
+    GIF("image/gif"),
+    HTML("text/html"),
+    ICO("image/x-icon"),
+    JPEG("image/jpeg"),
+    JPG("image/jpg"),
+    JS("application/javascript"),
+    JSON("application/json"),
+    PNG("image/png"),
+    SVG("image/svg+xml"),
+    TEXT("text/plain"),
+    XML("application/xml");
 
     ///
-    private final Map<HttpHeader, String> responseValue;
+    private final String responseValue;
 
     ///
     public static MimeType decode(final String fileExtension) {
@@ -55,33 +54,6 @@ public enum MimeType {
 
             default: return null;
         }
-    }
-
-    ///..
-    public static MimeType fromMime(final String mime) {
-
-        if(mime != null) {
-
-            switch(mime) {
-
-                case "text/css": return MimeType.CSS;
-                case "image/gif": return MimeType.GIF;
-                case "text/html": return MimeType.HTML;
-                case "image/x-icon": return MimeType.ICO;
-                case "image/jpeg": return MimeType.JPEG;
-                case "image/jpg": return MimeType.JPG;
-                case "application/javascript": return MimeType.JS;
-                case "application/json": return MimeType.JSON;
-                case "image/png": return MimeType.PNG;
-                case "image/svg+xml": return MimeType.SVG;
-                case "text/plain": return MimeType.TEXT;
-                case "application/xml": return MimeType.XML;
-
-                default: return null;
-            }
-        }
-
-        return MimeType.TEXT;
     }
 
     ///

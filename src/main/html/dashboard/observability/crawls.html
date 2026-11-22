@@ -100,6 +100,16 @@
 
                     <div class = "form-input-group">
 
+                        <input class = "form-input" type = "text" name = "domainPattern" aria-label = "domain-pattern-input">
+
+                        <p class = "form-field-description">
+                            <strong>Domain pattern:</strong> specifies the domain pattern. Clearing this field will cause the search to ignore this filter.
+                        </p>
+
+                    </div>
+
+                    <div class = "form-input-group">
+
                         <input class = "form-input" type = "text" name = "pathPattern" aria-label = "path-pattern-input">
 
                         <p class = "form-field-description">
@@ -145,7 +155,8 @@
                     <div class = "narrow-table" id = "invocations-table">
 
                         <div class = "table-header-row">
-                            <div style = "width: 70%; border-left: none">Path</div>
+                            <div style = "width: 10%; border-left: none">Domain</div>
+                            <div style = "width: 60%">Path</div>
                             <div style = "width: 5%">Count</div>
                             <div style = "width: 11%">Last invocation</div>
                             <div style = "width: 14%">Statuses</div>

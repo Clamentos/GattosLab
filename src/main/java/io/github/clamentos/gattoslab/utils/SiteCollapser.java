@@ -6,6 +6,7 @@ import io.github.clamentos.gattoslab.datastructures.MutableString;
 ///..
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -111,7 +112,7 @@ public class SiteCollapser {
 
         if(!hasExtension(path, ".html")) {
 
-            final Path destinationPath = Path.of(destination + "/" + path.subpath(2, path.getNameCount()).toString());
+            final Path destinationPath = Path.of(destination.toString(), path.subpath(2, path.getNameCount()).toString());
 
             Files.createDirectories(destinationPath.getParent());
             Files.copy(path, destinationPath);
@@ -128,13 +129,13 @@ public class SiteCollapser {
         concatenateSvg(html, htmlPath);
         concatenateJs(html, htmlPath);
 
-        return html.toString().getBytes();
+        return html.toString().getBytes(StandardCharsets.ISO_8859_1);
     }
 
     ///..
     private static void placeFile(final Path sourcePath, final byte[] content) throws IOException {
 
-        final Path destinationPath = Path.of(INTERMEDIATE.toString() + "/" + sourcePath.subpath(5, sourcePath.getNameCount()).toString());
+        final Path destinationPath = Path.of(INTERMEDIATE.toString(), sourcePath.subpath(5, sourcePath.getNameCount()).toString());
 
         Files.createDirectories(destinationPath.getParent());
         Files.createFile(destinationPath);

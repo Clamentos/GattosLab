@@ -19,11 +19,11 @@ public final class IpV4 implements IpAddress {
 
         int value = 0;
 
-        value =  value | (address[0] & 0xFF);
-        value = (value << 8) | (address[1] & 0xFF);
-        value = (value << 8) | (address[2] & 0xFF);
+        value |= address[0] & 0x00_00_00_FF;
+        value = (value << Byte.SIZE) | (address[1] & 0x00_00_00_FF);
+        value = (value << Byte.SIZE) | (address[2] & 0x00_00_00_FF);
 
-        this.address = (value << 8) | (address[3] & 0xFF);
+        this.address = (value << Byte.SIZE) | (address[3] & 0x00_00_00_FF);
     }
 
     ///

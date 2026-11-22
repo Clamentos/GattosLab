@@ -1,6 +1,9 @@
 package io.github.clamentos.gattoslab.server.http.exchange.components;
 
 ///
+import java.nio.charset.StandardCharsets;
+
+///..
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -10,26 +13,25 @@ import lombok.Getter;
 @Getter
 
 ///
-public enum HttpStatus { // TODO: add more to support proxy
+public enum HttpStatus {
 
     ///
-    OK(200, "HTTP/1.1 200 OK\r\n".getBytes()),
-    NO_CONTENT(204, "HTTP/1.1 204 No Content\r\n".getBytes()),
-    SEE_OTHER(303, "HTTP/1.1 303 See Other\r\n".getBytes()),
-    BAD_REQUEST(400, "HTTP/1.1 400 Bad Request\r\n".getBytes()),
-    UNAUTHORIZED(401, "HTTP/1.1 401 Unauthorized\r\n".getBytes()),
-    FORBIDDEN(403, "HTTP/1.1 403 Forbidden\r\n".getBytes()),
-    NOT_FOUND(404, "HTTP/1.1 404 Not Found\r\n".getBytes()),
-    METHOD_NOT_ALLOWED(405, "HTTP/1.1 405 Method Not Allowed\r\n".getBytes()),
-    CONTENT_TOO_LARGE(413, "HTTP/1.1 413 Content Too Large\r\n".getBytes()),
-    UNPROCESSABLE(422, "HTTP/1.1 422 Unprocessable Content\r\n".getBytes()),
-    TOO_MANY_REQUESTS(429, "HTTP/1.1 429 Too Many Requests\r\n".getBytes()),
-    INTERNAL_SERVER_ERROR(500, "HTTP/1.1 500 Internal Server Error\r\n".getBytes()),
-    SERVICE_UNAVAILABLE(503, "HTTP/1.1 503 Service Unavailable\r\n".getBytes()),
-    HTTP_VERSION_NOT_SUPPORTED(505, "HTTP/1.1 505 HTTP Version Not Supported\r\n".getBytes()),
+    OK(200, "HTTP/1.1 200 OK\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    NO_CONTENT(204, "HTTP/1.1 204 No Content\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    SEE_OTHER(303, "HTTP/1.1 303 See Other\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    BAD_REQUEST(400, "HTTP/1.1 400 Bad Request\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    UNAUTHORIZED(401, "HTTP/1.1 401 Unauthorized\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    NOT_FOUND(404, "HTTP/1.1 404 Not Found\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    METHOD_NOT_ALLOWED(405, "HTTP/1.1 405 Method Not Allowed\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    CONTENT_TOO_LARGE(413, "HTTP/1.1 413 Content Too Large\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    UNPROCESSABLE(422, "HTTP/1.1 422 Unprocessable Content\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    TOO_MANY_REQUESTS(429, "HTTP/1.1 429 Too Many Requests\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    INTERNAL_SERVER_ERROR(500, "HTTP/1.1 500 Internal Server Error\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    SERVICE_UNAVAILABLE(503, "HTTP/1.1 503 Service Unavailable\r\n".getBytes(StandardCharsets.ISO_8859_1)),
+    HTTP_VERSION_NOT_SUPPORTED(505, "HTTP/1.1 505 HTTP Version Not Supported\r\n".getBytes(StandardCharsets.ISO_8859_1)),
 
     ///..
-    TRUNCATED(599, "HTTP/1.1 599 Truncated\r\n".getBytes());
+    TRUNCATED(599, null);
 
     ///
     private final int code;
@@ -45,7 +47,6 @@ public enum HttpStatus { // TODO: add more to support proxy
             case 303: return HttpStatus.SEE_OTHER;
             case 400: return HttpStatus.BAD_REQUEST;
             case 401: return HttpStatus.UNAUTHORIZED;
-            case 403: return HttpStatus.FORBIDDEN;
             case 404: return HttpStatus.NOT_FOUND;
             case 405: return HttpStatus.METHOD_NOT_ALLOWED;
             case 413: return HttpStatus.CONTENT_TOO_LARGE;

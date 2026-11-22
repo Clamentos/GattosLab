@@ -1,8 +1,8 @@
 package io.github.clamentos.gattoslab.configuration;
 
+///
 import io.github.clamentos.gattoslab.configuration.components.HttpProxy;
 import io.github.clamentos.gattoslab.configuration.components.RawProxy;
-///
 import io.github.clamentos.gattoslab.datastructures.Pair;
 import io.github.clamentos.gattoslab.server.http.exchange.components.HttpHeader;
 import io.github.clamentos.gattoslab.server.http.exchange.components.HttpMethod;
@@ -11,7 +11,9 @@ import io.github.clamentos.gattoslab.utils.GenericUtils;
 ///..
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,9 +35,6 @@ import lombok.Getter;
 public final class ApplicationProperties {
 
     ///
-    public static final byte[] NEW_LINE_BYTES = "\r\n".getBytes();
-
-    ///..
     public static final char ILLEGAL_CHAR_REPLACEMENT = '\u0000';
     public static final char FIELD_SEPARATOR = '|';
     public static final char ARRAY_SEPARATOR = ',';
@@ -48,54 +47,60 @@ public final class ApplicationProperties {
     public static final String SQUASHING_LOGGER_LOG_CRON = "m1";
     public static final String SESSION_SERVICE_MAINTENANCE_CRON = "m1";
     public static final String SYSTEM_METRICS_POLL_CRON = "s5";
-    public static final String METRICS_DRAIN_CRON = "s5";
+    public static final String REQUEST_METRICS_DRAIN_CRON = "s5";
     public static final String OBSERVABILITY_RETENTION_CRON = "m1";
     public static final String SERVER_REGENERATION_CRON = "h24";
     public static final String BLOCKLIST_GENERATION_CRON = "h4";
 
     ///..
-    public static final Duration SERVER_CLOSE_TIMEOUT = Duration.ofSeconds(2);
-    public static final Duration CONNECTIONS_TRACKER_CLOSE_TIMEOUT = Duration.ofSeconds(2);
-    public static final Duration LOG_CLOSE_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration ACCEPTORS_SHUTDOWN_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration CONNECTIONS_TRACKER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration LOGGER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(2);
     public static final Duration SCHEDULER_SHUTDOWN_TIMEOUT = Duration.ofSeconds(4);
     public static final Duration CORS_DURATION = Duration.ofDays(1);
-    public static final Duration CACHE_DURATION = Duration.ofDays(7);
+    public static final Duration STATIC_PAGES_CACHE_DURATION = Duration.ofDays(7);
     public static final Duration RATE_LIMIT_BLOCK_DURATION = Duration.ofMinutes(1);
     public static final Duration SESSION_DURATION = Duration.ofHours(1);
     public static final Duration LOGIN_FAILURE_PAUSE_DURATION = Duration.ofMillis(500);
-    public static final Duration SERVER_MAX_KEEP_ALIVE_DURATION = Duration.ofMinutes(5);
+    public static final Duration HTTP_SERVER_KEEP_ALIVE_DURATION = Duration.ofMinutes(2);
     public static final Duration LOG_SIPHON_DRAIN_TASK_POLL_PERIOD = Duration.ofSeconds(5);
     public static final Duration SCHEDULER_POLL_PERIOD = Duration.ofMillis(100);
     public static final Duration SOCKET_SWEEPER_POLL_PERIOD = Duration.ofSeconds(5);
-    public static final Duration SOCKET_LINGER = Duration.ofSeconds(1);
-    public static final Duration SOCKET_PRELIMINARY_READ_TIMEOUT = Duration.ofSeconds(2);
-    public static final Duration PROXY_CONNECTION_POOL_AQUIRE_TIMEOUT = Duration.ofMinutes(1);
+    public static final Duration SOCKET_LINGER_DURATION = Duration.ofSeconds(1);
+    public static final Duration HTTP_SERVER_PRELIMINARY_READ_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration PROXY_CONNECTION_POOL_AQUIRE_TIMEOUT = Duration.ofSeconds(20);
     public static final String SESSION_COOKIE_NAME = "GattosLabSessionId=";
     public static final String UNKNOWN_LOGGER_PLACEHOLDER = "UNKNOWN_LOGGER";
     public static final String UNKNOWN_METHOD_PLACEHOLDER = "UNKNOWN_METHOD";
     public static final String HOMEPAGE_PATH = "/index.html";
     public static final String LOGIN_PATH = "/login.html";
-    public static final Path LOG_FILE_PATH = Path.of("observability/logs/logs.log");
-    public static final Path REQUEST_METRICS_FILE_PATH = Path.of("observability/request/request_metrics.log");
-    public static final Path SYSTEM_METRICS_FILE_PATH = Path.of("observability/system/system_metrics.log");
+    public static final String EXCHANGE_LOG_REDACTED_VALUE = "<redacted>";
+    public static final Path LOGS_FILE_PATH_TEMPLATE = Path.of("./observability/logs/logs.log");
+    public static final Path REQUEST_METRICS_FILE_PATH_TEMPLATE = Path.of("./observability/request/request_metrics.log");
+    public static final Path SYSTEM_METRICS_FILE_PATH_TEMPLATE = Path.of("./observability/system/system_metrics.log");
     public static final Path PID_FILE_PATH = Path.of("./pid.txt");
-    public static final Path IPV4_BLOCKLIST_PATH = Path.of("observability/blocklist/ipv4s.txt");
-    public static final Path IPV6_BLOCKLIST_PATH = Path.of("observability/blocklist/ipv6s.txt");
+    public static final Path PROPERTIES_PATH = Path.of("./properties");
+    public static final Path IPV4_BLOCKLIST_PATH = Path.of("./observability/blocklist/ipv4s.txt");
+    public static final Path IPV6_BLOCKLIST_PATH = Path.of("./observability/blocklist/ipv6s.txt");
     public static final int SERVER_SOCKET_ACCEPT_QUEUE_SIZE = 1024;
-    public static final int MAX_SERVER_SOCKETS = 8192;
-    public static final int MAX_SOCKETS_PER_IP = 128;
+    public static final int MAX_CLIENT_SOCKETS = 8192;
+    public static final int MAX_SOCKETS_PER_CLIENT_IP = 128;
     public static final int LOG_SIPHON_CAPACITY = 1024;
-    public static final int METRICS_SIPHON_CAPACITY = 4096;
+    public static final int REQUEST_METRICS_SIPHON_CAPACITY = 4096;
     public static final int MAX_SESSIONS = 4;
     public static final int SESSION_ID_SIZE = 40;
-    public static final int MAX_OBSERVABILITY_CHART_LENGTH = 4096;
-    public static final int SERVER_INPUT_BUFFERS_SIZE = 4096;
-    public static final int SERVER_OUTPUT_BUFFERS_SIZE = 65536;
+    public static final int MAX_OBSERVABILITY_CHART_LENGTH = 8192;
+    public static final int DEFAULT_STREAM_WRITER_BUFFER_SIZE = 8192;
+    public static final int HTTP_SERVER_INPUT_BUFFERS_SIZE = 4096;
+    public static final int HTTP_SERVER_OUTPUT_BUFFERS_SIZE = 65536;
+    public static final int MAX_HTTP_SERVER_REQUEST_SIZE = 65_536;
+    public static final int MAX_HTTP_PROXY_CONNECTION_POOL_SIZE = 16;
+    public static final int MAX_TCP_PROXY_CONNECTION_POOL_SIZE = 64;
     public static final int HTTP_PROXY_INPUT_BUFFERS_SIZE = 4096;
     public static final int HTTP_PROXY_OUTPUT_BUFFERS_SIZE = 8192;
-    public static final int DEFAULT_STREAM_WRITER_BUFFER_SIZE = 8192;
-    public static final int MAX_REQUEST_SIZE = 262_144;
-    public static final int PROXY_CONNECTION_POOL_SIZE = 32;
+    public static final int MAX_HTTP_PROXY_RESPONSE_SIZE = 262_144;
+    public static final int TCP_PROXY_IO_BUFFERS_SIZE = 8192;
+    public static final long MAX_TCP_PROXY_RESPONSE_SIZE = 100_000_000_000L;
     public static final boolean SOCKET_TCP_NO_DELAY = true;
 
     ///..
@@ -109,7 +114,7 @@ public final class ApplicationProperties {
     public static final Map<HttpHeader, String> KEEP_ALIVE_HEADERS = Map.of(
 
         HttpHeader.CONNECTION, "keep-alive",
-        HttpHeader.KEEP_ALIVE, "timeout=" + SERVER_MAX_KEEP_ALIVE_DURATION.toSeconds()
+        HttpHeader.KEEP_ALIVE, "timeout=" + HTTP_SERVER_KEEP_ALIVE_DURATION.toSeconds()
     );
 
     public static final Map<HttpHeader, String> RETRY_AFTER_HEADERS = Map.of(
@@ -129,7 +134,7 @@ public final class ApplicationProperties {
     public static final Map<HttpHeader, String> GZIP_CACHE_HEADERS = Map.of(
 
         HttpHeader.CONTENT_ENCODING, "gzip",
-        HttpHeader.CACHE_CONTROL, ("max-age=" + CACHE_DURATION.toSeconds() + ", public")
+        HttpHeader.CACHE_CONTROL, "max-age=" + STATIC_PAGES_CACHE_DURATION.toSeconds() + ", public"
     );
 
     public static final Map<HttpHeader, String> CORS_HEADERS = Map.of(
@@ -140,7 +145,7 @@ public final class ApplicationProperties {
     );
 
     ///.
-    private final Path sslKeyStore;
+    private final Path sslKeyStorePath;
     private final String sslKeyStorePassword;
 
     ///..
@@ -151,7 +156,7 @@ public final class ApplicationProperties {
 
     ///..
     private final Map<String, Integer> dashboardServers;
-    private final Path dashboardResources;
+    private final Path dashboardResourcesPath;
     private final Set<String> dashboardAllowedOrigins;
     private final String loginPassword;
     private final String cookieProperties;
@@ -160,35 +165,35 @@ public final class ApplicationProperties {
     ///..
     private final Set<HttpProxy> httpProxyServers;
     private final Set<String> httpProxyAuthExclusions;
-    private final Set<String> httpProxyCustomHeaders;
 
     ///..
     private final Set<RawProxy> tcpServers;
 
     ///..
-    private final boolean keepAliveByDefault;
     private final int rateLimitAmount;
     private final Set<String> illegalPathContains;
 
     ///
     public ApplicationProperties(final String environment) throws IOException, IllegalArgumentException {
 
-        final Properties properties = new Properties();
         final String fileName = "application-" + String.valueOf(environment).toLowerCase(Locale.US) + ".properties";
-        final InputStream propertiesFile = ApplicationProperties.class.getClassLoader().getResourceAsStream(fileName);
+        final Path path = Path.of(PROPERTIES_PATH.toString(), fileName);
+        final Properties properties = new Properties();
 
-        if(propertiesFile == null) throw new IllegalArgumentException("Properties file '" + fileName + "' not found");
-        properties.load(propertiesFile);
+        try(final InputStream propertiesFile = Files.newInputStream(path, StandardOpenOption.READ)) {
 
-        this.sslKeyStore = Path.of(this.resolveProperty(properties, "sslKeyStorePath", String.class, false));
+            properties.load(propertiesFile);
+        }
+
+        this.sslKeyStorePath = Path.of(this.resolveProperty(properties, "sslKeyStorePath", String.class, false));
         this.sslKeyStorePassword = this.resolveProperty(properties, "sslKeyStorePassword", String.class, false);
         this.siteServers = this.parseServers(this.resolveProperty(properties, "siteServers", String.class, false));
         this.siteResources = this.parseResources(this.resolveProperty(properties, "siteResources", String.class, false));
-        this.siteAllowedOrigins = this.parseSet(this.resolveProperty(properties, "siteAllowedOrigins", String.class, false), false);
+        this.siteAllowedOrigins = this.parseSet(this.resolveProperty(properties, "siteAllowedOrigins", String.class, false));
         this.siteDiskBasedResourcesPathPrefix = this.resolveProperty(properties, "siteDiskBasedResourcesPathPrefix", String.class, true);
         this.dashboardServers = this.parseServers(this.resolveProperty(properties, "dashboardServers", String.class, false));
-        this.dashboardResources = Path.of(this.resolveProperty(properties, "dashboardResourcesPath", String.class, false));
-        this.dashboardAllowedOrigins = this.parseSet(this.resolveProperty(properties, "dashboardAllowedOrigins", String.class, false), false);
+        this.dashboardResourcesPath = Path.of(this.resolveProperty(properties, "dashboardResourcesPath", String.class, false));
+        this.dashboardAllowedOrigins = this.parseSet(this.resolveProperty(properties, "dashboardAllowedOrigins", String.class, false));
         this.loginPassword = this.resolveProperty(properties, "loginPassword", String.class, false);
         this.cookieProperties = this.resolveProperty(properties, "cookieProperties", String.class, false);
 
@@ -197,15 +202,13 @@ public final class ApplicationProperties {
         this.observabilityRetention = Duration.ofDays(observabilityRetentionDays);
 
         this.httpProxyServers = this.parseHttpProxies(this.resolveProperty(properties, "httpProxyServers", String.class, true));
-        this.httpProxyAuthExclusions = this.parseSet(this.resolveProperty(properties, "httpProxyAuthExclusions", String.class, true), false);
-        this.httpProxyCustomHeaders = this.parseSet(this.resolveProperty(properties, "httpProxyCustomHeaders", String.class, true), true);
+        this.httpProxyAuthExclusions = this.parseSet(this.resolveProperty(properties, "httpProxyAuthExclusions", String.class, true));
         this.tcpServers = this.parseProxies(this.resolveProperty(properties, "tcpServers", String.class, true));
 
-        this.keepAliveByDefault = this.resolveProperty(properties, "keepAliveByDefault", Boolean.class, false);
         this.rateLimitAmount = this.resolveProperty(properties, "rateLimitAmount", Integer.class, false);
         if(this.rateLimitAmount <= 0) throw new IllegalArgumentException("Rate limit amount must be greater than 0");
 
-        this.illegalPathContains = this.parseSet(this.resolveProperty(properties, "illegalPathContains", String.class, true), false);
+        this.illegalPathContains = this.parseSet(this.resolveProperty(properties, "illegalPathContains", String.class, true));
     }
 
     ///
@@ -250,7 +253,7 @@ public final class ApplicationProperties {
             final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
             if(components.size() != 2) throw new IllegalArgumentException("Servers must be composed of an IP and port");
 
-            addresses.put(components.get(0), Integer.parseInt(components.get(1)));
+            addresses.put(components.get(0), this.parseAndValidatePort(components.get(1)));
         }
 
         return addresses;
@@ -268,13 +271,17 @@ public final class ApplicationProperties {
         for(int i = 0; i < length; i++) {
 
             final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
-            if(components.size() != 4) throw new IllegalArgumentException("HTTP proxies must be composed of 2 IP and port pairs");
+            if(components.size() != 5) throw new IllegalArgumentException("HTTP proxies must be composed of 5 components");
+
+            final int keepAliveDuration = Integer.parseInt(components.get(4));
+            if(keepAliveDuration < 0) throw new IllegalArgumentException("HTTP proxy keep alive duration cannot be negative");
 
             proxies.add(new HttpProxy(
 
                 components.get(0),
-                new Pair<>(components.get(1), Integer.parseInt(components.get(2))),
-                Boolean.parseBoolean(components.get(3))
+                new Pair<>(components.get(1), this.parseAndValidatePort(components.get(2))),
+                Boolean.parseBoolean(components.get(3)),
+                keepAliveDuration
             ));
         }
 
@@ -293,12 +300,16 @@ public final class ApplicationProperties {
         for(int i = 0; i < length; i++) {
 
             final List<String> components = GenericUtils.fastSplit(splits.get(i), FIELD_SEPARATOR);
-            if(components.size() != 4) throw new IllegalArgumentException("Raw proxies must be composed of 2 IP and port pairs");
+            if(components.size() != 5) throw new IllegalArgumentException("TCP proxies must be composed of 5 components");
+
+            final int keepAliveDuration = Integer.parseInt(components.get(4));
+            if(keepAliveDuration < 0) throw new IllegalArgumentException("TCP proxy keep alive duration cannot be negative");
 
             proxies.add(new RawProxy(
 
-                new Pair<>(components.get(0), Integer.parseInt(components.get(1))),
-                new Pair<>(components.get(2), Integer.parseInt(components.get(3)))
+                new Pair<>(components.get(0), this.parseAndValidatePort(components.get(1))),
+                new Pair<>(components.get(2), this.parseAndValidatePort(components.get(3))),
+                keepAliveDuration
             ));
         }
 
@@ -306,20 +317,19 @@ public final class ApplicationProperties {
     }
 
     ///..
-    private Set<String> parseSet(final String data, final boolean toLowerCase) {
+    private int parseAndValidatePort(final String value) throws IllegalArgumentException {
+
+        final int port = Integer.parseInt(value);
+        if(port < 0 || port > 65535) throw new IllegalArgumentException("Invalid port number '" + port + "'");
+
+        return port;
+    }
+
+    ///..
+    private Set<String> parseSet(final String data) {
 
         if(data == null || data.isEmpty()) return Set.of();
-
-        return GenericUtils.fastSplit(data, ARRAY_SEPARATOR)
-
-            .stream()
-            .map(e -> {
-
-                if(toLowerCase) return e.toLowerCase(Locale.US);
-                return e;
-            })
-            .collect(Collectors.toSet())
-        ;
+        return GenericUtils.fastSplit(data, ARRAY_SEPARATOR).stream().collect(Collectors.toSet());
     }
 
     ///..
@@ -349,14 +359,12 @@ public final class ApplicationProperties {
 
             if(clazz == String.class) return clazz.cast("");
             if(clazz == Integer.class) return clazz.cast(0);
-            if(clazz == Boolean.class) return clazz.cast(false);
         }
 
         if(clazz == String.class) return clazz.cast(value);
         if(clazz == Integer.class) return clazz.cast(Integer.parseInt(value));
-        if(clazz == Boolean.class) return clazz.cast(Boolean.parseBoolean(value));
 
-        throw new IllegalArgumentException("Unsupported class '" + clazz + "'");
+        throw new IllegalArgumentException("Unsupported property type '" + clazz + "'");
     }
 
     ///

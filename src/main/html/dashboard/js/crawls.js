@@ -1,7 +1,6 @@
 const colorTable = new Map([
 
     ["599", 1],
-    ["999", 1],
 
     ["400", 2],
     ["401", 2],
@@ -27,7 +26,7 @@ const nextDayTime = todayTime + 86400000;
 document.getElementById("start-timestamp").value = today.toISOString().slice(0, 16);
 document.getElementById("end-timestamp").value = new Date(nextDayTime).toISOString().slice(0, 16);
 
-fetchAndRenderCrawls(todayTime, nextDayTime, "", "", "", "");
+fetchAndRenderCrawls(todayTime, nextDayTime, "", "", "", "", "");
 
 function onSubmitEvent(event) {
 
@@ -38,6 +37,7 @@ function onSubmitEvent(event) {
     const formIsUnknown = event.target.isUnknown.value;
     const formUserAgentPattern = event.target.userAgentPattern.value;
     const formPathPattern = event.target.pathPattern.value;
+    const formDomainPattern = event.target.domainPattern.value;
     const formRemoteIpAddressPattern = event.target.remoteIpAddressPattern.value;
 
     const range = normalizeTimeRange(formStartTimestamp, formEndTimestamp, today);
@@ -49,11 +49,12 @@ function onSubmitEvent(event) {
         isOk(formIsUnknown) ? formIsUnknown : "",
         isOk(formUserAgentPattern) ? formUserAgentPattern : "",
         isOk(formPathPattern) ? formPathPattern : "",
+        isOk(formDomainPattern) ? formDomainPattern : "",
         isOk(formRemoteIpAddressPattern) ? formRemoteIpAddressPattern : ""
     );
 }
 
-function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgentPattern, pathPattern, remoteIpAddressPattern) {
+function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgentPattern, pathPattern, domainPattern, remoteIpAddressPattern) {
 
     document.getElementById("submit-loader").style = "display: inline-block";
     document.getElementById("invocations-count").innerText = "Distinct paths: -";
@@ -68,7 +69,7 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgent
     userAgentsTableBody.replaceChildren();
     remoteIpAddressesTableBody.replaceChildren();
 
-    const filter =`${startTimestamp}|${endTimestamp}|${isUnknown}|${userAgentPattern}|${pathPattern}|${remoteIpAddressPattern}`;
+    const filter =`${startTimestamp}|${endTimestamp}|${isUnknown}|${userAgentPattern}|${pathPattern}|${domainPattern}|${remoteIpAddressPattern}`;
 
     fetch("/api/observability/crawl-metrics", {
 
@@ -112,17 +113,17 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgent
 
                 for(const invocation of invocations) {
 
-                    appendRow(invocation, invocationsTableBody, "invocations-table-hook");
+                    appendCrawl(invocation, invocationsTableBody);
                 }
 
                 for(const userAgent of userAgents) {
 
-                    appendRow(userAgent, userAgentsTableBody, "user-agents-table-hook");
+                    appendRow(userAgent, userAgentsTableBody);
                 }
 
                 for(const remoteIpAddress of remoteIpAddresses) {
 
-                    appendRow(remoteIpAddress, remoteIpAddressesTableBody, "remote-ips-table-hook");
+                    appendRow(remoteIpAddress, remoteIpAddressesTableBody);
                 }
             });
         }
@@ -136,7 +137,72 @@ function fetchAndRenderCrawls(startTimestamp, endTimestamp, isUnknown, userAgent
     .finally(() => document.getElementById("submit-loader").style = "");
 }
 
-function appendRow(entry, table, hook) {
+function appendCrawl(entry, table) {
+
+    const splits = entry.split('|');
+
+    const tr = document.createElement("div");
+    const domain = document.createElement("div");
+    const uri = document.createElement("div");
+    const count = document.createElement("div");
+    const lastInvocation = document.createElement("div");
+    const httpStatuses = document.createElement("div");
+
+    tr.appendChild(domain);
+    tr.appendChild(uri);
+    tr.appendChild(count);
+    tr.appendChild(lastInvocation);
+    tr.appendChild(httpStatuses);
+
+    tr.className = "table-data-row";
+
+    domain.className = "table-data-elem";
+    domain.style = "width: 10%";
+    domain.innerText = splits[0];
+
+    uri.className = "table-data-elem";
+    uri.style = "width: 60%";
+    uri.innerText = cleanObservabilityString(splits[1]);
+
+    count.className = "table-data-elem";
+    count.style = "width: 5%; text-align: end";
+    count.innerText = splits[2];
+
+    lastInvocation.className = "table-data-elem";
+    lastInvocation.style = "width: 11%; text-align: center";
+    lastInvocation.innerText = formatDate(new Date(Number.parseInt(splits[3])));
+
+    httpStatuses.className = "table-data-elem";
+    httpStatuses.style = "width: 14%";
+    httpStatuses.innerText = splits[4];
+
+    const httpStatusesArray = splits[4].split(',');
+    let worst = 0;
+
+    for(const httpStatus of httpStatusesArray) {
+
+        const color = colorTable.get(httpStatus);
+
+        if(color !== null && color !== undefined && color > worst) {
+
+            worst = color;
+        }
+    }
+
+    switch(worst) {
+
+        case 1: tr.style = "color: #8be9fd"; break;
+        case 2: tr.style = "color: #f1fa8c"; break;
+        case 3: tr.style = "color: #ffb86c"; break;
+        case 4: tr.style = "color: #ff5555"; break;
+
+        default: tr.style = "color: #ffffff"; break;
+    }
+
+    table.appendChild(tr);
+}
+
+function appendRow(entry, table) {
 
     const splits = entry.split('|');
 
@@ -152,6 +218,7 @@ function appendRow(entry, table, hook) {
     tr.className = "table-data-row";
 
     key.className = "table-data-elem";
+    key.style = "width: 84%; color: #ffffff";
     key.innerText = cleanObservabilityString(splits[0]);
 
     count.className = "table-data-elem";
@@ -161,46 +228,6 @@ function appendRow(entry, table, hook) {
     lastInvocation.className = "table-data-elem";
     lastInvocation.style = "width: 11%; text-align: center";
     lastInvocation.innerText = formatDate(new Date(Number.parseInt(splits[2])));
-
-    if(hook === "invocations-table-hook") {
-
-        key.style = "width: 70%";
-
-        const httpStatuses = document.createElement("div");
-        httpStatuses.className = "table-data-elem";
-        httpStatuses.style = "width: 14%";
-        httpStatuses.innerText = splits[3];
-
-        tr.appendChild(httpStatuses);
-
-        const httpStatusesArray = splits[3].split(',');
-        let worst = 0;
-
-        for(const httpStatus of httpStatusesArray) {
-
-            const color = colorTable.get(httpStatus);
-
-            if(color !== null && color !== undefined && color > worst) {
-
-                worst = color;
-            }
-        }
-
-        switch(worst) {
-
-            case 1: tr.style = "color: #8be9fd"; break;
-            case 2: tr.style = "color: #f1fa8c"; break;
-            case 3: tr.style = "color: #ffb86c"; break;
-            case 4: tr.style = "color: #ff5555"; break;
-
-            default: tr.style = "color: #ffffff"; break;
-        }
-    }
-
-    else {
-
-        key.style = "width: 84%; color: #ffffff";
-    }
 
     table.appendChild(tr);
 }

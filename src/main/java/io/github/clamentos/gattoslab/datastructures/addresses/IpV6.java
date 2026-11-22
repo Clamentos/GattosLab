@@ -19,7 +19,7 @@ public final class IpV6 implements IpAddress {
     public IpV6(final byte[] address) {
 
         this.high = this.parse(address, 0);
-        this.low = this.parse(address, 8);
+        this.low = this.parse(address, Long.BYTES);
     }
 
     ///
@@ -40,7 +40,7 @@ public final class IpV6 implements IpAddress {
     @Override
     public String toString() {
 
-        final MutableString mutableString = new MutableString(15);
+        final MutableString mutableString = new MutableString(39);
 
         mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0xFFFF_0000_0000_0000L) >>> 48]); mutableString.append(':');
         mutableString.append(GenericUtils.IPV4_LOOKUP_TABLE[(int)(this.high & 0x0000_FFFF_0000_0000L) >>> 32]); mutableString.append(':');
@@ -72,12 +72,12 @@ public final class IpV6 implements IpAddress {
     @Override
     public int hashCode() {
 
-        int result = 1;
+        int hash = 1;
 
-        result = result * 59 + (int)(this.low ^ (this.low >>> 32));
-        result = result * 59 + (int)(this.high ^ (this.high >>> 32));
+        hash = (hash * 59) + (int)(this.low ^ (this.low >>> Integer.SIZE));
+        hash = (hash * 59) + (int)(this.high ^ (this.high >>> Integer.SIZE));
 
-        return result;
+        return hash;
     }
 
     ///.
@@ -87,7 +87,7 @@ public final class IpV6 implements IpAddress {
 
         for(int i = 0; i < Long.BYTES; i++) {
 
-            value = (value << Long.BYTES) | (address[i + offset] & 0xFF);
+            value = (value << Byte.SIZE) | (address[i + offset] & 0x00_00_00_FF);
         }
 
         return value;

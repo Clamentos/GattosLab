@@ -1,5 +1,6 @@
 package io.github.clamentos.gattoslab.lifecycle;
 
+///
 import io.github.clamentos.gattoslab.observability.ObservabilityService;
 import io.github.clamentos.gattoslab.observability.logging.Logger;
 import io.github.clamentos.gattoslab.observability.logging.LoggerRoot;
@@ -32,7 +33,7 @@ public class ShutdownHook implements Runnable {
         this.logger = new Logger();
 
         this.closeables = new TreeMap<>();
-        this.priorities = HashMap.newHashMap(5);
+        this.priorities = HashMap.newHashMap(6);
 
         this.priorities.put(BatchScheduler.class, 0);
         this.priorities.put(ServerContainer.class, 1);
